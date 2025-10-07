@@ -1,0 +1,90 @@
+{
+  "LB": {
+    "name": "left_long_bout",
+    "type": "trajectory",
+    "angle_ranges": [[-30, -163]],
+    "n_dots": 1
+  },
+
+  "RB": {
+    "name": "right_long_bout",
+    "type": "trajectory",
+    "angle_ranges": [[30, 163]],
+    "n_dots": 1
+  },
+
+  "RR1": {
+    "name": "rocking_right_1",
+    "type": "trajectory",
+    "angle_ranges": [[30, 163]],
+    "n_dots": 1,
+    "rocking": true,
+    "rocking_idx_pair": [9, 10]
+  },
+
+  "RR2": {
+    "name": "rocking_right_2",
+    "type": "trajectory",
+    "angle_ranges": [[30, 163]],
+    "n_dots": 1,
+    "rocking": true,
+    "rocking_idx_pair": [6, 10]
+  },
+
+  "RR3": {
+    "name": "rocking_right_3",
+    "type": "trajectory",
+    "angle_ranges": [[30, 163]],
+    "n_dots": 1,
+    "rocking": true,
+    "rocking_idx_pair": [2, 10]
+  },
+
+  "RL1": {
+    "name": "rocking_left_1",
+    "type": "trajectory",
+    "angle_ranges": [[-30, -163]],
+    "n_dots": 1,
+    "rocking": true,
+    "rocking_idx_pair": [9, 10]
+  },
+
+  "RL2": {
+    "name": "rocking_left_2",
+    "type": "trajectory",
+    "angle_ranges": [[-30, -163]],
+    "n_dots": 1,
+    "rocking": true,
+    "rocking_idx_pair": [6, 10]
+  },
+
+  "RL3": {
+    "name": "rocking_left_3",
+    "type": "trajectory",
+    "angle_ranges": [[-30, -163]],
+    "n_dots": 1,
+    "rocking": true,
+    "rocking_idx_pair": [2, 10]
+  },
+
+  "RLR1": {
+    "name": "rocking_left_right_7",
+    "type": "trajectory",
+    "n_dots": 1,
+    "rocking_lr": true,
+    "left_angle_range": [-30, -163],
+    "right_angle_range": [30, 163],
+    "rocking_lr_indices": [6, 6]
+  },
+
+  "RLR2": {
+    "name": "rocking_left_right_10",
+    "type": "trajectory",
+    "n_dots": 1,
+    "rocking_lr": true,
+    "left_angle_range": [-30, -163],
+    "right_angle_range": [30, 163],
+    "rocking_lr_indices": [10, 10]
+  }
+
+}

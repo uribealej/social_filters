@@ -1,0 +1,81 @@
+{
+    "LLB": {
+        "name": "left_long_bout",
+        "type": "trajectory",
+        "angle_ranges": [[-30, -163]],
+        "n_dots": 1
+    },
+
+    "RLB": {
+        "name": "right_long_bout",
+        "type": "trajectory",
+        "angle_ranges": [[30, 163]],
+        "n_dots": 1
+    },
+
+    "FLB": {
+        "name": "flickering_left_bout",
+        "type": "trajectory",
+        "angle_ranges": [[-30, -163]],
+        "n_dots": 1,
+        "flickering": true
+    },
+
+    "FRB": {
+        "name": "flickering_right_bout",
+        "type": "trajectory",
+        "angle_ranges": [[30, 163]],
+        "n_dots": 1,
+        "flickering": true
+    },
+
+
+
+    "FR1": {
+        "name": "flicker_right_1",
+        "type": "flicker",
+        "based_on": "RLB",
+        "angle_index": 2,
+        "n_dots": 1
+    },
+
+    "FR2": {
+        "name": "flicker_right_2",
+        "type": "flicker",
+        "based_on": "RLB",
+        "angle_index": 6,
+        "n_dots": 1
+    },
+
+    "FR3": {
+        "name": "flicker_right_3",
+        "type": "flicker",
+        "based_on": "RLB",
+        "angle_index": 10,
+        "n_dots": 1
+    },
+
+    "FL1": {
+        "name": "flicker_left_1",
+        "type": "flicker",
+        "based_on": "LLB",
+        "angle_index": 2,
+        "n_dots": 1
+    },
+
+    "FL2": {
+        "name": "flicker_left_2",
+        "type": "flicker",
+        "based_on": "LLB",
+        "angle_index": 6,
+        "n_dots": 1
+    },
+
+    "FL3": {
+        "name": "flicker_left_3",
+        "type": "flicker",
+        "based_on": "LLB",
+        "angle_index": 10,
+        "n_dots": 1
+    }
+}

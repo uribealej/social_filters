@@ -1,0 +1,56 @@
+{
+    "LLB": {
+        "name": "left_long_bout",
+        "angle_ranges": [[-30, -163]],
+        "continuous": [false],
+        "n_dots": 1
+    },
+
+    "RLB": {
+        "name": "right_long_bout",
+        "angle_ranges": [[30, 163]],
+        "continuous": [false],
+        "n_dots": 1
+    },
+    "LLC": {
+        "name": "left_long_continous",
+        "angle_ranges": [[-30, -163]],
+        "continuous": [true],
+        "n_dots": 1
+    },
+    "RLC": {
+        "name": "right_long_continous",
+        "angle_ranges": [[30, 163]],
+        "continuous": [true],
+        "n_dots": 1
+    },
+
+    "LLB+RLB": {
+        "name": "left_long_bout_right_long_bout",
+        "angle_ranges": [[-30, -163], [30, 163]],
+        "continuous": [false, false],
+        "n_dots": 2
+    },
+
+    "LLC+RLC": {
+        "name": "left_long_continous_right_long_continous",
+        "angle_ranges": [[-30, -163], [30, 163]],
+        "continuous": [true, true],
+        "n_dots": 2
+    },
+
+    "LLB+RLC": {
+        "name": "left_long_bout_right_long_continous",
+        "angle_ranges": [[-30, -163], [30, 163]],
+        "continuous": [false, true],
+        "n_dots": 2
+    },
+
+    "LLC+RLB": {
+        "name": "left_long_continous_right_long_bout",
+        "angle_ranges": [[-30, -163], [30, 163]],
+        "continuous": [true, false],
+        "n_dots": 2
+    }
+
+}
