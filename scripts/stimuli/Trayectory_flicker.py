@@ -262,4 +262,5 @@ pd.DataFrame([{"total_experiment_duration_sec": total_time_sec}]).to_csv(
 
 
 print(f"Total experiment time: {total_time_sec:.2f} sec ({total_time_sec/60:.2f} min)")
+print('total_time')
 print("✅ All stimuli generated and saved.")
