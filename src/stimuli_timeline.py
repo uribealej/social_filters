@@ -247,81 +247,81 @@ def make_stimulus_traces(log_file, stim_durations, selected_blocks, duration_2p_
                 result['appearance'][int(static_start2 * fps_stim):int(static_end2 * fps_stim)] = 1
 
     return result, adjusted_log
-#
-# def make_stimulus_traces(log_file, stimuli_durations, selected_blocks, duration_2p_block_sec, fps_stim=60):
-#     """
-#     Create a stimulus table and a single numeric stimulus trace using fixed 2p time alignment.
-#
-#     Parameters:
-#     - log_file: Path to experiment log CSV.
-#     - stimuli_durations: Dict of stimulus names -> durations info.
-#     - selected_blocks: List of blocks to include (e.g., ['B1', 'B2']).
-#     - duration_2p_block_sec: Duration of each block in 2p time (seconds).
-#     - fps_stim: Stimulus frame rate (Hz).
-#
-#     Returns:
-#     - adjusted_log_dataframe: Adjusted log with shifted timestamps.
-#     - stimulus_trace: 1D np.ndarray (int16). 0 = no stimulus; 1..K = stimulus type IDs.
-#     - stimulus_table: DataFrame (one row per trial).
-#     - stimulus_name_to_id: Dict[str, int] mapping stimulus_name -> stimulus_type_id.
-#     """
-#
-#     log = pd.read_csv(log_file)
-#     adjusted_log = []
-#
-#     # Adjust timestamps for selected blocks
-#     for i, block in enumerate(selected_blocks):
-#         shift = i * duration_2p_block_sec
-#         block_mask = log['event'].str.startswith(block)
-#         block_df = log[block_mask].copy()
-#         block_df['timestamp'] += shift
-#         adjusted_log.append(block_df)
-#
-#     adjusted_log = pd.concat(adjusted_log).sort_values('timestamp').reset_index(drop=True)
-#
-#     # Create empty trace arrays
-#     max_time = adjusted_log['timestamp'].max()
-#     trace_length_frames = int(round(max_time * fps_stim, 0))
-#     stimuli_trace = np.zeros(trace_length_frames, dtype=np.int16)
-#
-#     # stim_events = adjusted_log[adjusted_log['event'].str.contains('stim', case=False, na=False)].copy()
-#     # for _, row in stim_events.iterrows():
-#     #     stim_name = row['event'].split('_')[-1]
-#     stimuli_events = adjusted_log[adjusted_log['event'].str.contains('stim', case=False, na=False)].copy()
-#     stimuli_id_map = {name: i + 1 for i, name in enumerate(stimuli_durations.keys())}
-#
-#     rows = []
-#
-#     for _, row in stimuli_events.iterrows():
-#         block, stim_idx, stim_name = row['event'].split('_', 2)
-#         if stim_name not in stimuli_durations:
-#             continue
-#
-#         onset_time = row["timestamp"]
-#         total_time = stimuli_durations[stim_name]["total_sec"]
-#
-#         onset_frame = int(round(row['timestamp'] * fps_stim, 0))
-#         total_frames = stimuli_durations[stim_name]["total_frames"]
-#
-#         stimuli_trace[onset_frame : onset_frame + total_frames] = stimuli_id_map[stim_name]
-#
-#         row_dict = {
-#             "block": int(block.split('B')[-1]),
-#             "trial": int(stim_idx.split('stim')[1]),       # repetition number within block
-#             "stimulus_name": stim_name,
-#             "stimulus_id": stimuli_id_map[stim_name],
-#             "onset_time": onset_time,
-#             "offset_time": onset_time + total_time,
-#             "total_time": total_time,
-#             "onset_frame": onset_frame,
-#             "offset_frame": onset_frame + total_frames,
-#             "total_frames": total_frames}
-#
-#         rows.append(row_dict)
-#
-#     stimuli_table = pd.DataFrame(rows).sort_values(["block", "trial"]).reset_index(drop=True)
-#
-#     return adjusted_log, stimuli_trace, stimuli_table, stimuli_id_map
+
+def make_stimulus_traces_2(log_file, stimuli_durations, selected_blocks, duration_2p_block_sec, fps_stim=60):
+    """
+    Create a stimulus table and a single numeric stimulus trace using fixed 2p time alignment.
+
+    Parameters:
+    - log_file: Path to experiment log CSV.
+    - stimuli_durations: Dict of stimulus names -> durations info.
+    - selected_blocks: List of blocks to include (e.g., ['B1', 'B2']).
+    - duration_2p_block_sec: Duration of each block in 2p time (seconds).
+    - fps_stim: Stimulus frame rate (Hz).
+
+    Returns:
+    - adjusted_log_dataframe: Adjusted log with shifted timestamps.
+    - stimulus_trace: 1D np.ndarray (int16). 0 = no stimulus; 1..K = stimulus type IDs.
+    - stimulus_table: DataFrame (one row per trial).
+    - stimulus_name_to_id: Dict[str, int] mapping stimulus_name -> stimulus_type_id.
+    """
+
+    log = pd.read_csv(log_file)
+    adjusted_log = []
+
+    # Adjust timestamps for selected blocks
+    for i, block in enumerate(selected_blocks):
+        shift = i * duration_2p_block_sec
+        block_mask = log['event'].str.startswith(block)
+        block_df = log[block_mask].copy()
+        block_df['timestamp'] += shift
+        adjusted_log.append(block_df)
+
+    adjusted_log = pd.concat(adjusted_log).sort_values('timestamp').reset_index(drop=True)
+
+    # Create empty trace arrays
+    max_time = adjusted_log['timestamp'].max()
+    trace_length_frames = int(round(max_time * fps_stim, 0))
+    stimuli_trace = np.zeros(trace_length_frames, dtype=np.int16)
+
+    # stim_events = adjusted_log[adjusted_log['event'].str.contains('stim', case=False, na=False)].copy()
+    # for _, row in stim_events.iterrows():
+    #     stim_name = row['event'].split('_')[-1]
+    stimuli_events = adjusted_log[adjusted_log['event'].str.contains('stim', case=False, na=False)].copy()
+    stimuli_id_map = {name: i + 1 for i, name in enumerate(stimuli_durations.keys())}
+
+    rows = []
+
+    for _, row in stimuli_events.iterrows():
+        block, stim_idx, stim_name = row['event'].split('_', 2)
+        if stim_name not in stimuli_durations:
+            continue
+
+        onset_time = row["timestamp"]
+        total_time = stimuli_durations[stim_name]["total_sec"]
+
+        onset_frame = int(round(row['timestamp'] * fps_stim, 0))
+        total_frames = stimuli_durations[stim_name]["total_frames"]
+
+        stimuli_trace[onset_frame : onset_frame + total_frames] = stimuli_id_map[stim_name]
+
+        row_dict = {
+            "block": int(block.split('B')[-1]),
+            "trial": int(stim_idx.split('stim')[1]),       # repetition number within block
+            "stimulus_name": stim_name,
+            "stimulus_id": stimuli_id_map[stim_name],
+            "onset_time": onset_time,
+            "offset_time": onset_time + total_time,
+            "total_time": total_time,
+            "onset_frame": onset_frame,
+            "offset_frame": onset_frame + total_frames,
+            "total_frames": total_frames}
+
+        rows.append(row_dict)
+
+    stimuli_table = pd.DataFrame(rows).sort_values(["block", "trial"]).reset_index(drop=True)
+
+    return adjusted_log, stimuli_trace, stimuli_table, stimuli_id_map
 
 
 def extract_stimulus_chunks(
