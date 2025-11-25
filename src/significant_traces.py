@@ -693,7 +693,6 @@ def plot_dff_and_raster(deltaF_center, raster, fps=2.0, vmax_dff=0.3, title=None
     plt.show()
     return sort_idx
 
-#
 # fps = 2.0  # Imaging rate in Hz
 # tauDecay = 6.0  # GCaMP6s decay time (sec)
 # f_path = Path("C:/Users/suribear/OneDrive - Université de Lausanne/Lab/Data/2p/plane1")

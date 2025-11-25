@@ -319,9 +319,19 @@ def make_stimulus_traces_2(log_file, stimuli_durations, selected_blocks, duratio
 
         rows.append(row_dict)
 
-    stimuli_table = pd.DataFrame(rows).sort_values(["block", "trial"]).reset_index(drop=True)
+    stimuli_table = pd.DataFrame(rows)
+
+    # Sort only by columns that actually exist
+    sort_cols = [c for c in ["block", "trial"] if c in stimuli_table.columns]
+
+    if sort_cols:
+        stimuli_table = stimuli_table.sort_values(sort_cols).reset_index(drop=True)
 
     return adjusted_log, stimuli_trace, stimuli_table, stimuli_id_map
+
+    # stimuli_table = pd.DataFrame(rows).sort_values(["block", "trial"]).reset_index(drop=True)
+    #
+    # return adjusted_log, stimuli_trace, stimuli_table, stimuli_id_map
 
 
 def extract_stimulus_chunks(
