@@ -615,7 +615,7 @@ def compute_noise_model_romano_fast_modular(
     return mapOfOdds, deltaF_center, density_data, density_noise, xev, yev, raster, mapOfOddsJoint
 
 
-def plot_dff_and_raster(deltaF_center, raster, fps=2.0, vmax_dff=0.3, title=None):
+def plot_dff_and_raster(deltaF_center, raster, fps=2.0, vmax_dff=0.15, title=None):
     """
     Plot one figure with two panels (same neuron order):
       top  : ΔF/F (centered)

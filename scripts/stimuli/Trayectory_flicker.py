@@ -117,7 +117,7 @@ def generate_flickering_dot(radius_cm, angle_deg, framerate, static_period_sec, 
 
 
 # Load JSON config
-with open("package_ale.json", "r") as file:
+with open("package_rocking_2_flickers.json", "r") as file:
     stimulus_config = json.load(file)
 
 
@@ -130,7 +130,7 @@ global_params = {
     "static_period_sec": 8,
     "flicker_interval_ms": 300,
     "dot_size_on": 0.2,
-    "rotation_angle_deg": 45,
+    "rotation_angle_deg": 0,
     "flicker_interval_sec":0.3,
     "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 }
@@ -141,7 +141,9 @@ pause_before_sec = 12.5
 pause_after_sec = 12.5
 # Output directory
 
-output_path = Path(r"Z:\FAC\FBM\CIG\jlarsch\default\D2c\Alejandro\2p\flickering\stimuli")
+output_path = Path(r"Z:\FAC\FBM\CIG\jlarsch\default\D2c\Alejandro\2p\rocking2\stimuli")
+
+
 output_path.mkdir(parents=True, exist_ok=True)
 
 # Save trajectory angles for reuse

@@ -1,6 +1,6 @@
 from pathlib import Path
 from typing import Dict, Any
-
+import pandas as pd
 import numpy as np
 import src.stimuli_timeline as st
 
@@ -86,6 +86,7 @@ def load_2p_experiment(
     metadata_dir = main_path / fish / "01_raw" / "2p" / "metadata"
     dfof_dir = main_path / fish / "03_analysis" / "functional" / "suite2P" / "merged_dFoF"
     plots_path = main_path / fish / "03_analysis" / "functional" / "plots"
+    planes_dir = main_path / fish / "03_analysis" / "functional" / "suite2P"
     prefix = "_".join(fish.split("_")[:2])
 
     # ------------------------------------------------------------------ Optional: precomputed traces & indices
@@ -136,7 +137,43 @@ def load_2p_experiment(
     else:
         print(f"ℹ️ filtered_roi_indices file not found (skipping): {filtered_roi_file}")
 
+    # ------------------------------------------------------------------ map dFof index
 
+    pattern = f"{fish_id}_dFoF_merged_map*.csv"
+    # Find all matching files
+    candidates = list(dfof_dir.glob(pattern))
+    if not candidates:
+        # file NOT found -> print + use None
+        print(f"[load_roi_index] File not found: '{pattern}' in {dfof_dir}")
+        dFoF_merged_map = None
+    else:
+    # Choose the most recently modified file
+        latest_file = max(candidates, key=lambda p: p.stat().st_mtime)
+    # Load CSV as integers (change dtype/skiprows if needed)
+        dFoF_merged_map = pd.read_csv(latest_file)
+        print("dFoF_merged_map:", dFoF_merged_map.shape)
+
+    # ------------------------------------------------------------------ Load Rois and averages images
+
+    # We'll get plane IDs from the map CSV later, to be safe.
+    plane_ids = sorted(dFoF_merged_map['plane'].unique())
+    mean_imgs = {}
+    stat_per_plane = {}
+
+    for pid in plane_ids:  # e.g. 'plane0', 'plane1', ...
+        plane_path = planes_dir / pid
+
+        # Load ops and stat (Suite2P format)
+        ops = np.load(plane_path / "ops.npy", allow_pickle=True).item()
+        stat = np.load(plane_path / "stat.npy", allow_pickle=True)
+
+        # Background image
+        mean_imgs[pid] = ops["meanImg"]
+
+        # Full Suite2P ROI list for that plane
+        stat_per_plane[pid] = stat
+
+    print("Loaded planes:", list(mean_imgs.keys()))
 
     # ------------------------------------------------------------------ dFoF
     # 1) Prefer the exact merged file: <fish_id>_dFoF_merged.npy
@@ -225,6 +262,7 @@ def load_2p_experiment(
         "plots_path": plots_path,
         "experiment_log_path": experiment_log_path,
         "dfof_file": dfof_file,
+        "planes_dir":planes_dir,
     }
 
     return {
@@ -238,9 +276,16 @@ def load_2p_experiment(
         "stimuli_table": stimuli_table,
         "stimuli_id_map": stimuli_id_map,
         "paths": paths,
+        "dFoF_merged_map": dFoF_merged_map,
         # Optional extras (may be None if files are missing):
         "raster": raster,
         "deltaF_center": deltaF_center,
         "kept_neuron_indices": kept_neuron_indices,
         "filtered_roi_indices": filtered_roi_indices,
+        # data from suite2p planes:
+        "plane_ids": plane_ids,
+        "mean_imgs": mean_imgs,
+        "stat_per_plane": stat_per_plane,
+
+
     }

@@ -235,7 +235,7 @@ global_params = {
     "update_interval_ms": 600,     # also controls rocking flip timing
     "static_period_sec": 8,
     "dot_size_on": 0.2,
-    "rotation_angle_deg": 45,
+    "rotation_angle_deg": 0,
     # kept for compatibility; not used if you're not doing flicker
     "flicker_interval_ms": 300,
     "flicker_interval_sec": 0.3,
@@ -252,7 +252,7 @@ pause_after_sec = 12.5
 # -----------------------
 # Output directory
 # -----------------------
-output_path = Path(r"Z:\FAC\FBM\CIG\jlarsch\default\D2c\Alejandro\2p\Exp_2_rocking_1\stimuli")
+output_path = Path(r"Z:\FAC\FBM\CIG\jlarsch\default\D2c\Alejandro\2p\rocking2\stimuli")
 output_path.mkdir(parents=True, exist_ok=True)
 
 # -----------------------

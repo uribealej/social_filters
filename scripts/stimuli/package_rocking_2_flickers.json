@@ -1,0 +1,66 @@
+{
+
+    "LeB": {
+        "name": "flickering_left_bout",
+        "type": "trajectory",
+        "angle_ranges": [[-30, -163]],
+        "n_dots": 1,
+        "flickering": true
+    },
+
+    "RiB": {
+        "name": "flickering_right_bout",
+        "type": "trajectory",
+        "angle_ranges": [[30, 163]],
+        "n_dots": 1,
+        "flickering": true
+    },
+
+    "Ri1F": {
+        "name": "flicker_right_1",
+        "type": "flicker",
+        "based_on": "RiB",
+        "angle_index": 5,
+        "n_dots": 1
+    },
+
+    "Ri2F": {
+        "name": "flicker_right_2",
+        "type": "flicker",
+        "based_on": "RiB",
+        "angle_index": 9,
+        "n_dots": 1
+    },
+
+    "Le1F": {
+        "name": "flicker_left_1",
+        "type": "flicker",
+        "based_on": "LeB",
+        "angle_index": 5,
+        "n_dots": 1
+    },
+
+    "Le2F": {
+        "name": "flicker_left_2",
+        "type": "flicker",
+        "based_on": "LeB",
+        "angle_index": 9,
+        "n_dots": 1
+    },
+
+    "Bi_F1": {
+        "name": "flicker_left_3",
+        "type": "flicker",
+        "based_on": "LeB",
+        "angle_index": 5,
+        "n_dots": 2
+    },
+
+    "Bi_F2": {
+        "name": "flicker_left_3",
+        "type": "flicker",
+        "based_on": "LeB",
+        "angle_index": 9,
+        "n_dots": 2
+    }
+}

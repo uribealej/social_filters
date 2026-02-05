@@ -29,8 +29,6 @@
         "flickering": true
     },
 
-
-
     "FR1": {
         "name": "flicker_right_1",
         "type": "flicker",
@@ -76,6 +74,6 @@
         "type": "flicker",
         "based_on": "LLB",
         "angle_index": 10,
-        "n_dots": 1
+        "n_dots": 2
     }
 }
