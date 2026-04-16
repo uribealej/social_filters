@@ -1,0 +1,102 @@
+
+{
+    "LeB_control": {
+        "name": "left_bout",
+        "type": "trajectory",
+        "angle_ranges": [[-30, -160]],
+        "n_dots": 1,
+        "flickering": false
+    },
+
+    "RiB_control": {
+        "name": "right_bout",
+        "type": "trajectory",
+        "angle_ranges": [[30, 160]],
+        "n_dots": 1,
+        "flickering": false
+    },
+
+     "Le_conti": {
+        "name": "left_conti",
+        "type": "trajectory",
+        "angle_ranges": [[-30, -160]],
+         "continuous": [true],
+        "n_dots": 1,
+        "flickering": false
+    },
+
+    "RiB_conti": {
+        "name": "right_left_conti",
+        "type": "trajectory",
+        "continuous": [true],
+        "angle_ranges": [[30, 160]],
+        "n_dots": 1,
+        "flickering": false
+    },
+
+
+    "LeB_1": {
+        "name": "flickering_left_bout",
+        "type": "trajectory",
+        "angle_ranges": [[-30, -60]],
+        "n_dots": 1,
+        "flickering": false
+    },
+
+    "RiB_1": {
+        "name": "flickering_right_bout",
+        "type": "trajectory",
+        "angle_ranges": [[30, 60]],
+        "n_dots": 1,
+        "flickering": false
+    },
+
+    "LeB_2": {
+        "name": "flickering_left_bout",
+        "type": "trajectory",
+        "angle_ranges": [[-60, -90]],
+        "n_dots": 1,
+        "flickering": false
+    },
+
+    "RiB_2": {
+        "name": "flickering_right_bout",
+        "type": "trajectory",
+        "angle_ranges": [[60, 90]],
+        "n_dots": 1,
+        "flickering": false
+    },
+
+    "LeB_3": {
+        "name": "flickering_left_bout",
+        "type": "trajectory",
+        "angle_ranges": [[-90, -120]],
+        "n_dots": 1,
+        "flickering": false
+    },
+
+    "RiB_3": {
+        "name": "flickering_right_bout",
+        "type": "trajectory",
+        "angle_ranges": [[90, 120]],
+        "n_dots": 1,
+        "flickering": false
+    },
+
+    "LeB_4": {
+        "name": "flickering_left_bout",
+        "type": "trajectory",
+        "angle_ranges": [[-120, -150]],
+        "n_dots": 1,
+        "flickering": false
+    },
+
+    "RiB_4": {
+        "name": "flickering_right_bout",
+        "type": "trajectory",
+        "angle_ranges": [[120, 150]],
+        "n_dots": 1,
+        "flickering": false
+    }
+}
+

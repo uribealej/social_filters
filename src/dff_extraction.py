@@ -165,8 +165,28 @@ def process_suite2p_fluorescence(f_path, fps, tau, percentile=8, instability_rat
     - np.ndarray: ΔF/F0 traces (T x N_final).
     - np.ndarray: Retained ROI indices relative to full Suite2p ROI list.
     """
-    fluorescence_trace = load_fluorescence_data(f_path / "F.npy")
-    iscell_mask = np.load(f_path / "iscell.npy")[:, 0].astype(bool)
+
+    from pathlib import Path
+
+    def find_file_with_suffix(folder: Path, suffix: str) -> Path:
+        matches = list(folder.glob(f"*{suffix}"))
+        if len(matches) == 0:
+            raise FileNotFoundError(f"No file ending with '{suffix}' in {folder}")
+        if len(matches) > 1:
+            raise RuntimeError(f"Multiple files ending with '{suffix}' in {folder}: {matches}")
+        return matches[0]
+
+
+
+    # fluorescence_trace = load_fluorescence_data(f_path / "F.npy")
+    # iscell_mask = np.load(f_path / "iscell.npy")[:, 0].astype(bool)
+    # keep_mask = iscell_mask
+
+    F_file = find_file_with_suffix(f_path, "_F.npy")
+    iscell_file = find_file_with_suffix(f_path, "_iscell.npy")
+
+    fluorescence_trace = load_fluorescence_data(F_file)
+    iscell_mask = np.load(iscell_file)[:, 0].astype(bool)
     keep_mask = iscell_mask
 
     # Keep only ROIs classified as cells

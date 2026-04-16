@@ -1,0 +1,53 @@
+
+{
+    "LeB_control": {
+        "name": "left_bout",
+        "type": "trajectory",
+        "angle_ranges": [[-30, -160]],
+        "n_dots": 1,
+        "flickering": true
+    },
+
+    "RiB_control": {
+        "name": "right_bout",
+        "type": "trajectory",
+        "angle_ranges": [[30, 160]],
+        "n_dots": 1,
+        "flickering": true
+    },
+
+    "LeConti": {
+        "name": "left_conti",
+        "type": "trajectory",
+        "angle_ranges": [[-30, -160]],
+        "continuous": true,
+        "n_dots": 1,
+        "flickering": false
+    },
+
+    "RiConti": {
+        "name": "right_left_conti",
+        "type": "trajectory",
+        "continuous": true,
+        "angle_ranges": [[30, 160]],
+        "n_dots": 1,
+        "flickering": true
+    },
+      "Flick_R": {
+        "name": "flicker_right_3",
+        "type": "flicker",
+        "based_on": "RiB_control",
+        "angle_index": 10,
+        "n_dots": 1
+    },
+
+    "Flick_L": {
+        "name": "flicker_left_3",
+        "type": "flicker",
+        "based_on": "LeB_control",
+        "angle_index": 10,
+        "n_dots": 1
+    }
+
+
+}

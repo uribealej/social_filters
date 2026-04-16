@@ -3,7 +3,7 @@ from typing import Dict, Any
 import pandas as pd
 import numpy as np
 import src.stimuli_timeline as st
-
+from src.analysis_tools import find_file_with_suffix
 
 def transform_stimuli_duration(stimuli_durations: Dict[str, dict]) -> Dict[str, dict]:
     """
@@ -137,6 +137,27 @@ def load_2p_experiment(
     else:
         print(f"ℹ️ filtered_roi_indices file not found (skipping): {filtered_roi_file}")
 
+    # ------------------------------------------------------------------ Optional: z-scored traces
+    z_traces = None
+    #baseline_mean = None
+    #baseline_std = None
+
+    zcore_dir = plots_path / "z_core"
+    zcore_file = zcore_dir / f"{prefix}_zcore.npz"
+
+    if zcore_file.exists():
+        try:
+            with np.load(zcore_file) as data:
+                z_traces = data["z_traces"] if "z_traces" in data.files else None
+                #baseline_mean = data["baseline_mean"] if "baseline_mean" in data.files else None
+                #baseline_std = data["baseline_std"] if "baseline_std" in data.files else None
+
+            print(f"✅ Loaded z_traces from {zcore_file}")
+
+        except Exception as e:
+            print(f"⚠️ Could not load {zcore_file}: {e}")
+    else:
+        print(f"ℹ️ z_core file not found (skipping): {zcore_file}")
     # ------------------------------------------------------------------ map dFof index
 
     pattern = f"{fish_id}_dFoF_merged_map*.csv"
@@ -163,9 +184,17 @@ def load_2p_experiment(
     for pid in plane_ids:  # e.g. 'plane0', 'plane1', ...
         plane_path = planes_dir / pid
 
+
+
         # Load ops and stat (Suite2P format)
-        ops = np.load(plane_path / "ops.npy", allow_pickle=True).item()
-        stat = np.load(plane_path / "stat.npy", allow_pickle=True)
+
+        ops_file = find_file_with_suffix(plane_path , "ops.npy")
+        stat_file = find_file_with_suffix(plane_path, "stat.npy")
+
+        ops = np.load(ops_file, allow_pickle=True).item()
+        stat = np.load(stat_file, allow_pickle=True)
+        # ops = np.load(plane_path / "ops.npy", allow_pickle=True).item()
+        # stat = np.load(plane_path / "stat.npy", allow_pickle=True)
 
         # Background image
         mean_imgs[pid] = ops["meanImg"]
@@ -222,11 +251,18 @@ def load_2p_experiment(
         filename = stim_file.stem  # e.g. 'FL2_trajectory'
         stim_name = filename.replace("_trajectory", "")
 
-        # Use timing function depending on stimulus type
-        if any(s in filename for s in ("B", "RR", "RL")):
-            stimuli_durations[stim_name] = st.get_stimulus_timing(stim_file)
-        else:
-            stimuli_durations[stim_name] = st.get_radius_timing(stim_file)
+        stimuli_durations[stim_name] = st.get_motion_timing_simple(
+            stim_file,
+            framerate=60,  # or whatever your stimulus framerate is
+            include_xy=True,
+            include_radius=True,
+        )
+
+        # # Use timing function depending on stimulus type
+        # if any(s in filename for s in ("B", "RR", "RL")):
+        #     stimuli_durations[stim_name] = st.get_stimulus_timing(stim_file)
+        # else:
+        #     stimuli_durations[stim_name] = st.get_radius_timing(stim_file)
 
     stimuli_durations = transform_stimuli_duration(stimuli_durations)
 
@@ -278,6 +314,7 @@ def load_2p_experiment(
         "paths": paths,
         "dFoF_merged_map": dFoF_merged_map,
         # Optional extras (may be None if files are missing):
+        "z_traces": z_traces,
         "raster": raster,
         "deltaF_center": deltaF_center,
         "kept_neuron_indices": kept_neuron_indices,

@@ -4,7 +4,8 @@ from psychopy import visual, core, event, monitors
 import pyglet
 import time
 # === Parameters ===
-stimuli_path = Path(r"Z:\FAC\FBM\CIG\jlarsch\default\D2c\Alejandro\2p\rocking2\stimuli_45")
+
+stimuli_path = Path(r"\\nasdcsr.unil.ch\RECHERCHE\FAC\FBM\CIG\jlarsch\default\D2c\Alejandro\2p\Exp_6_mapping_positions_retina")
 stimulus_files = sorted(stimuli_path.glob("*_trajectory.csv"))  # Load all CSVs
 screen_index = 0# Adjust if needed
 physical_width_cm = 59.0

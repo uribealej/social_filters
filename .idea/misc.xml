@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="neuro-group" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="neuro-group" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="social_filters" project-jdk-type="Python SDK" />
 </project>

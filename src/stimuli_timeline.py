@@ -3,6 +3,88 @@ import numpy as np
 from pathlib import Path
 from scipy.stats import mode
 
+
+def get_motion_timing_simple(
+    trajectory_file,
+    framerate=60,
+    include_xy=True,
+    include_radius=True,
+):
+    """
+    Simple timing extraction:
+    - start_frame = earliest frame where any selected column differs from its initial value
+    - end_frame   = last frame of the file (n_frames - 1)
+
+    It can look at:
+      - x/y columns:   *_x, *_y  (include_xy=True)
+      - radius columns: *_radius (include_radius=True)
+
+    Returns a dict with fields compatible with your downstream code.
+    """
+    trajectory_file = Path(trajectory_file)
+    df = pd.read_csv(trajectory_file)
+    n_frames = len(df)
+    if n_frames <= 0:
+        raise ValueError("Empty trajectory file.")
+
+    cols = []
+    if include_xy:
+        cols += [c for c in df.columns if c.endswith(("_x", "_y"))]
+    if include_radius:
+        cols += [c for c in df.columns if c.endswith("_radius")]
+
+    # Remove duplicates while preserving order
+    cols = list(dict.fromkeys(cols))
+
+    if not cols:
+        raise ValueError("No relevant columns found (no *_x/*_y and/or *_radius).")
+
+    start_candidates = []
+    for c in cols:
+        s = df[c].to_numpy()
+
+        # skip all-NaN columns safely
+        if np.all(pd.isna(s)):
+            continue
+
+        # first index where value differs from initial value
+        diff_from_init = (s != s[0])
+        if np.any(diff_from_init):
+            start_candidates.append(int(np.argmax(diff_from_init)))
+
+    if not start_candidates:
+        # no movement detected anywhere => motion "starts" at frame 0
+        start_frame = 0
+    else:
+        start_frame = min(start_candidates)
+
+    end_frame = n_frames - 1  # per your assumption
+
+    static_before_frames = start_frame
+    motion_frames = end_frame - start_frame + 1  # inclusive
+    static_after_frames = 0  # because motion ends at last frame
+
+    to_sec = lambda f: f / float(framerate)
+
+    return {
+        "static_before_sec": to_sec(static_before_frames),
+        "motion_sec": to_sec(motion_frames),
+        "static_after_sec": to_sec(static_after_frames),
+
+        "total_sec": to_sec(n_frames),
+        "total_frames": int(n_frames),
+
+        "motion_start_frame": int(start_frame),
+        "motion_end_frame": int(end_frame),
+
+        # aliases (handy if other code expects these names)
+        "start_frame": int(start_frame),
+        "end_frame": int(end_frame),
+    }
+
+
+
+
 def get_radius_timing(trajectory_file, framerate=60):
     from pathlib import Path
     import pandas as pd

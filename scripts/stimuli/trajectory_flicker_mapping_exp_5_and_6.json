@@ -1,0 +1,33 @@
+{
+   "LLB": {
+        "name": "left_long_bout",
+        "type": "trajectory",
+        "angle_ranges": [[-120, -160]],
+        "n_dots": 1
+    },
+
+    "RLB": {
+        "name": "right_long_bout",
+        "type": "trajectory",
+        "angle_ranges": [[120, 160]],
+        "n_dots": 1
+    },
+
+
+    "FlickR": {
+        "name": "flicker_right_1",
+        "type": "flicker",
+        "based_on": "RLB",
+        "angle_index": 0,
+        "n_dots": 1
+    },
+
+    "FlickL": {
+        "name": "flicker_left_1",
+        "type": "flicker",
+        "based_on": "LLB",
+        "angle_index": 0,
+        "n_dots": 1
+    }
+
+}

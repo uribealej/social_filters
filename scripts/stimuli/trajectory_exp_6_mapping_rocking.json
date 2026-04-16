@@ -1,0 +1,24 @@
+{
+
+  "RockR": {
+    "name": "rocking_right_1",
+    "type": "trajectory",
+    "angle_ranges": [[30, 160]],
+    "flickering": true,
+    "n_dots": 1,
+    "rocking": true,
+    "rocking_idx_pair": [11,13]
+  },
+
+
+  "RockL": {
+    "name": "rocking_left_1",
+    "type": "trajectory",
+    "angle_ranges": [[-30, -160]],
+    "flickering": true,
+    "n_dots": 1,
+    "rocking": true,
+    "rocking_idx_pair": [11, 13]
+  }
+
+}

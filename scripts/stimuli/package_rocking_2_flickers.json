@@ -5,7 +5,7 @@
         "type": "trajectory",
         "angle_ranges": [[-30, -163]],
         "n_dots": 1,
-        "flickering": true
+        "flickering": false
     },
 
     "RiB": {
@@ -13,14 +13,14 @@
         "type": "trajectory",
         "angle_ranges": [[30, 163]],
         "n_dots": 1,
-        "flickering": true
+        "flickering": false
     },
 
     "Ri1F": {
         "name": "flicker_right_1",
         "type": "flicker",
         "based_on": "RiB",
-        "angle_index": 5,
+        "angle_index": 12,
         "n_dots": 1
     },
 
@@ -28,7 +28,7 @@
         "name": "flicker_right_2",
         "type": "flicker",
         "based_on": "RiB",
-        "angle_index": 9,
+        "angle_index": 14,
         "n_dots": 1
     },
 
@@ -36,7 +36,7 @@
         "name": "flicker_left_1",
         "type": "flicker",
         "based_on": "LeB",
-        "angle_index": 5,
+        "angle_index": 12,
         "n_dots": 1
     },
 
@@ -44,7 +44,7 @@
         "name": "flicker_left_2",
         "type": "flicker",
         "based_on": "LeB",
-        "angle_index": 9,
+        "angle_index": 14,
         "n_dots": 1
     },
 

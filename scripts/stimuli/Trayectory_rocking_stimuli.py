@@ -1,5 +1,6 @@
-import json
+
 import numpy as np
+import json
 import pandas as pd
 from datetime import datetime
 from pathlib import Path
@@ -181,39 +182,7 @@ def generate_circular_rocking_trajectory(
     return df, angles_deg, total_time
 
 
-#
-# df, angles_deg, total_time = generate_circular_trajectory(
-#         radius=1.8,
-#         angle_range=[-30, -163],
-#         speed=0.497,
-#         framerate=60,
-#         static_period_sec=3,
-#         update_interval_ms=600,
-#         rotation_angle=45,
-#         dot_size_on=0.2,
-#         flickering=False, flicker_interval_sec=0.3,
-#         continuous=False,
-#         rocking=True, rocking_idx_pair=(7, 10), rocking_lr=True,
-#         rocking_lr_indices=[7, 7],
-#         save_path=r"C:\Users\suribear\OneDrive - Université de Lausanne\Lab\LR7.csv")
-#
-# from pathlib import Path   # <-- add this line
-#
-# # --- Choose where to save ---
-# save_dir = Path(r"C:\Users\suribear\OneDrive - Université de Lausanne\Lab")
-# save_dir.mkdir(parents=True, exist_ok=True)
-#
-# filename = "rocking_stimulus.csv"
-# save_path = save_dir / filename
-#
-# df.to_csv(save_path, index=False)
-#
-# print(f"✅ Saved trajectory to {save_path}")
 
-import json
-import pandas as pd
-from datetime import datetime
-from pathlib import Path
 
 # If your function is in another module, import it like:
 # from your_module import generate_circular_rocking_trajectory
@@ -222,7 +191,7 @@ from pathlib import Path
 # -----------------------
 # Load JSON config (NEW)
 # -----------------------
-with open("trajectory_rocking.json", "r") as file:
+with open("trajectory_exp_6_mapping_rocking.json", "r") as file:
     stimulus_config = json.load(file)
 
 # -----------------------
@@ -235,7 +204,7 @@ global_params = {
     "update_interval_ms": 600,     # also controls rocking flip timing
     "static_period_sec": 8,
     "dot_size_on": 0.2,
-    "rotation_angle_deg": 0,
+    "rotation_angle_deg": 45,
     # kept for compatibility; not used if you're not doing flicker
     "flicker_interval_ms": 300,
     "flicker_interval_sec": 0.3,
@@ -252,7 +221,7 @@ pause_after_sec = 12.5
 # -----------------------
 # Output directory
 # -----------------------
-output_path = Path(r"Z:\FAC\FBM\CIG\jlarsch\default\D2c\Alejandro\2p\rocking2\stimuli")
+output_path = Path(r"D:\Alejandro\Data\OneDrive - Université de Lausanne\Lab\Data\stimuli\Exp_6_mapping_positions_retina_3")
 output_path.mkdir(parents=True, exist_ok=True)
 
 # -----------------------
@@ -291,7 +260,7 @@ for key, params in stimulus_config.items():
                     rotation_angle=global_params["rotation_angle_deg"],
                     dot_size_on=global_params["dot_size_on"],
                     # no flickering now
-                    flickering=False,
+                    flickering=params.get("flickering", False),
                     # LR mode:
                     rocking_lr=True,
                     rocking_lr_indices=params["rocking_lr_indices"],
@@ -311,7 +280,7 @@ for key, params in stimulus_config.items():
                     update_interval_ms=global_params["update_interval_ms"],
                     rotation_angle=global_params["rotation_angle_deg"],
                     dot_size_on=global_params["dot_size_on"],
-                    flickering=False,
+                    flickering=params.get("flickering", False),
                     rocking=True,
                     rocking_idx_pair=params["rocking_idx_pair"],
                 )
@@ -327,7 +296,7 @@ for key, params in stimulus_config.items():
                     update_interval_ms=global_params["update_interval_ms"],
                     rotation_angle=global_params["rotation_angle_deg"],
                     dot_size_on=global_params["dot_size_on"],
-                    flickering=False,
+                    flickering=params.get("flickering", False),
                 )
 
             dfs.append(df_single)
