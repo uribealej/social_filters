@@ -4,6 +4,7 @@ import pandas as pd
 from datetime import datetime
 from pathlib import Path
 
+
 def generate_circular_trajectory(radius, angle_range, speed, framerate,
                                  static_period_sec, update_interval_ms, dot_size_on,
                                  flickering=False, flicker_interval_sec=0.3,
@@ -16,7 +17,7 @@ def generate_circular_trajectory(radius, angle_range, speed, framerate,
     total_time = round(arc_length / speed, 4)
     print('total_time_please', total_time)
     step_size = 1 / framerate if continuous else update_interval_ms / 1000
-    frame_times = np.round(np.arange(0, total_time+step_size, step_size), 4)
+    frame_times = np.round(np.arange(0, total_time + step_size, step_size), 4)
 
     angles = start_angle + np.sign(end_angle - start_angle) * omega * frame_times
     angles_deg = np.rad2deg(angles)
@@ -35,7 +36,6 @@ def generate_circular_trajectory(radius, angle_range, speed, framerate,
     dot_dict['y'] += [y_rotated[0]] * static_frames
     dot_dict['radius'] += [dot_size_on] * static_frames
 
-    # Add motion frames
     for f in range(n_frames):
         timepoint = round(f / framerate, 4)
         if timepoint in frame_times:
@@ -48,25 +48,11 @@ def generate_circular_trajectory(radius, angle_range, speed, framerate,
 
         dot_dict['x'].append(x_val)
         dot_dict['y'].append(y_val)
-        dot_dict['radius'].append(dot_size_on)  # temp placeholder, will be modified below if flickering
-    # for f in range(n_frames+1):
-    #     timepoint = round(f / framerate, 4)
-    #     if timepoint in frame_times:
-    #         idx = np.where(frame_times == timepoint)[0][0]
-    #         dot_dict['x'].append(x_rotated[1:][idx])
-    #         dot_dict['y'].append(y_rotated[1:][idx])
-    #     else:
-    #         dot_dict['x'].append(dot_dict['x'][-1])
-    #         dot_dict['y'].append(dot_dict['y'][-1])
+        dot_dict['radius'].append(dot_size_on)
 
-    # dot_dict['x'] += [x_rotated[-1]] * static_frames
-    # dot_dict['y'] += [y_rotated[-1]] * static_frames
-    # dot_dict['radius'] = global_params["dot_size_on"]
-    # Apply flicker only to movement frames (after static period)
     if flickering:
-        
         flicker_interval_frames = int(flicker_interval_sec * framerate)
-        start_flicker_idx = static_frames  # flicker begins after static period
+        start_flicker_idx = static_frames
         toggle = True
         for i in range(start_flicker_idx, len(dot_dict['radius']), flicker_interval_frames):
             end = min(i + flicker_interval_frames, len(dot_dict['radius']))
@@ -78,15 +64,15 @@ def generate_circular_trajectory(radius, angle_range, speed, framerate,
     return df, angles_deg, total_time
 
 
-def generate_flickering_dot(radius_cm, angle_deg, framerate, static_period_sec, flicker_duration_sec, flicker_interval_ms, dot_size_on, rotation_angle_deg=45):
+def generate_flickering_dot(radius_cm, angle_deg, framerate, static_period_sec,
+                            flicker_duration_sec, flicker_interval_ms, dot_size_on,
+                            rotation_angle_deg=45):
     angle_rad = np.deg2rad(angle_deg)
     theta = np.deg2rad(rotation_angle_deg)
 
-    # Base position before rotation
     x = radius_cm * np.sin(angle_rad)
     y = radius_cm * np.cos(angle_rad)
 
-    # Rotate
     x_rot = x * np.cos(theta) - y * np.sin(theta)
     y_rot = x * np.sin(theta) + y * np.cos(theta)
 
@@ -96,13 +82,11 @@ def generate_flickering_dot(radius_cm, angle_deg, framerate, static_period_sec, 
 
     x_list, y_list, size_list = [], [], []
 
-    # Static ON
     for _ in range(static_frames):
         x_list.append(x_rot)
         y_list.append(y_rot)
         size_list.append(dot_size_on)
 
-    # Flickering ON/OFF
     for i in range(flicker_frames):
         x_list.append(x_rot)
         y_list.append(y_rot)
@@ -115,36 +99,59 @@ def generate_flickering_dot(radius_cm, angle_deg, framerate, static_period_sec, 
 
     return df
 
-
-# Load JSON config
-with open("trajectory_exp_6_mapping_flickers_and_bouts_2.json", "r") as file:
-    stimulus_config = json.load(file)
-
-
-# Global parameters
-global_params = {
+#
+# Final config/main section.
+DEFAULT_EXPERIMENT_CONFIG = {
+    "output_path": r"D:\Alejandro\Data\OneDrive - Université de Lausanne\Lab\Data\stimuli\Exp_6_mapping_positions_retina_2",
     "radius_cm": 1.8,
-    "speed_cm_sec": 0.497,#0.497,
+    "speed_cm_sec": 0.497,
     "framerate": 60,
-    "update_interval_ms":600,
-    "static_period_sec":8,
+    "update_interval_ms": 600,
+    "static_period_sec": 8,
     "flicker_interval_ms": 300,
     "dot_size_on": 0.2,
     "rotation_angle_deg": 45,
-    "flicker_interval_sec":0.3,
+    "flicker_interval_sec": 0.3,
+    "n_repetitions": 2,
+    "pause_before_sec": 12.5,
+    "pause_after_sec": 12.5,
+}
+
+# Change this file name to switch configs.
+config_filename = "trajectory_exp_6_mapping_flickers_and_bouts_2.json"
+config_path = Path(__file__).with_name(config_filename)
+with config_path.open("r", encoding="utf-8") as file:
+    raw_config = json.load(file)
+
+experiment_config = {
+    **DEFAULT_EXPERIMENT_CONFIG,
+    **raw_config.get("_experiment", {}),
+}
+stimulus_config = {
+    key: value for key, value in raw_config.items()
+    if key != "_experiment"
+}
+
+global_params = {
+    "radius_cm": experiment_config["radius_cm"],
+    "speed_cm_sec": experiment_config["speed_cm_sec"],
+    "framerate": experiment_config["framerate"],
+    "update_interval_ms": experiment_config["update_interval_ms"],
+    "static_period_sec": experiment_config["static_period_sec"],
+    "flicker_interval_ms": experiment_config["flicker_interval_ms"],
+    "dot_size_on": experiment_config["dot_size_on"],
+    "rotation_angle_deg": experiment_config["rotation_angle_deg"],
+    "flicker_interval_sec": experiment_config["flicker_interval_sec"],
     "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 }
 
-# Define repetitions and pause times
-n_repetitions = 2
-pause_before_sec = 12.5
-pause_after_sec = 12.5
-# Output directory
+n_repetitions = experiment_config["n_repetitions"]
+pause_before_sec = experiment_config["pause_before_sec"]
+pause_after_sec = experiment_config["pause_after_sec"]
 
-output_path = Path(r"D:\Alejandro\Data\OneDrive - Université de Lausanne\Lab\Data\stimuli\Exp_6_mapping_positions_retina_2")
+output_path = Path(experiment_config["output_path"])
 output_path.mkdir(parents=True, exist_ok=True)
 
-# Save trajectory angles for reuse
 saved_angles = {}
 saved_times = {}
 experiment_params = []
@@ -158,10 +165,9 @@ for key, params in stimulus_config.items():
     if stim_type == "trajectory":
         angle_range = params["angle_ranges"][0]
 
-
         dfs = []
         for _ in range(n_dots):
-            df, angles_deg, total_time= generate_circular_trajectory(
+            df, angles_deg, total_time = generate_circular_trajectory(
                 radius=global_params["radius_cm"],
                 angle_range=angle_range,
                 speed=global_params["speed_cm_sec"],
@@ -169,10 +175,10 @@ for key, params in stimulus_config.items():
                 static_period_sec=global_params["static_period_sec"],
                 update_interval_ms=global_params["update_interval_ms"],
                 rotation_angle=global_params["rotation_angle_deg"],
-                dot_size_on = global_params["dot_size_on"],
-                flickering = params.get("flickering", False),
+                dot_size_on=global_params["dot_size_on"],
+                flickering=params.get("flickering", False),
                 continuous=params.get("continuous", False),
-                flicker_interval_sec = global_params["flicker_interval_sec"]
+                flicker_interval_sec=global_params["flicker_interval_sec"]
             )
             dfs.append(df)
 
@@ -180,8 +186,8 @@ for key, params in stimulus_config.items():
         combined_df.columns = [f"dot{i}_{coord}" for i in range(n_dots) for coord in ['x', 'y', 'radius']]
         df = combined_df
 
-        saved_angles[key] = angles_deg  # Save for flickering stimuli
-        saved_times[key] = total_time+(global_params["flicker_interval_ms"]/1000)
+        saved_angles[key] = angles_deg
+        saved_times[key] = total_time + (global_params["flicker_interval_ms"] / 1000)
 
     elif stim_type == "flicker":
         based_on = params["based_on"]
@@ -189,14 +195,13 @@ for key, params in stimulus_config.items():
         angle_deg = saved_angles[based_on][angle_idx]
         flicker_duration_sec = saved_times[based_on]
 
-
         dfs = []
         for _ in range(n_dots):
             df_single = generate_flickering_dot(
                 radius_cm=global_params["radius_cm"],
                 angle_deg=angle_deg,
                 framerate=global_params["framerate"],
-                static_period_sec=global_params["static_period_sec"]-(global_params["flicker_interval_ms"]/1000),
+                static_period_sec=global_params["static_period_sec"] - (global_params["flicker_interval_ms"] / 1000),
                 flicker_duration_sec=flicker_duration_sec,
                 flicker_interval_ms=global_params["flicker_interval_ms"],
                 dot_size_on=global_params["dot_size_on"],
@@ -208,11 +213,8 @@ for key, params in stimulus_config.items():
         combined_df.columns = [f"dot{i}_{coord}" for i in range(n_dots) for coord in ['x', 'y', 'radius']]
         df = combined_df
 
-
-    # Save each stimulus .csv
     df.to_csv(output_path / f"{key}_trajectory.csv", index=False)
 
-    # Save parameters
     combined_params = {
         "stimulus_key": key,
         **params,
@@ -220,11 +222,12 @@ for key, params in stimulus_config.items():
     }
     experiment_params.append(combined_params)
 
+
 def calculate_experiment_duration_by_type(stimulus_config, saved_times, total_time, global_params,
                                           n_repetitions, pause_before_sec, pause_after_sec):
 
     static_period = global_params["static_period_sec"]
-    flicker_interval_s= global_params["flicker_interval_ms"] / 1000  # Convert ms to sec
+    flicker_interval_s = global_params["flicker_interval_ms"] / 1000
     total_time_per_repetition = 0
 
     for key, params in stimulus_config.items():
@@ -233,7 +236,7 @@ def calculate_experiment_duration_by_type(stimulus_config, saved_times, total_ti
             duration = static_period + total_time + pause_before_sec + pause_after_sec
         elif stim_type == "flicker":
             flicker_duration = saved_times.get(based_on, 0)
-            duration = static_period-flicker_interval_s+ flicker_duration + pause_before_sec + pause_after_sec
+            duration = static_period - flicker_interval_s + flicker_duration + pause_before_sec + pause_after_sec
         else:
             raise ValueError(f"Unknown stimulus type: {stim_type}")
         print(duration)
@@ -242,7 +245,7 @@ def calculate_experiment_duration_by_type(stimulus_config, saved_times, total_ti
     total_duration = (total_time_per_repetition * n_repetitions)
     return total_duration
 
-# Calculate total time
+
 total_time_sec = calculate_experiment_duration_by_type(
     stimulus_config,
     saved_times,
@@ -253,11 +256,9 @@ total_time_sec = calculate_experiment_duration_by_type(
     pause_after_sec
 )
 
-# Ensure the 'parameters' subdirectory exists
 (output_path / "parameters").mkdir(parents=True, exist_ok=True)
 
-# Save metadata
-pd.DataFrame(experiment_params).to_csv(output_path /'parameters'/ "experiment_parameters.csv", index=False)
+pd.DataFrame(experiment_params).to_csv(output_path / 'parameters' / "experiment_parameters.csv", index=False)
 pd.DataFrame([{"total_experiment_duration_sec": total_time_sec}]).to_csv(
     output_path / 'parameters' / "total_time_sec.csv", index=False
 )
@@ -265,4 +266,4 @@ pd.DataFrame([{"total_experiment_duration_sec": total_time_sec}]).to_csv(
 
 print(f"Total experiment time: {total_time_sec:.2f} sec ({total_time_sec/60:.2f} min)")
 print('total_time')
-print("✅ All stimuli generated and saved.")
+print("âœ… All stimuli generated and saved.")

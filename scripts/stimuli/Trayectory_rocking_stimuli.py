@@ -5,9 +5,10 @@ import pandas as pd
 from datetime import datetime
 from pathlib import Path
 
+
 def generate_circular_rocking_trajectory(
     radius,
-    angle_range,             # used for normal mode & angles_deg; pass left range for LR rocking
+    angle_range,
     speed,
     framerate,
     static_period_sec,
@@ -18,21 +19,18 @@ def generate_circular_rocking_trajectory(
     flickering=False,
     continuous=False,
     rocking=False,
-    rocking_idx_pair=None,   # (i,j) 1-based
-    # --- cross left-right rocking (A from left arc, B from right arc) ---
+    rocking_idx_pair=None,
     rocking_lr=False,
     left_angle_range=[-30, -163],
     right_angle_range=[30, 163],
-    rocking_lr_indices=None, # (i_left, i_right) 1-based
+    rocking_lr_indices=None,
     ):
     """
     Returns:
         df, angles_deg, total_time
     """
 
-    # ---------- helpers ----------
     def _sample_rotated_xy(range_deg, index_1b):
-        # build the *sampling grid* for this arc (same step_size as main)
         start_rad, end_rad = np.deg2rad(range_deg)
         omega = speed / radius
         arc_len = radius * abs(end_rad - start_rad)
@@ -54,7 +52,6 @@ def generate_circular_rocking_trajectory(
         idx = max(0, min(len(xr) - 1, int(index_1b) - 1))
         return xr[idx], yr[idx], T, np.rad2deg(ang)
 
-    # ---------- main precompute for normal / same-arc modes ----------
     x0, y0, total_time, angles_deg = _sample_rotated_xy(angle_range, 1)
     static_frames = int(round(static_period_sec * framerate))
     n_frames = int(round(framerate * total_time))
@@ -62,50 +59,20 @@ def generate_circular_rocking_trajectory(
 
     dot = {'x': [], 'y': [], 'radius': []}
 
-    # ---------- LR ROCKING (left↔right) ----------
     if rocking_lr:
         assert left_angle_range is not None and right_angle_range is not None, "Provide left_angle_range & right_angle_range"
         assert rocking_lr_indices is not None and len(rocking_lr_indices) == 2, "rocking_lr_indices must be [i_left, i_right]"
 
         iL, iR = rocking_lr_indices
-        xA, yA, T_L, angles_deg_L = _sample_rotated_xy(left_angle_range,  iL)
-        xB, yB, T_R, _              = _sample_rotated_xy(right_angle_range, iR)
+        xA, yA, T_L, angles_deg_L = _sample_rotated_xy(left_angle_range, iL)
+        xB, yB, T_R, _ = _sample_rotated_xy(right_angle_range, iR)
 
-        # Use the shorter of the two to be safe (they should match here)
         total_time = min(T_L, T_R)
         n_frames = int(round(framerate * total_time))
-        angles_deg = angles_deg_L  # report left arc angles
-
-        # static (hold LEFT index)
-        if static_frames > 0:
-            dot['x'] += [xB] * static_frames # began for the second rocking point
-            dot['y'] += [yB] * static_frames
-            dot['radius'] += [dot_size_on] * static_frames
-
-        # alternate A (left) ↔ B (right)
-        filled = 0
-        toggle = False
-        while filled < n_frames:
-            block = min(frames_per_update, n_frames - filled)
-            toggle = not toggle
-            if toggle:  # A block (left)
-                dot['x'] += [xA] * block
-                dot['y'] += [yA] * block
-            else:       # B block (right)
-                dot['x'] += [xB] * block
-                dot['y'] += [yB] * block
-            dot['radius'] += [dot_size_on] * block
-            filled += block
-
-    # ---------- SAME-ARC ROCKING ----------
-    elif rocking and rocking_idx_pair is not None:
-        i1, i2 = rocking_idx_pair
-        # A and B from the *same* arc (angle_range)
-        xA, yA, _, _ = _sample_rotated_xy(angle_range, i1)
-        xB, yB, _, _ = _sample_rotated_xy(angle_range, i2)
+        angles_deg = angles_deg_L
 
         if static_frames > 0:
-            dot['x'] += [xB] * static_frames # began for the second rocking point
+            dot['x'] += [xB] * static_frames
             dot['y'] += [yB] * static_frames
             dot['radius'] += [dot_size_on] * static_frames
 
@@ -123,9 +90,31 @@ def generate_circular_rocking_trajectory(
             dot['radius'] += [dot_size_on] * block
             filled += block
 
-    # ---------- NORMAL CIRCULAR MODE ----------
+    elif rocking and rocking_idx_pair is not None:
+        i1, i2 = rocking_idx_pair
+        xA, yA, _, _ = _sample_rotated_xy(angle_range, i1)
+        xB, yB, _, _ = _sample_rotated_xy(angle_range, i2)
+
+        if static_frames > 0:
+            dot['x'] += [xB] * static_frames
+            dot['y'] += [yB] * static_frames
+            dot['radius'] += [dot_size_on] * static_frames
+
+        filled = 0
+        toggle = False
+        while filled < n_frames:
+            block = min(frames_per_update, n_frames - filled)
+            toggle = not toggle
+            if toggle:
+                dot['x'] += [xA] * block
+                dot['y'] += [yA] * block
+            else:
+                dot['x'] += [xB] * block
+                dot['y'] += [yB] * block
+            dot['radius'] += [dot_size_on] * block
+            filled += block
+
     else:
-        # rebuild full samples once (same helper, but keep all samples)
         start_rad, end_rad = np.deg2rad(angle_range)
         omega = speed / radius
         arc_len = radius * abs(end_rad - start_rad)
@@ -144,13 +133,11 @@ def generate_circular_rocking_trajectory(
         static_frames = int(round(static_period_sec * framerate))
         n_frames = int(round(framerate * total_time))
 
-        # static at first sample
         if static_frames > 0:
             dot['x'] += [xr[0]] * static_frames
             dot['y'] += [yr[0]] * static_frames
             dot['radius'] += [dot_size_on] * static_frames
 
-        # motion: follow arc / hold last
         for f in range(n_frames):
             t = round(f / framerate, 4)
             if t in times:
@@ -165,7 +152,6 @@ def generate_circular_rocking_trajectory(
             dot['y'].append(yv)
             dot['radius'].append(dot_size_on)
 
-    # flicker (optional)
     if flickering:
         flick_frames = max(1, int(round(flicker_interval_sec * framerate)))
         start = static_frames
@@ -178,62 +164,65 @@ def generate_circular_rocking_trajectory(
 
     df = pd.DataFrame(dot)
 
-
     return df, angles_deg, total_time
 
-
-
-
-# If your function is in another module, import it like:
-# from your_module import generate_circular_rocking_trajectory
-# Here we assume it's already defined/imported in scope.
-
-# -----------------------
-# Load JSON config (NEW)
-# -----------------------
-with open("trajectory_exp_6_mapping_rocking.json", "r") as file:
-    stimulus_config = json.load(file)
-
-# -----------------------
-# Global parameters
-# -----------------------
-global_params = {
+#
+# Final config/main section.
+DEFAULT_EXPERIMENT_CONFIG = {
+    "output_path": r"D:\Alejandro\Data\OneDrive - Université de Lausanne\Lab\Data\stimuli\Exp_6_mapping_positions_retina_3",
     "radius_cm": 1.8,
     "speed_cm_sec": 0.497,
     "framerate": 60,
-    "update_interval_ms": 600,     # also controls rocking flip timing
+    "update_interval_ms": 600,
     "static_period_sec": 8,
     "dot_size_on": 0.2,
     "rotation_angle_deg": 45,
-    # kept for compatibility; not used if you're not doing flicker
     "flicker_interval_ms": 300,
     "flicker_interval_sec": 0.3,
+    "n_repetitions": 2,
+    "pause_before_sec": 12.5,
+    "pause_after_sec": 12.5,
+}
+
+# Change this file name to switch configs.
+config_filename = "trajectory_exp_6_mapping_rocking.json"
+config_path = Path(__file__).with_name(config_filename)
+with config_path.open("r", encoding="utf-8") as file:
+    raw_config = json.load(file)
+
+experiment_config = {
+    **DEFAULT_EXPERIMENT_CONFIG,
+    **raw_config.get("_experiment", {}),
+}
+stimulus_config = {
+    key: value for key, value in raw_config.items()
+    if key != "_experiment"
+}
+
+global_params = {
+    "radius_cm": experiment_config["radius_cm"],
+    "speed_cm_sec": experiment_config["speed_cm_sec"],
+    "framerate": experiment_config["framerate"],
+    "update_interval_ms": experiment_config["update_interval_ms"],
+    "static_period_sec": experiment_config["static_period_sec"],
+    "dot_size_on": experiment_config["dot_size_on"],
+    "rotation_angle_deg": experiment_config["rotation_angle_deg"],
+    "flicker_interval_ms": experiment_config["flicker_interval_ms"],
+    "flicker_interval_sec": experiment_config["flicker_interval_sec"],
     "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
 }
 
-# -----------------------
-# Repetitions and pauses
-# -----------------------
-n_repetitions = 2
-pause_before_sec = 12.5
-pause_after_sec = 12.5
+n_repetitions = experiment_config["n_repetitions"]
+pause_before_sec = experiment_config["pause_before_sec"]
+pause_after_sec = experiment_config["pause_after_sec"]
 
-# -----------------------
-# Output directory
-# -----------------------
-output_path = Path(r"D:\Alejandro\Data\OneDrive - Université de Lausanne\Lab\Data\stimuli\Exp_6_mapping_positions_retina_3")
+output_path = Path(experiment_config["output_path"])
 output_path.mkdir(parents=True, exist_ok=True)
 
-# -----------------------
-# Book-keeping
-# -----------------------
-saved_angles = {}   # store angles_deg per stimulus (useful if you later add flicker types)
-saved_times  = {}   # store motion time (sec) per stimulus
+saved_angles = {}
+saved_times = {}
 experiment_params = []
 
-# -----------------------
-# Generate stimuli
-# -----------------------
 for key, params in stimulus_config.items():
     stim_type = params["type"]
     print(f"Generating {key} ({stim_type})")
@@ -241,36 +230,28 @@ for key, params in stimulus_config.items():
     n_dots = params.get("n_dots", 1)
 
     if stim_type == "trajectory":
-        # Use provided angle_range if present; default to left arc for normal/rocking
         angle_range = params.get("angle_ranges", [[-30, -163]])[0]
 
         dfs = []
         for _ in range(n_dots):
-            # Branch by mode
             if params.get("rocking_lr", False):
-                # LR rocking; function has defaults for left/right ranges,
-                # but you can override via JSON with left_angle_range/right_angle_range.
                 df_single, angles_deg, total_time = generate_circular_rocking_trajectory(
                     radius=global_params["radius_cm"],
-                    angle_range=angle_range,  # still passed for angles bookkeeping
+                    angle_range=angle_range,
                     speed=global_params["speed_cm_sec"],
                     framerate=global_params["framerate"],
                     static_period_sec=global_params["static_period_sec"],
                     update_interval_ms=global_params["update_interval_ms"],
                     rotation_angle=global_params["rotation_angle_deg"],
                     dot_size_on=global_params["dot_size_on"],
-                    # no flickering now
                     flickering=params.get("flickering", False),
-                    # LR mode:
                     rocking_lr=True,
                     rocking_lr_indices=params["rocking_lr_indices"],
-                    # Optional overrides if present in JSON:
                     left_angle_range=params.get("left_angle_range"),
                     right_angle_range=params.get("right_angle_range"),
                 )
 
             elif params.get("rocking", False):
-                # Same-arc rocking between two sampled indices
                 df_single, angles_deg, total_time = generate_circular_rocking_trajectory(
                     radius=global_params["radius_cm"],
                     angle_range=angle_range,
@@ -286,7 +267,6 @@ for key, params in stimulus_config.items():
                 )
 
             else:
-                # Normal circular trajectory (no rocking)
                 df_single, angles_deg, total_time = generate_circular_rocking_trajectory(
                     radius=global_params["radius_cm"],
                     angle_range=angle_range,
@@ -301,21 +281,17 @@ for key, params in stimulus_config.items():
 
             dfs.append(df_single)
 
-        # Combine columns if multiple dots
         df = pd.concat(dfs, axis=1)
         df.columns = [f"dot{i}_{coord}" for i in range(n_dots) for coord in ["x", "y", "radius"]]
 
-        # Save for potential later use
         saved_angles[key] = angles_deg
-        saved_times[key]  = float(total_time)  # motion only (no flicker added)
+        saved_times[key] = float(total_time)
 
     else:
         raise ValueError(f"Unknown stimulus type: {stim_type}")
 
-    # Save each stimulus .csv
     df.to_csv(output_path / f"{key}_trajectory.csv", index=False)
 
-    # Save parameters used (per stimulus)
     combined_params = {
         "stimulus_key": key,
         **params,
@@ -326,22 +302,15 @@ for key, params in stimulus_config.items():
     }
     experiment_params.append(combined_params)
 
-# -----------------------
-# Duration computation
-# -----------------------
+
 def calculate_experiment_duration(stimulus_config, saved_times,
                                   global_params, n_repetitions,
                                   pause_before_sec, pause_after_sec):
-    """
-    Sum per-stimulus duration within one repetition, then multiply by repetitions.
-    Per-stimulus duration = static_period + motion_time + pauses.
-    """
     static_period = float(global_params["static_period_sec"])
     total_time_per_rep = 0.0
 
     for key, params in stimulus_config.items():
         if params["type"] != "trajectory":
-            # You can extend here for other types later if needed
             continue
 
         motion = float(saved_times.get(key, 0.0))
@@ -351,7 +320,7 @@ def calculate_experiment_duration(stimulus_config, saved_times,
 
     return total_time_per_rep * int(n_repetitions)
 
-# Calculate total experiment time
+
 total_time_sec = calculate_experiment_duration(
     stimulus_config,
     saved_times,
@@ -361,9 +330,6 @@ total_time_sec = calculate_experiment_duration(
     pause_after_sec
 )
 
-# -----------------------
-# Save metadata
-# -----------------------
 (output_path / "parameters").mkdir(parents=True, exist_ok=True)
 pd.DataFrame(experiment_params).to_csv(output_path / "parameters" / "experiment_parameters.csv", index=False)
 pd.DataFrame([{"total_experiment_duration_sec": total_time_sec}]).to_csv(
@@ -371,4 +337,4 @@ pd.DataFrame([{"total_experiment_duration_sec": total_time_sec}]).to_csv(
 )
 
 print(f"\nTotal experiment time: {total_time_sec:.2f} sec ({total_time_sec/60:.2f} min)")
-print("✅ All stimuli generated and saved.")
+print("âœ… All stimuli generated and saved.")

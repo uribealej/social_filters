@@ -29,3 +29,12 @@ Use this log for trajectory generation, mapping JSON changes, timing handoff, an
 - Remaining in-slice work: none.
 - Next likely breakpoint: a later slice that extracts any shared stimulus-display utility or addresses separate generator-side drift.
 - Rerun implications: playback smoke was validated on one existing trajectory file and rewrote `stimulus_timing_log.csv` in the validation folder.
+
+## 2026-04-22 - Slice 8 config boundary in stimulus mapping JSONs
+- Slice goal: keep JSON mapping files as configuration inputs and remove hard-coded experiment run settings from active stimulus generator scripts.
+- Passes completed in this session: routed inspection, mapping JSON update, generator-script config loading update, syntax check, primary smoke attempt.
+- What changed: added `_experiment` blocks to `trajectory_exp_6_mapping_flickers_and_bouts_2.json` and `trajectory_exp_6_mapping_rocking.json`; updated `Trayectory_flicker.py` and `Trayectory_rocking_stimuli.py` to read experiment-wide settings from JSON with backward-compatible defaults while preserving existing stimulus keys, output names, and generation semantics.
+- What remains broken: the primary flicker smoke run could not overwrite `LeB_control_trajectory.csv` in `D:\Alejandro\Data\OneDrive - Université de Lausanne\Lab\Data\stimuli\Exp_6_mapping_positions_retina_2` because the file is locked, so runtime asset regeneration was not fully completed in this session.
+- Remaining in-slice work: rerun the flicker script once the target output files are writable and confirm the expected asset set is rewritten successfully.
+- Next likely breakpoint: if validation passes after the lock is cleared, the next remaining drift is wrapper-structure normalization in slice 7 rather than additional config-boundary work.
+- Rerun implications: rerun `Trayectory_flicker.py` with `scripts/stimuli/trajectory_exp_6_mapping_flickers_and_bouts_2.json` after releasing the output-file lock; both edited scripts passed `py_compile`.
