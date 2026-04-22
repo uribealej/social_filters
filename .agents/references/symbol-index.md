@@ -33,6 +33,7 @@ Not public here yet:
 
 ### `src/stimuli_timeline.py`
 - `get_motion_timing_simple` - derive timing from trajectory CSVs using x, y, and radius changes.
+- `transform_stimuli_duration` - normalize extracted timing dictionaries into the downstream-facing timing contract.
 - `get_angles_from_positions` - reverse rotated trajectory x/y coordinates into angle values for shared stimulus interpretation.
 - `make_stimulus_traces_2` - convert experiment logs plus stimulus durations into the numeric stimulus trace and table used downstream.
 - `extract_stimulus_chunks` - extract aligned chunks for sorted raster-style plots.

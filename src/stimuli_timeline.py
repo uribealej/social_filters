@@ -97,6 +97,31 @@ def get_motion_timing_simple(
     }
 
 
+def transform_stimuli_duration(stimuli_durations):
+    """
+    Normalize per-stimulus timing dictionaries for downstream consumers.
+
+    This preserves the repo's current downstream-facing timing contract while
+    keeping the normalization logic at the shared timing owner layer.
+    """
+    out = {}
+    for k, v in stimuli_durations.items():
+        total_sec = v.get("total_sec", 0)
+        static_before = v.get("static_before_sec", 0)
+        total_frames = v.get("total_frames", v.get("motion_end_frame"))
+
+        new_v = v.copy()
+        new_v["motion_sec"] = round(total_sec - static_before, 3)
+        new_v["static_after_sec"] = 0
+
+        if total_frames is not None:
+            new_v["motion_end_frame"] = total_frames
+            new_v["end_frame"] = total_frames
+
+        out[k] = new_v
+    return out
+
+
 
 
 def get_radius_timing(trajectory_file, framerate=60):
