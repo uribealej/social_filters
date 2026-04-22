@@ -1,9 +1,12 @@
 from pathlib import Path
-from typing import Dict, Any
-import pandas as pd
+from typing import Any, Dict
+
 import numpy as np
+import pandas as pd
+
 import src.stimuli_timeline as st
 from src.analysis_tools import find_file_with_suffix
+
 
 def transform_stimuli_duration(stimuli_durations: Dict[str, dict]) -> Dict[str, dict]:
     """
@@ -38,12 +41,87 @@ def _pick_latest_file(candidates):
     if len(candidates) == 1:
         return candidates[0]
 
-    print("⚠️ Multiple files found, using the most recent:")
-    for p in candidates:
-        print(" -", p.name)
+    print("Multiple files found, using the most recent:")
+    for path in candidates:
+        print(" -", path.name)
 
-    candidates = sorted(candidates, key=lambda p: p.stat().st_mtime, reverse=True)
+    candidates = sorted(candidates, key=lambda path: path.stat().st_mtime, reverse=True)
     return candidates[0]
+
+
+def _resolve_merged_dfof_file(dfof_dir: Path, prefix: str) -> Path:
+    """
+    Resolve the merged dFoF file using the canonical writer name first,
+    then fall back to compatibility variants in the canonical merged folder.
+    """
+    preferred_path = dfof_dir / f"{prefix}_dFoF_merged.npy"
+    if preferred_path.exists():
+        print(f"Using canonical dFoF file: {preferred_path}")
+        return preferred_path
+
+    candidates = [
+        path for path in dfof_dir.glob("*.npy")
+        if "dfof_merged" in path.name.lower()
+        and "filtered_roi_indices" not in path.name.lower()
+    ]
+    if not candidates:
+        raise FileNotFoundError(
+            f"No dFoF merged file found in {dfof_dir} "
+            f"(looked for '{preferred_path.name}' or compatibility '*dFoF_merged*.npy')."
+        )
+
+    resolved = _pick_latest_file(candidates)
+    print(f"Using compatibility dFoF file: {resolved}")
+    return resolved
+
+
+def _resolve_merged_map_file(dfof_dir: Path, prefix: str):
+    """
+    Resolve the merged map CSV using the canonical writer name first,
+    then fall back to compatibility variants in the canonical merged folder.
+    """
+    preferred_path = dfof_dir / f"{prefix}_dFoF_merged_map.csv"
+    if preferred_path.exists():
+        print(f"Using canonical merged map file: {preferred_path}")
+        return preferred_path
+
+    candidates = list(dfof_dir.glob(f"{prefix}_dFoF_merged_map*.csv"))
+    if not candidates:
+        print(
+            f"Merged map CSV not found in {dfof_dir} "
+            f"(looked for '{preferred_path.name}' or compatibility variants). "
+            "Continuing without map-dependent plane metadata."
+        )
+        return None
+
+    resolved = _pick_latest_file(candidates)
+    print(f"Using compatibility merged map file: {resolved}")
+    return resolved
+
+
+def _load_merged_map(map_file: Path):
+    """
+    Load the merged map CSV and validate the minimum columns needed
+    to derive plane metadata.
+    """
+    try:
+        dfof_merged_map = pd.read_csv(map_file)
+    except Exception as exc:
+        raise ValueError(
+            f"Could not read merged map CSV '{map_file}'. "
+            "Plane metadata cannot be built without a readable merged map."
+        ) from exc
+
+    missing_columns = {"plane"}.difference(dfof_merged_map.columns)
+    if missing_columns:
+        missing = ", ".join(sorted(missing_columns))
+        raise ValueError(
+            f"Merged map CSV '{map_file}' is missing required column(s): {missing}. "
+            "Plane metadata cannot be built without them."
+        )
+
+    print("dFoF_merged_map:", dfof_merged_map.shape)
+    return dfof_merged_map
 
 
 def load_2p_experiment(
@@ -79,23 +157,20 @@ def load_2p_experiment(
     if selected_blocks is None:
         selected_blocks = [f"B{n}" for n in range(1, 3)]
 
-    # ------------------------------------------------------------------ Paths
     fish = f"{fish_id}_{experiment_name}"
+    prefix = "_".join(fish.split("_")[:2])
 
     stimuli_path = stimuli_main_path / experiment_name / "stimuli"
     metadata_dir = main_path / fish / "01_raw" / "2p" / "metadata"
     dfof_dir = main_path / fish / "03_analysis" / "functional" / "suite2P" / "merged_dFoF"
     plots_path = main_path / fish / "03_analysis" / "functional" / "plots"
     planes_dir = main_path / fish / "03_analysis" / "functional" / "suite2P"
-    prefix = "_".join(fish.split("_")[:2])
 
-    # ------------------------------------------------------------------ Optional: precomputed traces & indices
     raster = None
     deltaF_center = None
     kept_neuron_indices = None
     filtered_roi_indices = None
 
-    # 1) significant_traces.npz   (raster, deltaF_center)
     sig_dir = plots_path / "significant_traces"
     sig_file = sig_dir / f"{prefix}_significant_traces.npz"
 
@@ -103,45 +178,37 @@ def load_2p_experiment(
         try:
             with np.load(sig_file) as data:
                 raster = data["raster"] if "raster" in data.files else None
-                deltaF_center = (
-                    data["deltaF_center"] if "deltaF_center" in data.files else None
-                )
-            print(f"✅ Loaded significant traces from {sig_file}")
-        except Exception as e:
-            print(f"⚠️ Could not load {sig_file}: {e}")
+                deltaF_center = data["deltaF_center"] if "deltaF_center" in data.files else None
+            print(f"Loaded significant traces from {sig_file}")
+        except Exception as exc:
+            print(f"Could not load {sig_file}: {exc}")
     else:
-        print(f"ℹ️ Significant traces file not found (skipping): {sig_file}")
+        print(f"Significant traces file not found (skipping): {sig_file}")
 
-    # 2) L433_f02_kept_neuron_indices.npy
     kept_dir = plots_path / "filtered_neurons_by_stimuli"
     kept_file = kept_dir / f"{prefix}_kept_neuron_indices.npy"
 
     if kept_file.exists():
         try:
             kept_neuron_indices = np.load(kept_file)
-            print(f"✅ Loaded kept_neuron_indices from {kept_file}")
-        except Exception as e:
-            print(f"⚠️ Could not load {kept_file}: {e}")
+            print(f"Loaded kept_neuron_indices from {kept_file}")
+        except Exception as exc:
+            print(f"Could not load {kept_file}: {exc}")
     else:
-        print(f"ℹ️ kept_neuron_indices file not found (skipping): {kept_file}")
+        print(f"kept_neuron_indices file not found (skipping): {kept_file}")
 
-    # 3) L433_f02_dFoF_merged_filtered_roi_indices.npy
     filtered_roi_file = dfof_dir / f"{prefix}_dFoF_merged_filtered_roi_indices.npy"
 
     if filtered_roi_file.exists():
         try:
             filtered_roi_indices = np.load(filtered_roi_file)
-            print(f"✅ Loaded filtered_roi_indices from {filtered_roi_file}")
-        except Exception as e:
-            print(f"⚠️ Could not load {filtered_roi_file}: {e}")
+            print(f"Loaded filtered_roi_indices from {filtered_roi_file}")
+        except Exception as exc:
+            print(f"Could not load {filtered_roi_file}: {exc}")
     else:
-        print(f"ℹ️ filtered_roi_indices file not found (skipping): {filtered_roi_file}")
+        print(f"filtered_roi_indices file not found (skipping): {filtered_roi_file}")
 
-    # ------------------------------------------------------------------ Optional: z-scored traces
     z_traces = None
-    #baseline_mean = None
-    #baseline_std = None
-
     zcore_dir = plots_path / "z_core"
     zcore_file = zcore_dir / f"{prefix}_zcore.npz"
 
@@ -149,89 +216,38 @@ def load_2p_experiment(
         try:
             with np.load(zcore_file) as data:
                 z_traces = data["z_traces"] if "z_traces" in data.files else None
-                #baseline_mean = data["baseline_mean"] if "baseline_mean" in data.files else None
-                #baseline_std = data["baseline_std"] if "baseline_std" in data.files else None
-
-            print(f"✅ Loaded z_traces from {zcore_file}")
-
-        except Exception as e:
-            print(f"⚠️ Could not load {zcore_file}: {e}")
+            print(f"Loaded z_traces from {zcore_file}")
+        except Exception as exc:
+            print(f"Could not load {zcore_file}: {exc}")
     else:
-        print(f"ℹ️ z_core file not found (skipping): {zcore_file}")
-    # ------------------------------------------------------------------ map dFof index
+        print(f"z_core file not found (skipping): {zcore_file}")
 
-    pattern = f"{fish_id}_dFoF_merged_map*.csv"
-    # Find all matching files
-    candidates = list(dfof_dir.glob(pattern))
-    if not candidates:
-        # file NOT found -> print + use None
-        print(f"[load_roi_index] File not found: '{pattern}' in {dfof_dir}")
-        dFoF_merged_map = None
-    else:
-    # Choose the most recently modified file
-        latest_file = max(candidates, key=lambda p: p.stat().st_mtime)
-    # Load CSV as integers (change dtype/skiprows if needed)
-        dFoF_merged_map = pd.read_csv(latest_file)
-        print("dFoF_merged_map:", dFoF_merged_map.shape)
+    merged_map_file = _resolve_merged_map_file(dfof_dir, prefix)
+    dfof_merged_map = _load_merged_map(merged_map_file) if merged_map_file else None
 
-    # ------------------------------------------------------------------ Load Rois and averages images
-
-    # We'll get plane IDs from the map CSV later, to be safe.
-    plane_ids = sorted(dFoF_merged_map['plane'].unique())
+    plane_ids = sorted(dfof_merged_map["plane"].unique()) if dfof_merged_map is not None else []
     mean_imgs = {}
     stat_per_plane = {}
 
-    for pid in plane_ids:  # e.g. 'plane0', 'plane1', ...
-        plane_path = planes_dir / pid
-
-
-
-        # Load ops and stat (Suite2P format)
-
-        ops_file = find_file_with_suffix(plane_path , "ops.npy")
+    for plane_id in plane_ids:
+        plane_path = planes_dir / plane_id
+        ops_file = find_file_with_suffix(plane_path, "ops.npy")
         stat_file = find_file_with_suffix(plane_path, "stat.npy")
 
         ops = np.load(ops_file, allow_pickle=True).item()
         stat = np.load(stat_file, allow_pickle=True)
-        # ops = np.load(plane_path / "ops.npy", allow_pickle=True).item()
-        # stat = np.load(plane_path / "stat.npy", allow_pickle=True)
 
-        # Background image
-        mean_imgs[pid] = ops["meanImg"]
+        mean_imgs[plane_id] = ops["meanImg"]
+        stat_per_plane[plane_id] = stat
 
-        # Full Suite2P ROI list for that plane
-        stat_per_plane[pid] = stat
-
-    print("Loaded planes:", list(mean_imgs.keys()))
-
-    # ------------------------------------------------------------------ dFoF
-    # 1) Prefer the exact merged file: <fish_id>_dFoF_merged.npy
-    preferred_name = f"{fish_id}_dFoF_merged.npy"
-    preferred_path = dfof_dir / preferred_name
-
-    if preferred_path.exists():
-        dfof_file = preferred_path
-        print("✅ Using preferred dFoF file:", dfof_file)
+    if plane_ids:
+        print("Loaded planes:", list(mean_imgs.keys()))
     else:
-        # 2) Fallback: search for *dfof_merged*.npy, but EXCLUDE filtered_roi_indices
-        candidates = [
-            p for p in dfof_dir.glob("*.npy")
-            if "dfof_merged" in p.name.lower()
-               and "filtered_roi_indices" not in p.name.lower()
-        ]
+        print("No merged map available; skipping Suite2P plane metadata loading.")
 
-        if not candidates:
-            raise FileNotFoundError(
-                f"No dFoF merged file found in {dfof_dir} "
-                f"(looked for {preferred_name!r} or *dFoF_merged*.npy)."
-            )
-
-        dfof_file = _pick_latest_file(candidates)
-        print("✅ Using dFoF file (fallback search):", dfof_file)
-
+    dfof_file = _resolve_merged_dfof_file(dfof_dir, prefix)
     dfof = np.load(dfof_file)
 
-    # basic sanity check: expect at least 2D array
     if dfof.ndim < 2:
         raise ValueError(
             f"dFoF array has shape {dfof.shape}, expected at least 2D "
@@ -245,42 +261,34 @@ def load_2p_experiment(
 
     frames_per_block = n_frames // n_blocks
     duration_2p_block_sec = frames_per_block / fps_2p
-    # ------------------------------------------------------------------ Stimuli durations
+
     stimuli_durations = {}
     for stim_file in stimuli_path.glob("*trajectory.*"):
-        filename = stim_file.stem  # e.g. 'FL2_trajectory'
+        filename = stim_file.stem
         stim_name = filename.replace("_trajectory", "")
 
         stimuli_durations[stim_name] = st.get_motion_timing_simple(
             stim_file,
-            framerate=60,  # or whatever your stimulus framerate is
+            framerate=60,
             include_xy=True,
             include_radius=True,
         )
-
-        # # Use timing function depending on stimulus type
-        # if any(s in filename for s in ("B", "RR", "RL")):
-        #     stimuli_durations[stim_name] = st.get_stimulus_timing(stim_file)
-        # else:
-        #     stimuli_durations[stim_name] = st.get_radius_timing(stim_file)
 
     stimuli_durations = transform_stimuli_duration(stimuli_durations)
 
     if not stimuli_durations:
         raise FileNotFoundError(
             f"No stimulus trajectory files found in {stimuli_path} "
-            f"with pattern '*trajectory.*'. "
-            f"Check the stimuli_path and file names."
+            "with pattern '*trajectory.*'. Check the stimuli_path and file names."
         )
-    # ------------------------------------------------------------------ Block log (metadata)
+
     block_logs = list(metadata_dir.glob("*block_log.csv"))
     if not block_logs:
         raise FileNotFoundError(f"No '*block_log.csv' file found in {metadata_dir}")
 
     experiment_log_path = _pick_latest_file(block_logs)
-    print("✅ Using block log:", experiment_log_path)
+    print("Using block log:", experiment_log_path)
 
-    # ------------------------------------------------------------------ Stimulus traces (your new function)
     adjusted_log, stimuli_trace_60, stimuli_table, stimuli_id_map = st.make_stimulus_traces_2(
         experiment_log_path,
         stimuli_durations,
@@ -288,7 +296,6 @@ def load_2p_experiment(
         duration_2p_block_sec,
     )
 
-    # ------------------------------------------------------------------ Pack results
     paths = {
         "fish": fish,
         "prefix": prefix,
@@ -298,7 +305,8 @@ def load_2p_experiment(
         "plots_path": plots_path,
         "experiment_log_path": experiment_log_path,
         "dfof_file": dfof_file,
-        "planes_dir":planes_dir,
+        "merged_map_file": merged_map_file,
+        "planes_dir": planes_dir,
     }
 
     return {
@@ -312,17 +320,13 @@ def load_2p_experiment(
         "stimuli_table": stimuli_table,
         "stimuli_id_map": stimuli_id_map,
         "paths": paths,
-        "dFoF_merged_map": dFoF_merged_map,
-        # Optional extras (may be None if files are missing):
+        "dFoF_merged_map": dfof_merged_map,
         "z_traces": z_traces,
         "raster": raster,
         "deltaF_center": deltaF_center,
         "kept_neuron_indices": kept_neuron_indices,
         "filtered_roi_indices": filtered_roi_indices,
-        # data from suite2p planes:
         "plane_ids": plane_ids,
         "mean_imgs": mean_imgs,
         "stat_per_plane": stat_per_plane,
-
-
     }
