@@ -33,11 +33,12 @@ Not public here yet:
 
 ### `src/stimuli_timeline.py`
 - `get_motion_timing_simple` - derive timing from trajectory CSVs using x, y, and radius changes.
+- `get_angles_from_positions` - reverse rotated trajectory x/y coordinates into angle values for shared stimulus interpretation.
 - `make_stimulus_traces_2` - convert experiment logs plus stimulus durations into the numeric stimulus trace and table used downstream.
 - `extract_stimulus_chunks` - extract aligned chunks for sorted raster-style plots.
 
 Boundary note:
-- duplicated generator-side helpers such as `generate_circular_trajectory` and `get_angles_from_positions` are still backlog items under `scripts/stimuli/` and are not yet part of the public `src/` timing surface.
+- duplicated generator-side helpers such as `generate_circular_trajectory` are still backlog items under `scripts/stimuli/` and are not yet part of the public `src/` timing surface.
 
 ### `src/analysis_tools.py`
 - `build_trial_aligned_traces` - build trial windows keyed by stimulus id.

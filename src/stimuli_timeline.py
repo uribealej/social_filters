@@ -4,6 +4,20 @@ from pathlib import Path
 from scipy.stats import mode
 
 
+def get_angles_from_positions(df_x, df_y, rotation_angle):
+    """
+    Reverse the applied stimulus rotation and compute angular position in degrees.
+
+    This helper is shared by stimulus inspection code that needs to interpret
+    trajectory x/y coordinates consistently with the generator-side convention.
+    """
+    theta = np.deg2rad(rotation_angle)
+    x_original = df_x * np.cos(theta) + df_y * np.sin(theta)
+    y_original = -df_x * np.sin(theta) + df_y * np.cos(theta)
+    angles_rad = np.arctan2(x_original, y_original)
+    return np.rad2deg(angles_rad)
+
+
 def get_motion_timing_simple(
     trajectory_file,
     framerate=60,
