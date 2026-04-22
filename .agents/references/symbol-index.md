@@ -14,6 +14,7 @@ Use this file when
 - Import shared helpers from `src.*` in notebooks and scripts.
 - Keep dFoF and raster arrays in the owner module conventions already used by the repo, usually `(T, N)` until a plotting helper intentionally transposes.
 - Treat notebook-local copies of shared helpers as legacy unless the repo clearly moved authority back into the notebook.
+- Treat helpers listed in `duplicate-helper-inventory.md` as backlog items or notebook/script-local wrappers, not as part of the stable public surface until they are extracted into an owner module.
 
 ## Public surface by module
 
@@ -26,10 +27,17 @@ Use this file when
 ### `src/data_loading.py`
 - `load_2p_experiment` - high-level experiment bundle loader that assembles dFoF, cache lookups, paths, stimulus traces, and plane metadata.
 
+Not public here yet:
+- preprocessing notebook helpers such as `ensure_dir`, `find_experiments`, `plane_dir` / `plane_dirs`, and `experiment_prefix` are still duplicated outside `src/` and should not be treated as stable callable API.
+- per-plane lookup helpers such as `load_dfof_for_plane` and `load_filtered_indices_for_plane` are still notebook-local duplication backlog until a later extraction slice moves them into an owner module.
+
 ### `src/stimuli_timeline.py`
 - `get_motion_timing_simple` - derive timing from trajectory CSVs using x, y, and radius changes.
 - `make_stimulus_traces_2` - convert experiment logs plus stimulus durations into the numeric stimulus trace and table used downstream.
 - `extract_stimulus_chunks` - extract aligned chunks for sorted raster-style plots.
+
+Boundary note:
+- duplicated generator-side helpers such as `generate_circular_trajectory` and `get_angles_from_positions` are still backlog items under `scripts/stimuli/` and are not yet part of the public `src/` timing surface.
 
 ### `src/analysis_tools.py`
 - `build_trial_aligned_traces` - build trial windows keyed by stimulus id.
@@ -50,3 +58,4 @@ Use this file when
 ## Ownership notes
 - If a notebook calls one of the symbols above, start in the owning module before editing the notebook.
 - If a task changes any public helper signature or return contract, update this file and the relevant stage map in the same change.
+- For repeated helper triage that does not change code yet, use `duplicate-helper-inventory.md` to distinguish public `src/` owners from extract-later notebook or script helpers.
