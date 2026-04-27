@@ -1,0 +1,72 @@
+{
+  "_experiment": {
+    "output_path": "D:\\Alejandro\\Data\\OneDrive - Université de Lausanne\\Lab\\Data\\stimuli\\Exp_7_trans_stat",
+    "radius_cm": 1.8,
+    "speed_cm_sec": 0.497,
+    "framerate": 60,
+    "update_interval_ms": 600,
+    "static_period_sec": 8,
+    "dot_size_on": 0.2,
+    "rotation_angle_deg": 45,
+    "flicker_interval_ms": 300,
+    "flicker_interval_sec": 0.3,
+    "n_repetitions": 2,
+    "pause_before_sec": 12.5,
+    "pause_after_sec": 12.5
+  },
+
+  "R600Ri": {
+    "name": "rocking_Right_1",
+    "type": "trajectory",
+    "angle_ranges": [[30, 160]],
+    "flickering": false,
+    "n_dots": 1,
+    "rocking": true,
+    "rocking_idx_pair": [11,13]
+  },
+
+
+  "R600L": {
+    "name": "rocking_left_1",
+    "type": "trajectory",
+    "angle_ranges": [[-30, -160]],
+    "flickering": false,
+    "n_dots": 1,
+    "rocking": true,
+    "rocking_idx_pair": [11, 13]
+  },
+
+  "RF600Ri": {
+    "name": "rocking_Right_1",
+    "type": "trajectory",
+    "angle_ranges": [[30, 160]],
+    "flickering": true,
+    "n_dots": 1,
+    "rocking": true,
+    "rocking_idx_pair": [11,13]
+  },
+
+
+  "RF600Le": {
+    "name": "rocking_left_1",
+    "type": "trajectory",
+    "angle_ranges": [[-30, -160]],
+    "flickering": true,
+    "n_dots": 1,
+    "rocking": true,
+    "rocking_idx_pair": [11, 13]
+  },
+
+
+ "try600Le": {
+    "name": "rocking_left_1",
+    "type": "trajectory",
+    "angle_ranges": [[-30, -160]],
+    "flickering": true,
+    "n_dots": 1,
+    "rocking": false,
+    "rocking_idx_pair": [11, 13]
+  }
+
+
+}

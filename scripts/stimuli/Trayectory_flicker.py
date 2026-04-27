@@ -118,7 +118,7 @@ DEFAULT_EXPERIMENT_CONFIG = {
 }
 
 # Change this file name to switch configs.
-config_filename = "trajectory_exp_6_mapping_flickers_and_bouts_2.json"
+config_filename = "trajectory_exp_7_Trans_stat_Flicker_300.json"
 config_path = Path(__file__).with_name(config_filename)
 with config_path.open("r", encoding="utf-8") as file:
     raw_config = json.load(file)
