@@ -15,7 +15,7 @@
         "pause_before_sec": 12.5,
         "pause_after_sec": 12.5
     },
-    "LeB_control": {
+    "LeBcontrol": {
         "name": "left_bout",
         "type": "trajectory",
         "angle_ranges": [[-30, -160]],
@@ -23,7 +23,7 @@
         "flickering": false
     },
 
-    "RiB_control": {
+    "RiBcontrol": {
         "name": "right_bout",
         "type": "trajectory",
         "angle_ranges": [[30, 160]],
@@ -32,34 +32,34 @@
     },
 
        
-    "F300_Ri": {
+    "F300Ri": {
         "name": "flicker_300_right",
         "type": "flicker",
-        "based_on": "RiB_control",
+        "based_on": "RiBcontrol",
         "angle_index": 10,
         "n_dots": 1
     },
 
-    "F300_Le": {
+    "F300Le": {
         "name": "flicker_300_left",
         "type": "flicker",
-        "based_on": "LeB_control",
+        "based_on": "LeBcontrol",
         "angle_index": 10,
         "n_dots": 1
     },
     
-    "F300_Ri_2": {
+    "F300Ri_2": {
         "name": "flicker_300_right",
         "type": "flicker",
-        "based_on": "RiB_control",
+        "based_on": "RiBcontrol",
         "angle_index": 12,
         "n_dots": 1
     },
 
-    "F300_Le_2": {
+    "F300Le_2": {
         "name": "flicker_300_left",
         "type": "flicker",
-        "based_on": "LeB_control",
+        "based_on": "LeBcontrol",
         "angle_index": 12,
         "n_dots": 1
     }

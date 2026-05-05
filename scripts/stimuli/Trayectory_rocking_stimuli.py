@@ -72,8 +72,9 @@ def generate_circular_rocking_trajectory(
         angles_deg = angles_deg_L
 
         if static_frames > 0:
-            dot['x'] += [xB] * static_frames
-            dot['y'] += [yB] * static_frames
+            # Start static period at first rocking index (i1 -> xA, yA).
+            dot['x'] += [xA] * static_frames
+            dot['y'] += [yA] * static_frames
             dot['radius'] += [dot_size_on] * static_frames
 
         filled = 0
@@ -96,8 +97,9 @@ def generate_circular_rocking_trajectory(
         xB, yB, _, _ = _sample_rotated_xy(angle_range, i2)
 
         if static_frames > 0:
-            dot['x'] += [xB] * static_frames
-            dot['y'] += [yB] * static_frames
+            # Start static period at first rocking pair position (i1).
+            dot['x'] += [xA] * static_frames
+            dot['y'] += [yA] * static_frames
             dot['radius'] += [dot_size_on] * static_frames
 
         filled = 0
@@ -185,7 +187,7 @@ DEFAULT_EXPERIMENT_CONFIG = {
 }
 
 # Change this file name to switch configs.
-config_filename = "trajectory_exp_7_Trans_stat_rocking_300.json"
+config_filename = "trajectory_exp_7_Trans_stat_rocking_600.json"
 config_path = Path(__file__).with_name(config_filename)
 with config_path.open("r", encoding="utf-8") as file:
     raw_config = json.load(file)
