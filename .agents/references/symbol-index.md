@@ -49,6 +49,11 @@ Boundary note:
 - `build_neuron_order_groupwise_onset` - derive onset-based neuron ordering across response groups.
 - `zscore_dfof_from_prestim_baseline` - z-score dFoF using pre-stimulus baselines.
 
+### `src/multifish_analysis.py`
+- `combine_reps_one_stim` - combine one stimulus' trial-aligned repetitions by concatenating time or averaging repeats.
+- `build_matrix_for_fish` - concatenate selected stimulus blocks into a per-fish matrix with optional kept-neuron indexing.
+- `build_matrix_all_fish` - stack per-fish matrices for dFoF, raster, or z-score trial-aligned traces.
+
 ### `src/significant_traces.py`
 - `compute_noise_model_romano_fast_modular` - build centered dFoF, significance maps, and event rasters from the Romano-style noise model.
 

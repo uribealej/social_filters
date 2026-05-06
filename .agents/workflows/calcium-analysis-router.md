@@ -33,6 +33,7 @@ Use this file when
 ## Ownership guidance
 - `src/data_loading.py` owns experiment bundle assembly and output lookup semantics.
 - `src/analysis_tools.py` owns shared alignment, filtering, classification, and derived-metric logic.
+- `src/multifish_analysis.py` owns pure matrix construction for several-fish notebooks after per-fish trial alignment is already available.
 - `src/significant_traces.py` owns the Romano-style noise-model and rasterization pipeline.
 - `src/plotting.py` owns reusable figure construction, chunk layout, and all-fish raster helpers.
 - Analysis notebooks own experiment selection, scientific narration, style dictionaries, and orchestration across cached outputs.
