@@ -58,6 +58,8 @@ Boundary note:
 - `compute_noise_model_romano_fast_modular` - build centered dFoF, significance maps, and event rasters from the Romano-style noise model.
 
 ### `src/plotting.py`
+- `list_stimulus_names` - discover stimulus names from `*_trajectory.*` files by stripping `_trajectory`.
+- `build_stimulus_style_maps` - build reusable stimulus color and linestyle dictionaries from discovered stimulus names.
 - `plot_sorted_chunks_single_mode` - build and plot one sorted stimulus-chunk raster.
 - `plot_stimulus_means` - plot per-stimulus mean traces with style dictionaries and optional save behavior.
 - `plot_allfish_flat_raster` - render flattened multi-fish matrices with stimulus movement markers.

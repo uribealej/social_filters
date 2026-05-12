@@ -6,8 +6,106 @@ from scipy.spatial.distance import pdist
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
+import re
 import src.stimuli_timeline as st
 from matplotlib.patches import Patch
+
+
+def _natural_sort_key(value):
+    return [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", value)]
+
+
+def list_stimulus_names(stimuli_path, pattern="*trajectory.*"):
+    """
+    Return stimulus names from trajectory files, stripping the `_trajectory` suffix.
+    """
+    path = Path(stimuli_path)
+    files = list(path.glob(pattern))
+
+    if not files and (path / "stimuli").is_dir():
+        files = list((path / "stimuli").glob(pattern))
+
+    names = []
+    for stim_file in files:
+        name = stim_file.stem
+        if name.endswith("_trajectory"):
+            name = name[: -len("_trajectory")]
+        names.append(name)
+
+    return sorted(set(names), key=_natural_sort_key)
+
+
+def _stimulus_style_key(name):
+    key = name
+
+    for left, right in (("Left", "Right"), ("Le", "Ri")):
+        if key.startswith(left):
+            return key[len(left):]
+        if key.startswith(right):
+            return key[len(right):]
+        if key.endswith(left):
+            return key[: -len(left)]
+        if key.endswith(right):
+            return key[: -len(right)]
+
+    if re.match(r"^F[LR]", key):
+        return "F" + key[2:]
+
+    if len(key) > 1 and key[-1] in {"L", "R"}:
+        return key[:-1]
+
+    return key
+
+
+def _is_right_side_stimulus(name):
+    return (
+        name.startswith(("Right", "Ri"))
+        or name.endswith(("Right", "Ri"))
+        or bool(re.match(r"^F[R]", name))
+        or (len(name) > 1 and name.endswith("R"))
+    )
+
+
+def build_stimulus_style_maps(
+    stimuli_path=None,
+    stimuli_names=None,
+    palette="tab20",
+    color_overrides=None,
+    linestyle_overrides=None,
+):
+    """
+    Build color and linestyle dictionaries from stimulus names.
+
+    Left/right stimulus pairs share a color; right-side variants use dashed lines.
+    """
+    if stimuli_names is None:
+        if stimuli_path is None:
+            raise ValueError("Provide either stimuli_path or stimuli_names.")
+        stimuli_names = list_stimulus_names(stimuli_path)
+
+    stimuli_names = sorted(set(stimuli_names), key=_natural_sort_key)
+    color_overrides = color_overrides or {}
+    linestyle_overrides = linestyle_overrides or {}
+
+    style_keys = []
+    for name in stimuli_names:
+        key = _stimulus_style_key(name)
+        if key not in style_keys:
+            style_keys.append(key)
+
+    cmap = plt.get_cmap(palette, max(len(style_keys), 1))
+    color_by_key = {key: cmap(i) for i, key in enumerate(style_keys)}
+
+    stimuli_colors = {
+        name: color_overrides.get(name, color_by_key[_stimulus_style_key(name)])
+        for name in stimuli_names
+    }
+    stimuli_linestyles = {
+        name: linestyle_overrides.get(name, "--" if _is_right_side_stimulus(name) else "-")
+        for name in stimuli_names
+    }
+
+    return stimuli_colors, stimuli_linestyles
 # def add_stimuli_markers(ax, exp_log, stimuli_durations, stimuli_colors, time_offset=0, trace='movement'):
 #     """
 #     Add vertical lines for stimulus movement starts and return legend handles.
@@ -611,10 +709,12 @@ def plot_sorted_chunks_single_mode(
 
     # 5) Legend that matches color + linestyle (movement onsets)
     legend_handles = []
-    for stim_name, color in stimuli_colors.items():
-        ls = stimuli_linestyles.get(stim_name, "-")
-        (line,) = ax.plot([], [], color=color, linestyle=ls, label=stim_name, linewidth=2)
-        legend_handles.append(line)
+    for stim_name in stimuli_ordered:
+        if stim_name in stimuli_colors:
+            color = stimuli_colors[stim_name]
+            ls = stimuli_linestyles.get(stim_name, "-")
+            (line,) = ax.plot([], [], color=color, linestyle=ls, label=stim_name, linewidth=2)
+            legend_handles.append(line)
 
     # Movement legend on the *figure* (right side)
     mov_legend = fig.legend(
@@ -1345,6 +1445,8 @@ def plot_allfish_flat_raster(
     mean_linewidth=1.5,
     mean_color="black",
     mean_ylabel="Mean activity",
+    vmin=None,
+    vmax=None,
 ):
     data = np.asarray(data)
     assert data.ndim == 2, "data must be (n_neurons, n_time)"
@@ -1410,6 +1512,8 @@ def plot_allfish_flat_raster(
         neuron_order=neuron_order,
         is_binary=is_binary,
         title_suffix=f"ordered by stimulus type | sort={label}",
+        vmin=vmin,
+        vmax=vmax,
     )
 
     move_starts_s, move_colors, stim_labels = compute_move_lines_for_flat_matrix(

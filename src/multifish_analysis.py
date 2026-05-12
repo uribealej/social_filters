@@ -81,6 +81,67 @@ def build_matrix_for_fish(
     return fish_mat
 
 
+def _stim_key(trial_aligned_traces, stim):
+    if stim in trial_aligned_traces:
+        return stim
+    str_stim = str(stim)
+    if str_stim in trial_aligned_traces:
+        return str_stim
+    raise KeyError(stim)
+
+
+def describe_matrix_widths(
+    all_fish_data,
+    stim_order,
+    fish_ids=None,
+    combine_mode="concat",
+    trace_type="dfof",
+):
+    """Return per-fish matrix widths and per-stimulus source shapes."""
+    if fish_ids is None:
+        fish_ids = list(all_fish_data.keys())
+
+    rows = []
+    for fid in fish_ids:
+        if trace_type == "raster":
+            trial_key = "trial_aligned_traces_raster"
+        elif trace_type == "zscore":
+            trial_key = "trial_aligned_traces_z_core"
+        elif trace_type == "dfof":
+            trial_key = "trial_aligned_traces"
+        else:
+            raise ValueError(
+                f"Unknown trace_type={trace_type!r}. "
+                "Use 'dfof', 'raster', or 'zscore'."
+            )
+
+        trial_aligned_traces = all_fish_data[fid][trial_key]
+        total_width = 0
+        stim_shapes = {}
+        for stim in stim_order:
+            key = _stim_key(trial_aligned_traces, stim)
+            arr = trial_aligned_traces[key]
+            if arr.ndim != 3:
+                raise ValueError(
+                    f"Fish {fid!r}, stimulus {stim!r} has shape {arr.shape}; "
+                    "expected (neurons, time, reps)."
+                )
+            _, n_time, n_reps = arr.shape
+            width = n_time * n_reps if combine_mode == "concat" else n_time
+            total_width += width
+            stim_shapes[stim] = arr.shape
+
+        rows.append(
+            {
+                "fish_id": fid,
+                "matrix_width": total_width,
+                "stim_shapes": stim_shapes,
+            }
+        )
+
+    return rows
+
+
 def build_matrix_all_fish(
     all_fish_data,
     stim_order,
@@ -114,6 +175,7 @@ def build_matrix_all_fish(
         fish_ids = list(all_fish_data.keys())
 
     mats = []
+    fish_widths = []
     for fid in fish_ids:
         if trace_type == "raster":
             trial_key = "trial_aligned_traces_raster"
@@ -142,6 +204,29 @@ def build_matrix_all_fish(
             combine_mode=combine_mode,
         )
         mats.append(M_fish)
+        fish_widths.append((fid, M_fish.shape[1]))
+
+    widths = {width for _, width in fish_widths}
+    if len(widths) != 1:
+        details = describe_matrix_widths(
+            all_fish_data=all_fish_data,
+            stim_order=stim_order,
+            fish_ids=fish_ids,
+            combine_mode=combine_mode,
+            trace_type=trace_type,
+        )
+        detail_lines = [
+            f"{row['fish_id']}: width={row['matrix_width']}, "
+            f"stim_shapes={row['stim_shapes']}"
+            for row in details
+        ]
+        raise ValueError(
+            "Cannot stack fish matrices because their time widths differ. "
+            "All fish must have the same aligned window and repetition count "
+            f"for stim_order={stim_order!r}, combine_mode={combine_mode!r}, "
+            f"trace_type={trace_type!r}.\n"
+            + "\n".join(detail_lines)
+        )
 
     M_all = np.vstack(mats)
 
