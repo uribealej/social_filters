@@ -47,3 +47,21 @@ Use this log for experiment loading, alignment, filtering, classification, plott
 - Remaining in-slice work: none after validation.
 - Next likely breakpoint: later slices should avoid changing dFoF extraction, timing/alignment semantics, z-score logic, significant-trace computation, or plotting behavior unless explicitly scoped.
 - Rerun implications: full notebook reruns were not needed; when data are available, rerun each migrated import cell and first downstream `build_matrix_all_fish` cell.
+
+## 2026-05-13 - Exp5 active-neuron overlap helper
+- Slice goal: add Step 2 active-neuron Jaccard overlap for Exp5 left/right B conditions.
+- Passes completed in this session: routed workflow read, owner-module update, notebook orchestration cell update, doc refresh, and synthetic overlap validation.
+- What changed: `src/multifish_analysis.py` now computes active-neuron Jaccard matrices and returns both pooled and mean-per-fish left/right overlap summaries for several-fish notebooks.
+- What remains broken: no known active-overlap helper issues remain after synthetic validation.
+- Remaining in-slice work: rerun the new Exp5 notebook Step 2 cell with the full local dataset when available.
+- Next likely breakpoint: any later change to the active-neuron definition should stay in `build_active_neuron_matrices_all_fish` or its `analysis_tools` owner.
+- Rerun implications: rerun the Exp5 import/setup cells, the active-matrix build cell, and the new overlap heatmap cell.
+
+## 2026-05-15 - Exp5 active-decision strictness diagnostic
+- Slice goal: compare pooled binary significant-response traces with strict active-neuron decisions.
+- Passes completed in this session: owner-module diagnostic builder, plotting helper, notebook orchestration cell, docs, and synthetic validation.
+- What changed: `src.multifish_analysis` now builds pooled trace/decision diagnostic matrices; `src.plotting` now renders a shared-row trace heatmap plus active-decision strip.
+- What remains broken: no known diagnostic helper issues after synthetic validation.
+- Remaining in-slice work: rerun the Exp5 diagnostic cell with the full dataset and chosen stimulus list.
+- Next likely breakpoint: future strictness changes should adjust the active-neuron thresholds passed to `build_active_neuron_matrices_all_fish`, not the diagnostic plot.
+- Rerun implications: rerun imports, active-matrix build, and the diagnostic visualization cell.

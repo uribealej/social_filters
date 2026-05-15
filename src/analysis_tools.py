@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 from pathlib import Path
 from skimage.filters import threshold_otsu
 from matplotlib_venn import venn3
@@ -163,6 +164,435 @@ def build_trial_aligned_traces(
 # win_length           = res["win_length"]
 # stimuli_trace        = res["stimuli_trace"]
 # onsets_by_id         = res["onsets_by_id"]
+
+
+def _id_to_stimulus_name(stim_key, stimuli_id_map):
+    if stimuli_id_map is None:
+        return str(stim_key)
+
+    id_to_name = {v: k for k, v in stimuli_id_map.items()}
+    if stim_key in id_to_name:
+        return id_to_name[stim_key]
+
+    try:
+        stim_int = int(stim_key)
+    except (TypeError, ValueError):
+        return str(stim_key)
+
+    return id_to_name.get(stim_int, str(stim_key))
+
+
+def _stimulus_duration_entry(
+    stim_key,
+    stimuli_durations,
+    stimuli_id_map=None,
+    motion_duration_key="motion_sec",
+):
+    if stimuli_durations is None:
+        raise ValueError("stimuli_durations is required.")
+
+    candidate_names = [stim_key, str(stim_key)]
+    stim_name = _id_to_stimulus_name(stim_key, stimuli_id_map)
+    candidate_names.append(stim_name)
+
+    for candidate in candidate_names:
+        if candidate in stimuli_durations:
+            duration = stimuli_durations[candidate]
+            missing = [
+                key
+                for key in (motion_duration_key,)
+                if key not in duration or duration[key] is None
+            ]
+            if missing:
+                raise ValueError(
+                    f"Stimulus {candidate!r} is missing required timing field(s): "
+                    f"{', '.join(missing)}."
+                )
+            return candidate, duration
+
+    raise ValueError(
+        f"No stimulus timing metadata found for stimulus {stim_key!r} "
+        f"(resolved name {stim_name!r})."
+    )
+
+
+def _has_consecutive_true(bool_vec, min_run_frames):
+    bool_vec = np.asarray(bool_vec, dtype=bool)
+    if min_run_frames <= 0:
+        raise ValueError("min_run_frames must be > 0")
+    if bool_vec.size < min_run_frames:
+        return False
+
+    run_length = 0
+    for value in bool_vec:
+        if value:
+            run_length += 1
+            if run_length >= min_run_frames:
+                return True
+        else:
+            run_length = 0
+    return False
+
+
+def build_active_neuron_matrix_from_trial_raster(
+    trial_aligned_traces_raster,
+    stimuli_durations,
+    stimuli_id_map=None,
+    stim_order=None,
+    fps_2p=2.0,
+    t_pre_s=5.0,
+    motion_onset_s=8.0,
+    active_fraction_threshold=0.30,
+    min_epoch_s=2.0,
+    min_active_reps=2,
+    expected_reps=4,
+    require_expected_reps=True,
+    tau_s=6.0,
+    motion_duration_key="motion_sec",
+    return_counts=False,
+):
+    """
+    Build a binary neuron-by-stimulus active matrix from trial-aligned rasters.
+
+    Each stimulus array is expected to have shape
+    (n_neurons, n_time, n_reps), with binary values where 1 means significant.
+    A repetition is active when it passes both the significant-frame fraction
+    and consecutive-epoch rules inside the response window after motion onset.
+    """
+    if fps_2p <= 0:
+        raise ValueError("fps_2p must be > 0")
+    if active_fraction_threshold < 0 or active_fraction_threshold > 1:
+        raise ValueError("active_fraction_threshold must be between 0 and 1")
+    if min_active_reps < 1:
+        raise ValueError("min_active_reps must be >= 1")
+    if expected_reps is not None and expected_reps < 1:
+        raise ValueError("expected_reps must be >= 1 when provided")
+    if tau_s is None:
+        raise ValueError("tau_s is required.")
+    tau_s = float(tau_s)
+    if tau_s < 0:
+        raise ValueError("tau_s must be >= 0")
+
+    if stim_order is None:
+        stim_order = list(trial_aligned_traces_raster.keys())
+
+    min_run_frames = int(np.ceil(float(min_epoch_s) * float(fps_2p)))
+    if min_run_frames <= 0:
+        raise ValueError("min_epoch_s is too small; it must span at least one frame")
+
+    matrices = []
+    count_matrices = []
+    n_neurons_expected = None
+
+    for stim in stim_order:
+        key = stim if stim in trial_aligned_traces_raster else str(stim)
+        if key not in trial_aligned_traces_raster:
+            raise KeyError(f"Stimulus {stim!r} not found in trial_aligned_traces_raster.")
+
+        arr = np.asarray(trial_aligned_traces_raster[key])
+        if arr.ndim != 3:
+            raise ValueError(
+                f"Stimulus {stim!r} has shape {arr.shape}; "
+                "expected (n_neurons, n_time, n_reps)."
+            )
+
+        n_neurons, n_time, n_reps = arr.shape
+        if n_neurons_expected is None:
+            n_neurons_expected = n_neurons
+        elif n_neurons != n_neurons_expected:
+            raise ValueError(
+                f"Stimulus {stim!r} has {n_neurons} neurons; expected "
+                f"{n_neurons_expected} to preserve neuron order."
+            )
+
+        if require_expected_reps and expected_reps is not None and n_reps != expected_reps:
+            raise ValueError(
+                f"Stimulus {stim!r} has {n_reps} repetitions; "
+                f"expected {expected_reps}."
+            )
+
+        stim_name, duration = _stimulus_duration_entry(
+            stim,
+            stimuli_durations=stimuli_durations,
+            stimuli_id_map=stimuli_id_map,
+            motion_duration_key=motion_duration_key,
+        )
+        motion_duration_s = float(duration[motion_duration_key])
+
+        time_s = _trial_aligned_time_axis(n_time, fps_2p=fps_2p, t_pre_s=t_pre_s)
+        response_end_s = float(motion_onset_s) + motion_duration_s + tau_s * 2.0
+        response_mask = (time_s >= float(motion_onset_s)) & (time_s < response_end_s)
+        if not np.any(response_mask):
+            raise ValueError(
+                f"Stimulus {stim_name!r} has no frames in the response window "
+                f"{motion_onset_s}..{response_end_s} s. Check t_pre_s, fps_2p, "
+                "and the aligned trace length."
+            )
+
+        response = arr[:, response_mask, :].astype(bool, copy=False)
+        active_reps = np.zeros((n_neurons, n_reps), dtype=bool)
+
+        for rep_idx in range(n_reps):
+            rep_values = response[:, :, rep_idx]
+            frac_active = np.mean(rep_values, axis=1)
+            has_epoch = np.array(
+                [
+                    _has_consecutive_true(rep_values[neuron_idx], min_run_frames)
+                    for neuron_idx in range(n_neurons)
+                ],
+                dtype=bool,
+            )
+            active_reps[:, rep_idx] = (
+                (frac_active >= active_fraction_threshold) & has_epoch
+            )
+
+        active_counts = np.sum(active_reps, axis=1)
+        matrices.append((active_counts >= min_active_reps).astype(int))
+        count_matrices.append(active_counts.astype(int))
+
+    if n_neurons_expected is None:
+        result = pd.DataFrame(columns=stim_order, dtype=int)
+        counts = pd.DataFrame(columns=stim_order, dtype=int)
+    else:
+        result = pd.DataFrame(
+            np.column_stack(matrices),
+            index=np.arange(n_neurons_expected),
+            columns=stim_order,
+            dtype=int,
+        )
+        counts = pd.DataFrame(
+            np.column_stack(count_matrices),
+            index=np.arange(n_neurons_expected),
+            columns=stim_order,
+            dtype=int,
+        )
+    result.index.name = "neuron_id"
+    counts.index.name = "neuron_id"
+
+    if return_counts:
+        return result, counts
+    return result
+
+
+def _parse_side_segment(stimulus, segments):
+    for side, prefixes in (("left", ("Le", "Left")), ("right", ("Ri", "Right"))):
+        for prefix in prefixes:
+            if stimulus.startswith(prefix):
+                suffix = stimulus[len(prefix):]
+                if suffix in segments:
+                    return side, suffix
+    return None, None
+
+
+def _motion_onset_for_stimulus(stimulus, stimuli_durations, pre_motion_fixed_s):
+    duration = None if stimuli_durations is None else stimuli_durations.get(stimulus)
+    if duration is None:
+        return float(pre_motion_fixed_s)
+
+    return float(duration.get("static_before_sec", pre_motion_fixed_s))
+
+
+
+def _trial_aligned_time_axis(n_time, fps_2p, t_pre_s):
+    if fps_2p <= 0:
+        raise ValueError("fps_2p must be > 0")
+    return np.arange(n_time, dtype=float) / float(fps_2p) - float(t_pre_s)
+
+
+def _validate_motion_windows(time_s, motion_onset_s):
+    fixed_mask = (time_s >= 0.0) & (time_s <= motion_onset_s)
+    motion_mask = time_s >= motion_onset_s
+    if not np.any(fixed_mask):
+        raise ValueError(
+            "No samples found in fixed-before-motion window. "
+            "Check fps_2p, t_pre_s, and pre_motion_fixed_s."
+        )
+    if not np.any(motion_mask):
+        raise ValueError(
+            "No samples found in motion window. "
+            "Check fps_2p, t_pre_s, pre_motion_fixed_s, and stimuli_durations."
+        )
+
+    return fixed_mask, motion_mask
+
+
+def _iter_motion_delta_blocks(
+    trial_aligned_traces,
+    fps_2p=2.0,
+    t_pre_s=5.0,
+    pre_motion_fixed_s=8.0,
+    stimuli_id_map=None,
+    stimuli_durations=None,
+    fish_id=None,
+    segments=("B1", "B2", "B3", "B4"),
+):
+    segments = tuple(segments)
+
+    for stim_key, arr in trial_aligned_traces.items():
+        stimulus = _id_to_stimulus_name(stim_key, stimuli_id_map)
+        side, segment = _parse_side_segment(stimulus, segments)
+        if side is None:
+            continue
+
+        arr = np.asarray(arr, dtype=float)
+        if arr.ndim != 3:
+            raise ValueError(
+                f"Stimulus {stimulus!r} has shape {arr.shape}; "
+                "expected (n_neurons, n_time, n_trials)."
+            )
+
+        n_neurons, n_time, n_trials = arr.shape
+        time_s = _trial_aligned_time_axis(n_time, fps_2p=fps_2p, t_pre_s=t_pre_s)
+        motion_onset_s = _motion_onset_for_stimulus(
+            stimulus=stimulus,
+            stimuli_durations=stimuli_durations,
+            pre_motion_fixed_s=pre_motion_fixed_s,
+        )
+        fixed_mask, motion_mask = _validate_motion_windows(time_s, motion_onset_s)
+
+        yield {
+            "fish_id": fish_id,
+            "stim_id": stim_key,
+            "stimulus": stimulus,
+            "segment": segment,
+            "side": side,
+            "arr": arr,
+            "n_neurons": n_neurons,
+            "n_trials": n_trials,
+            "fixed_time_s": time_s[fixed_mask],
+            "motion_time_s": time_s[motion_mask],
+            "fixed_values": arr[:, fixed_mask, :],
+            "motion_values": arr[:, motion_mask, :],
+        }
+
+
+def compute_motion_delta_integrals(
+    trial_aligned_traces,
+    fps_2p=2.0,
+    t_pre_s=5.0,
+    pre_motion_fixed_s=8.0,
+    stimuli_id_map=None,
+    stimuli_durations=None,
+    fish_id=None,
+    segments=("B1", "B2", "B3", "B4"),
+):
+    """
+    Compute per-neuron, per-trial motion-minus-fixed integrals for B stimuli.
+
+    `trial_aligned_traces` is expected to map stimulus IDs to arrays shaped
+    (n_neurons, n_time, n_trials). The fixed/control window starts at stimulus
+    onset (t=0) and ends at motion onset. The motion window starts at motion
+    onset and continues to the end of the aligned trace.
+    """
+    trapz = np.trapezoid if hasattr(np, "trapezoid") else np.trapz
+    rows = []
+
+    for block in _iter_motion_delta_blocks(
+        trial_aligned_traces=trial_aligned_traces,
+        fps_2p=fps_2p,
+        t_pre_s=t_pre_s,
+        pre_motion_fixed_s=pre_motion_fixed_s,
+        stimuli_id_map=stimuli_id_map,
+        stimuli_durations=stimuli_durations,
+        fish_id=fish_id,
+        segments=segments,
+    ):
+        fixed_integral = trapz(block["fixed_values"], x=block["fixed_time_s"], axis=1)
+        motion_integral = trapz(block["motion_values"], x=block["motion_time_s"], axis=1)
+        delta_integral = motion_integral - fixed_integral
+
+        for neuron_id in range(block["n_neurons"]):
+            for trial_id in range(block["n_trials"]):
+                rows.append(
+                    {
+                        "fish_id": block["fish_id"],
+                        "trial_id": trial_id,
+                        "neuron_id": neuron_id,
+                        "stim_id": block["stim_id"],
+                        "stimulus": block["stimulus"],
+                        "segment": block["segment"],
+                        "side": block["side"],
+                        "fixed_before_motion_integral": fixed_integral[neuron_id, trial_id],
+                        "motion_integral": motion_integral[neuron_id, trial_id],
+                        "delta_integral": delta_integral[neuron_id, trial_id],
+                    }
+                )
+
+    columns = [
+        "fish_id",
+        "trial_id",
+        "neuron_id",
+        "stim_id",
+        "stimulus",
+        "segment",
+        "side",
+        "fixed_before_motion_integral",
+        "motion_integral",
+        "delta_integral",
+    ]
+    return pd.DataFrame(rows, columns=columns)
+
+
+def compute_motion_delta_peaks(
+    trial_aligned_traces,
+    fps_2p=2.0,
+    t_pre_s=5.0,
+    pre_motion_fixed_s=8.0,
+    stimuli_id_map=None,
+    stimuli_durations=None,
+    fish_id=None,
+    segments=("B1", "B2", "B3", "B4"),
+):
+    """
+    Compute per-neuron, per-trial motion-minus-fixed max peaks for B stimuli.
+    """
+    rows = []
+
+    for block in _iter_motion_delta_blocks(
+        trial_aligned_traces=trial_aligned_traces,
+        fps_2p=fps_2p,
+        t_pre_s=t_pre_s,
+        pre_motion_fixed_s=pre_motion_fixed_s,
+        stimuli_id_map=stimuli_id_map,
+        stimuli_durations=stimuli_durations,
+        fish_id=fish_id,
+        segments=segments,
+    ):
+        fixed_peak = np.nanmax(block["fixed_values"], axis=1)
+        motion_peak = np.nanmax(block["motion_values"], axis=1)
+        delta_peak = motion_peak - fixed_peak
+
+        for neuron_id in range(block["n_neurons"]):
+            for trial_id in range(block["n_trials"]):
+                rows.append(
+                    {
+                        "fish_id": block["fish_id"],
+                        "trial_id": trial_id,
+                        "neuron_id": neuron_id,
+                        "stim_id": block["stim_id"],
+                        "stimulus": block["stimulus"],
+                        "segment": block["segment"],
+                        "side": block["side"],
+                        "fixed_before_motion_peak": fixed_peak[neuron_id, trial_id],
+                        "motion_peak": motion_peak[neuron_id, trial_id],
+                        "delta_peak": delta_peak[neuron_id, trial_id],
+                    }
+                )
+
+    columns = [
+        "fish_id",
+        "trial_id",
+        "neuron_id",
+        "stim_id",
+        "stimulus",
+        "segment",
+        "side",
+        "fixed_before_motion_peak",
+        "motion_peak",
+        "delta_peak",
+    ]
+    return pd.DataFrame(rows, columns=columns)
+
 
 def plot_accepted_rejected_rasters(
     dfof: np.ndarray,             # (n_neurons, n_frames)

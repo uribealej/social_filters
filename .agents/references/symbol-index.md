@@ -46,6 +46,8 @@ Boundary note:
 - `filter_neurons_by_trial_reliability` - keep neurons based on per-stimulus trial-to-trial reliability.
 - `classify_responses_from_raster` - classify evoked and tardive responses from binary rasters and onset tables.
 - `compute_left_right_index` - compute left-right preference metrics from mean traces.
+- `compute_motion_delta_integrals` - build tidy per-neuron/per-trial motion-minus-fixed integral metrics for B stimuli.
+- `compute_motion_delta_peaks` - build tidy per-neuron/per-trial motion-minus-fixed peak metrics for B stimuli.
 - `build_neuron_order_groupwise_onset` - derive onset-based neuron ordering across response groups.
 - `zscore_dfof_from_prestim_baseline` - z-score dFoF using pre-stimulus baselines.
 
@@ -53,6 +55,10 @@ Boundary note:
 - `combine_reps_one_stim` - combine one stimulus' trial-aligned repetitions by concatenating time or averaging repeats.
 - `build_matrix_for_fish` - concatenate selected stimulus blocks into a per-fish matrix with optional kept-neuron indexing.
 - `build_matrix_all_fish` - stack per-fish matrices for dFoF, raster, or z-score trial-aligned traces.
+- `build_active_neuron_matrices_all_fish` - build one binary neuron-by-stimulus active matrix per fish.
+- `compute_active_neuron_jaccard_overlap` - compute pairwise Jaccard overlap between active-neuron condition sets.
+- `build_active_neuron_overlap_matrices_all_fish` - build pooled and mean-per-fish left/right active-neuron overlap matrices.
+- `build_pooled_active_trace_diagnostic` - pool binary trial-aligned traces and active decisions across fish for strictness diagnostics.
 
 ### `src/significant_traces.py`
 - `compute_noise_model_romano_fast_modular` - build centered dFoF, significance maps, and event rasters from the Romano-style noise model.
@@ -60,6 +66,8 @@ Boundary note:
 ### `src/plotting.py`
 - `list_stimulus_names` - discover stimulus names from `*_trajectory.*` files by stripping `_trajectory`.
 - `build_stimulus_style_maps` - build reusable stimulus color and linestyle dictionaries from discovered stimulus names.
+- `plot_motion_delta_distribution` - plot B1-B4 motion-minus-fixed metric distributions in left/right panels.
+- `plot_active_trace_decision_diagnostic` - plot pooled binary trace diagnostics beside strict active-neuron decisions.
 - `plot_sorted_chunks_single_mode` - build and plot one sorted stimulus-chunk raster.
 - `plot_stimulus_means` - plot per-stimulus mean traces with style dictionaries and optional save behavior.
 - `plot_allfish_flat_raster` - render flattened multi-fish matrices with stimulus movement markers.
