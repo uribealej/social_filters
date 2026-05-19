@@ -27,8 +27,8 @@ Use this file when
 ## Concept ownership
 - `src/data_loading.py` owns experiment-bundle assembly and cache lookup.
 - `src/stimuli_timeline.py` owns timing extraction and stimulus-trace construction used by loaders and plots.
-- `src/analysis_tools.py` owns trial alignment, filtering, classification, and derived metrics.
-- `src/multifish_analysis.py` owns pure multi-fish matrix construction from already trial-aligned per-fish traces.
+- `src/analysis_tools.py` owns trial alignment, response-window frame selection, filtering, classification, and derived metrics.
+- `src/multifish_analysis.py` owns pure multi-fish matrix and response-matrix construction from already trial-aligned per-fish traces.
 - `src/significant_traces.py` owns the noise-model and rasterization pipeline.
 - `src/plotting.py` owns reusable raster, chunk, and mean-trace figure construction.
 - Analysis notebooks own configuration, orchestration, and interpretation around those shared helpers.

@@ -216,6 +216,371 @@ def _stimulus_duration_entry(
     )
 
 
+def resolve_selected_stimuli(selected_stimuli, stimuli_id_map, available_stimuli=None):
+    """
+    Resolve an ordered stimulus selection from names or IDs.
+
+    Parameters
+    ----------
+    selected_stimuli : sequence
+        Stimulus names or IDs in the requested analysis order.
+    stimuli_id_map : dict
+        Mapping from stimulus name to integer ID.
+    available_stimuli : iterable, optional
+        Stimulus keys available in the current trace or active-matrix object.
+
+    Returns
+    -------
+    dict
+        Ordered ``stimulus_ids`` and ``stimulus_labels`` plus a name-to-ID map.
+    """
+    if stimuli_id_map is None:
+        stimuli_id_map = {}
+    if selected_stimuli is None:
+        raise ValueError("selected_stimuli is required.")
+
+    selected_stimuli = list(selected_stimuli)
+    if not selected_stimuli:
+        raise ValueError("selected_stimuli must contain at least one stimulus.")
+
+    id_to_name = {int(value): name for name, value in stimuli_id_map.items()}
+    available_values = None
+    if available_stimuli is not None:
+        available_values = set(available_stimuli)
+        available_values.update(str(value) for value in available_stimuli)
+        for value in list(available_stimuli):
+            try:
+                available_values.add(int(value))
+            except (TypeError, ValueError):
+                pass
+
+    stimulus_ids = []
+    stimulus_labels = []
+    seen_ids = set()
+
+    for stimulus in selected_stimuli:
+        if isinstance(stimulus, (np.integer, int)):
+            stim_id = int(stimulus)
+            label = id_to_name.get(stim_id, str(stim_id))
+        elif stimulus in stimuli_id_map:
+            stim_id = int(stimuli_id_map[stimulus])
+            label = str(stimulus)
+        else:
+            try:
+                stim_id = int(stimulus)
+            except (TypeError, ValueError) as exc:
+                raise KeyError(
+                    f"Stimulus {stimulus!r} is not in stimuli_id_map and is not an ID."
+                ) from exc
+            label = id_to_name.get(stim_id, str(stimulus))
+
+        if stim_id in seen_ids:
+            raise ValueError(f"Stimulus ID {stim_id!r} was selected more than once.")
+        seen_ids.add(stim_id)
+
+        if available_values is not None and stim_id not in available_values:
+            raise KeyError(
+                f"Selected stimulus {stimulus!r} resolved to ID {stim_id}, "
+                "which is not available in the provided object."
+            )
+
+        stimulus_ids.append(stim_id)
+        stimulus_labels.append(label)
+
+    return {
+        "stimulus_ids": stimulus_ids,
+        "stimulus_labels": stimulus_labels,
+        "stimulus_id_map": dict(zip(stimulus_labels, stimulus_ids)),
+    }
+
+
+def compute_response_window_frames(
+    n_time,
+    fps_2p,
+    t_pre_s=5.0,
+    motion_onset_s=8.0,
+    motion_duration_s=None,
+    tau_s=6.0,
+    stimulus=None,
+    stimuli_durations=None,
+    stimuli_id_map=None,
+    motion_duration_key="motion_sec",
+):
+    """
+    Compute clipped frame indices for a stimulus-specific response window.
+
+    The aligned trace time base is ``np.arange(n_time) / fps_2p - t_pre_s``.
+    The response window starts at ``motion_onset_s`` and ends at
+    ``motion_onset_s + motion_duration_s + tau_s * 2``. When
+    ``motion_duration_s`` is omitted, it is read from ``stimuli_durations`` for
+    ``stimulus`` using ``motion_duration_key``.
+    """
+    if n_time is None or int(n_time) <= 0:
+        raise ValueError("n_time must be a positive integer.")
+    if fps_2p <= 0:
+        raise ValueError("fps_2p must be > 0")
+    if tau_s is None:
+        raise ValueError("tau_s is required.")
+    tau_s = float(tau_s)
+    if tau_s < 0:
+        raise ValueError("tau_s must be >= 0")
+
+    resolved_stimulus = stimulus
+    if motion_duration_s is None:
+        if stimulus is None:
+            raise ValueError(
+                "stimulus is required when motion_duration_s is not provided."
+            )
+        resolved_stimulus, duration = _stimulus_duration_entry(
+            stimulus,
+            stimuli_durations=stimuli_durations,
+            stimuli_id_map=stimuli_id_map,
+            motion_duration_key=motion_duration_key,
+        )
+        motion_duration_s = duration[motion_duration_key]
+
+    motion_duration_s = float(motion_duration_s)
+    if motion_duration_s < 0:
+        raise ValueError("motion_duration_s must be >= 0")
+
+    time_s = _trial_aligned_time_axis(
+        int(n_time),
+        fps_2p=fps_2p,
+        t_pre_s=t_pre_s,
+    )
+    start_s = float(motion_onset_s)
+    requested_end_s = start_s + motion_duration_s + tau_s * 2.0
+    frame_period_s = 1.0 / float(fps_2p)
+    clipped_end_s = min(requested_end_s, time_s[-1] + frame_period_s)
+
+    response_mask = (time_s >= start_s) & (time_s < requested_end_s)
+    frame_indices = np.flatnonzero(response_mask)
+    if frame_indices.size == 0:
+        raise ValueError(
+            "No frames found in the response window "
+            f"{start_s}..{requested_end_s} s after clipping to n_time={n_time}. "
+            "Check fps_2p, t_pre_s, motion_onset_s, and stimulus duration."
+        )
+
+    return {
+        "time_s": time_s,
+        "response_mask": response_mask,
+        "frame_indices": frame_indices,
+        "start_frame": int(frame_indices[0]),
+        "stop_frame": int(frame_indices[-1] + 1),
+        "n_frames": int(frame_indices.size),
+        "start_s": start_s,
+        "requested_end_s": requested_end_s,
+        "end_s": clipped_end_s,
+        "motion_duration_s": motion_duration_s,
+        "tau_s": tau_s,
+        "stimulus": resolved_stimulus,
+    }
+
+
+def compute_zscore_response_auc(trial_aligned_trace, frame_indices, time_s=None, fps_2p=None):
+    """
+    Compute mean per-neuron z-score AUC across repetitions for one stimulus.
+
+    Parameters
+    ----------
+    trial_aligned_trace : array
+        Shape ``(n_neurons, n_time, n_reps)``.
+    frame_indices : array-like
+        Response-window frame indices along the time axis.
+    time_s : array-like, optional
+        Full aligned time axis. When provided, integration uses the selected
+        times. Otherwise ``fps_2p`` supplies a constant frame interval.
+    fps_2p : float, optional
+        Frame rate used when ``time_s`` is not provided.
+
+    Returns
+    -------
+    np.ndarray
+        One mean AUC response per neuron.
+    """
+    arr = np.asarray(trial_aligned_trace, dtype=float)
+    if arr.ndim != 3:
+        raise ValueError(
+            f"trial_aligned_trace has shape {arr.shape}; "
+            "expected (n_neurons, n_time, n_reps)."
+        )
+
+    frame_indices = np.asarray(frame_indices, dtype=int).ravel()
+    if frame_indices.size == 0:
+        raise ValueError("frame_indices must contain at least one frame.")
+    if np.any(frame_indices < 0) or np.any(frame_indices >= arr.shape[1]):
+        raise IndexError(
+            "frame_indices are outside the trace time axis "
+            f"with n_time={arr.shape[1]}."
+        )
+
+    response = arr[:, frame_indices, :]
+    trapz = np.trapezoid if hasattr(np, "trapezoid") else np.trapz
+
+    if time_s is not None:
+        time_s = np.asarray(time_s, dtype=float)
+        if time_s.ndim != 1 or time_s.shape[0] != arr.shape[1]:
+            raise ValueError(
+                "time_s must be a 1D array with one entry per trace frame."
+            )
+        x = time_s[frame_indices]
+        if x.size == 1:
+            if fps_2p is None:
+                raise ValueError("fps_2p is required for single-frame AUC windows.")
+            auc_by_rep = response[:, 0, :] / float(fps_2p)
+        else:
+            auc_by_rep = trapz(response, x=x, axis=1)
+    else:
+        if fps_2p is None:
+            raise ValueError("Either time_s or fps_2p is required.")
+        if fps_2p <= 0:
+            raise ValueError("fps_2p must be > 0")
+        if frame_indices.size == 1:
+            auc_by_rep = response[:, 0, :] / float(fps_2p)
+        else:
+            auc_by_rep = trapz(response, dx=1.0 / float(fps_2p), axis=1)
+
+    return np.nanmean(auc_by_rep, axis=1)
+
+
+def compute_stimulus_selectivity_metrics(response_values, stimulus_labels):
+    """
+    Compute raw-response preference and non-negative selectivity metrics.
+
+    ``preferred_stimulus``, ``max_response``, and ``mean_response`` use raw
+    response values. ``selectivity_index`` uses raw response values only when
+    the preferred response is positive and the mean other response is
+    non-negative; this avoids unstable ratios when excitation is cancelled by
+    negative responses. ``simple_selectivity`` and ``lifetime_sparseness`` use
+    responses clipped at zero for selectivity only.
+    """
+    response_values = np.asarray(response_values, dtype=float).ravel()
+    stimulus_labels = list(stimulus_labels)
+
+    if response_values.ndim != 1:
+        raise ValueError("response_values must be 1D.")
+    if response_values.size != len(stimulus_labels):
+        raise ValueError("response_values and stimulus_labels must have the same length.")
+    if response_values.size < 2:
+        raise ValueError("At least two stimuli are required for selectivity metrics.")
+
+    if np.all(np.isnan(response_values)):
+        preferred_idx = None
+        preferred_stimulus = np.nan
+        max_response = np.nan
+        mean_response = np.nan
+    else:
+        preferred_idx = int(np.nanargmax(response_values))
+        preferred_stimulus = stimulus_labels[preferred_idx]
+        max_response = float(np.nanmax(response_values))
+        mean_response = float(np.nanmean(response_values))
+
+    if preferred_idx is None:
+        selectivity_index = np.nan
+    else:
+        other_responses = np.delete(response_values, preferred_idx)
+        finite_other_responses = other_responses[np.isfinite(other_responses)]
+        if finite_other_responses.size == 0:
+            selectivity_index = np.nan
+        else:
+            preferred_response = float(response_values[preferred_idx])
+            mean_other_response = float(np.mean(finite_other_responses))
+            denominator = preferred_response + mean_other_response
+            if (
+                preferred_response <= 0.0
+                or mean_other_response < 0.0
+                or not np.isfinite(denominator)
+                or np.isclose(denominator, 0.0)
+            ):
+                selectivity_index = np.nan
+            else:
+                selectivity_index = float(
+                    (preferred_response - mean_other_response) / denominator
+                )
+
+    positive_responses = np.where(
+        np.isfinite(response_values),
+        np.maximum(response_values, 0.0),
+        0.0,
+    )
+    total_positive = float(np.sum(positive_responses))
+
+    if total_positive <= 0.0:
+        simple_selectivity = np.nan
+        lifetime_sparseness = np.nan
+    else:
+        simple_selectivity = float(np.max(positive_responses) / total_positive)
+        n_stimuli = positive_responses.size
+        mean_r = float(np.mean(positive_responses))
+        mean_r2 = float(np.mean(positive_responses ** 2))
+        if mean_r2 <= 0.0:
+            lifetime_sparseness = np.nan
+        else:
+            lifetime_sparseness = float(
+                (1.0 - ((mean_r ** 2) / mean_r2)) / (1.0 - (1.0 / n_stimuli))
+            )
+
+    return {
+        "preferred_stimulus": preferred_stimulus,
+        "max_response": max_response,
+        "mean_response": mean_response,
+        "simple_selectivity": simple_selectivity,
+        "selectivity_index": selectivity_index,
+        "lifetime_sparseness": lifetime_sparseness,
+    }
+
+
+def classify_stimulus_specificity_neuron(
+    lifetime_sparseness,
+    n_active_stimuli,
+    response_breadth,
+    max_positive_response,
+    high_lifetime_sparseness=0.70,
+    intermediate_lifetime_sparseness=0.40,
+    broad_breadth_threshold=0.80,
+    strong_response_threshold=np.nan,
+    weak_response_threshold=np.nan,
+):
+    """
+    Classify one neuron from selectivity metrics and positive response strength.
+    """
+    if (
+        not np.isfinite(max_positive_response)
+        or max_positive_response <= 0.0
+        or not np.isfinite(lifetime_sparseness)
+    ):
+        return "Weak/unclear"
+
+    if np.isfinite(weak_response_threshold) and max_positive_response <= weak_response_threshold:
+        return "Weak/unclear"
+
+    if (
+        response_breadth >= broad_breadth_threshold
+        and np.isfinite(strong_response_threshold)
+        and max_positive_response >= strong_response_threshold
+    ):
+        return "Strong broad responder"
+
+    if n_active_stimuli == 1 and lifetime_sparseness >= high_lifetime_sparseness:
+        return "Stimulus-specific neuron"
+
+    if (
+        n_active_stimuli > 1
+        and response_breadth < broad_breadth_threshold
+        and lifetime_sparseness >= intermediate_lifetime_sparseness
+    ):
+        return "Subset-selective neuron"
+
+    if (
+        response_breadth >= broad_breadth_threshold
+        and lifetime_sparseness < intermediate_lifetime_sparseness
+    ):
+        return "Broadly active neuron"
+
+    return "Weak/unclear"
+
+
 def _has_consecutive_true(bool_vec, min_run_frames):
     bool_vec = np.asarray(bool_vec, dtype=bool)
     if min_run_frames <= 0:
@@ -432,7 +797,8 @@ def _iter_motion_delta_blocks(
         stimulus = _id_to_stimulus_name(stim_key, stimuli_id_map)
         side, segment = _parse_side_segment(stimulus, segments)
         if side is None:
-            continue
+            side = "selected"
+            segment = stimulus
 
         arr = np.asarray(arr, dtype=float)
         if arr.ndim != 3:
@@ -477,7 +843,7 @@ def compute_motion_delta_integrals(
     segments=("B1", "B2", "B3", "B4"),
 ):
     """
-    Compute per-neuron, per-trial motion-minus-fixed integrals for B stimuli.
+    Compute per-neuron, per-trial motion-minus-fixed integrals for stimuli.
 
     `trial_aligned_traces` is expected to map stimulus IDs to arrays shaped
     (n_neurons, n_time, n_trials). The fixed/control window starts at stimulus
@@ -544,7 +910,7 @@ def compute_motion_delta_peaks(
     segments=("B1", "B2", "B3", "B4"),
 ):
     """
-    Compute per-neuron, per-trial motion-minus-fixed max peaks for B stimuli.
+    Compute per-neuron, per-trial motion-minus-fixed max peaks for stimuli.
     """
     rows = []
 
