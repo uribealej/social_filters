@@ -128,3 +128,12 @@ Use this log for experiment loading, alignment, filtering, classification, plott
 - Remaining in-slice work: none for the planned stimulus-specificity slices after validation.
 - Next likely breakpoint: future refinement should focus on full-data reruns, saved outputs, or export/report formatting if needed.
 - Rerun implications: rerun Exp5 setup/imports, load-and-align, Cells 03b through 03h.
+
+## 2026-05-19 - Exp5 LME feature-decomposition workflow
+- Slice goal: add a clean mixed-effects feature-decomposition workflow for Exp5 response amplitudes.
+- Passes completed in this session: routed workflow read, new LME helper module, plotting helper, new notebook, environment dependency update, and public symbol index update.
+- What changed: `src.lme_feature_decomposition` now builds and validates long response tables, fits editable statsmodels mixed-effects model specs, and summarizes model outputs; `src.plotting` now renders LME model output plots; `scripts/calcium_analysis/Exp5_lme_feature_decomposition.ipynb` orchestrates the all-14-stimulus Exp5 analysis.
+- What remains broken: full notebook validation still requires running the new notebook against the local Exp5 dataset and an environment with `statsmodels` installed.
+- Remaining in-slice work: rerun notebook cells through validation and at least one baseline model fit on the analysis machine.
+- Next likely breakpoint: singular or non-converged mixed-effects fits may require editing only the notebook `model_specs` block or optimizer options.
+- Rerun implications: update the conda environment, then run the new notebook from setup through plots.

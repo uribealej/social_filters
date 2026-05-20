@@ -71,6 +71,12 @@ Boundary note:
 - `build_active_neuron_overlap_matrices_all_fish` - build pooled and mean-per-fish left/right active-neuron overlap matrices.
 - `build_pooled_active_trace_diagnostic` - pool binary trial-aligned traces and active decisions across fish for strictness diagnostics.
 
+### `src/lme_feature_decomposition.py`
+- `build_lme_response_table` - convert per-fish neuron-by-stimulus response matrices plus editable stimulus metadata into a long LME response table.
+- `validate_lme_response_table` - validate fish/neuron/stimulus row contracts, metadata labels, duplicates, missing responses, and response ranges while printing compact summaries.
+- `fit_lme_models` - fit an editable dict/list of statsmodels mixed-effects model specs while reporting failures and continuing remaining fits.
+- `summarize_lme_model_results` - extract fixed effects, random-effect variances, fit statistics, and model metadata into tidy result tables.
+
 ### `src/significant_traces.py`
 - `compute_noise_model_romano_fast_modular` - build centered dFoF, significance maps, and event rasters from the Romano-style noise model.
 
@@ -78,15 +84,16 @@ Boundary note:
 - `list_stimulus_names` - discover stimulus names from `*_trajectory.*` files by stripping `_trajectory`.
 - `build_stimulus_style_maps` - build reusable stimulus color and linestyle dictionaries from discovered stimulus names.
 - `plot_motion_delta_distribution` - plot motion-minus-fixed metric distributions grouped by selected stimulus labels.
-- `plot_active_trace_decision_diagnostic` - plot pooled binary trace diagnostics beside strict active-neuron decisions.
+- `plot_active_trace_decision_diagnostic` - plot pooled binary trace diagnostics beside strict active-neuron decisions, with an optional active-count trace panel.
 - `plot_stimulus_specificity_sparseness` - plot lifetime sparseness against maximum response strength.
 - `plot_stimulus_specificity_selectivity_index` - plot raw selectivity index against maximum response strength.
 - `plot_active_stimuli_histogram` - plot the distribution of active-stimulus counts.
 - `plot_preferred_stimulus_distribution` - plot preferred-stimulus counts in selected stimulus order.
 - `plot_stimulus_specificity_summary` - render the three stimulus-specificity summary plots together.
+- `plot_lme_model_outputs` - render fixed-effect, AIC/BIC, observed-vs-fitted, and response-distribution plots for LME feature-decomposition results.
 - `plot_sorted_chunks_single_mode` - build and plot one sorted stimulus-chunk raster.
 - `plot_stimulus_means` - plot per-stimulus mean traces with style dictionaries and optional save behavior.
-- `plot_allfish_flat_raster` - render flattened multi-fish matrices with stimulus movement markers.
+- `plot_allfish_flat_raster` - render flattened multi-fish matrices with stimulus movement markers and optional mean trace panels.
 
 ## Ownership notes
 - If a notebook calls one of the symbols above, start in the owning module before editing the notebook.

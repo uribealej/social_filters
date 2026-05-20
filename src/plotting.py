@@ -10,6 +10,7 @@ from pathlib import Path
 import re
 import src.stimuli_timeline as st
 from matplotlib.patches import Patch
+import pandas as pd
 
 
 def _natural_sort_key(value):
@@ -363,6 +364,182 @@ def plot_stimulus_specificity_summary(
     return fig, axes
 
 
+def _plot_lme_fixed_effects(fixed_effects, include_intercept=False, figsize=None):
+    coef_df = pd.DataFrame(fixed_effects).copy()
+    if coef_df.empty:
+        return None, None
+    if not include_intercept:
+        coef_df = coef_df[coef_df["term"] != "Intercept"].copy()
+    if coef_df.empty:
+        return None, None
+
+    model_names = coef_df["model_name"].drop_duplicates().tolist()
+    if figsize is None:
+        figsize = (8, max(2.8, 2.3 * len(model_names)))
+    fig, axes = plt.subplots(len(model_names), 1, figsize=figsize, squeeze=False)
+    axes = axes.ravel()
+
+    for ax, model_name in zip(axes, model_names):
+        model_df = coef_df[coef_df["model_name"] == model_name].copy()
+        model_df = model_df.sort_values("coefficient")
+        y = np.arange(model_df.shape[0])
+        ax.axvline(0, color="0.35", linewidth=1, linestyle="--")
+        xerr = None
+        if {"ci_lower", "ci_upper"}.issubset(model_df.columns):
+            lower = model_df["coefficient"] - model_df["ci_lower"]
+            upper = model_df["ci_upper"] - model_df["coefficient"]
+            if np.isfinite(lower).all() and np.isfinite(upper).all():
+                xerr = np.vstack([lower.to_numpy(), upper.to_numpy()])
+        ax.errorbar(
+            model_df["coefficient"],
+            y,
+            xerr=xerr,
+            fmt="o",
+            color="0.15",
+            ecolor="0.45",
+            capsize=3,
+        )
+        ax.set_yticks(y)
+        ax.set_yticklabels(model_df["term"])
+        ax.set_title(model_name)
+        ax.set_xlabel("Fixed-effect coefficient")
+        ax.grid(axis="x", alpha=0.25)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
+    fig.tight_layout()
+    return fig, axes
+
+
+def _plot_lme_model_comparison(model_comparison, figsize=(7, 4)):
+    comparison = pd.DataFrame(model_comparison).copy()
+    if comparison.empty:
+        return None, None
+    comparison = comparison[comparison["status"] == "success"].copy()
+    comparison = comparison.dropna(subset=["aic", "bic"], how="all")
+    if comparison.empty:
+        return None, None
+
+    fig, ax = plt.subplots(figsize=figsize)
+    x = np.arange(comparison.shape[0])
+    width = 0.38
+    if "aic" in comparison.columns:
+        ax.bar(x - width / 2, comparison["aic"], width=width, label="AIC")
+    if "bic" in comparison.columns:
+        ax.bar(x + width / 2, comparison["bic"], width=width, label="BIC")
+    ax.set_xticks(x)
+    ax.set_xticklabels(comparison["model_name"], rotation=35, ha="right")
+    ax.set_ylabel("Information criterion")
+    ax.set_title("Model comparison")
+    ax.legend()
+    ax.grid(axis="y", alpha=0.25)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    fig.tight_layout()
+    return fig, ax
+
+
+def _plot_lme_observed_vs_fitted(fit_results, response_table, figsize=None):
+    if response_table is None:
+        return None, None
+    df = pd.DataFrame(response_table)
+    successful = [
+        (name, payload["result"])
+        for name, payload in fit_results.items()
+        if payload.get("status") == "success" and payload.get("result") is not None
+    ]
+    if not successful:
+        return None, None
+
+    if figsize is None:
+        figsize = (5 * len(successful), 4)
+    fig, axes = plt.subplots(1, len(successful), figsize=figsize, squeeze=False)
+    axes = axes.ravel()
+
+    observed = df["response"].to_numpy(dtype=float)
+    for ax, (model_name, result) in zip(axes, successful):
+        fitted = np.asarray(result.fittedvalues, dtype=float)
+        finite = np.isfinite(observed) & np.isfinite(fitted)
+        ax.scatter(fitted[finite], observed[finite], s=10, alpha=0.25, linewidths=0)
+        if np.any(finite):
+            low = float(np.nanmin([fitted[finite].min(), observed[finite].min()]))
+            high = float(np.nanmax([fitted[finite].max(), observed[finite].max()]))
+            ax.plot([low, high], [low, high], color="0.35", linewidth=1, linestyle="--")
+        ax.set_title(model_name)
+        ax.set_xlabel("Fitted response")
+        ax.set_ylabel("Observed response")
+        ax.grid(alpha=0.2)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
+    fig.tight_layout()
+    return fig, axes
+
+
+def _plot_lme_response_distribution(response_table, figsize=(10, 4)):
+    if response_table is None:
+        return None, None
+    df = pd.DataFrame(response_table).copy()
+    required = {"stimulus_class", "position_id", "response"}
+    if df.empty or not required.issubset(df.columns):
+        return None, None
+
+    fig, axes = plt.subplots(1, 2, figsize=figsize, sharey=True)
+    for ax, col, title in zip(
+        axes,
+        ["stimulus_class", "position_id"],
+        ["Response by stimulus class", "Response by position"],
+    ):
+        labels = df[col].dropna().drop_duplicates().tolist()
+        values = [df.loc[df[col] == label, "response"].dropna().to_numpy() for label in labels]
+        positions = np.arange(1, len(labels) + 1)
+        if values:
+            ax.boxplot(values, positions=positions, showfliers=False)
+        ax.axhline(0, color="0.35", linewidth=1, linestyle="--")
+        ax.set_xticks(positions)
+        ax.set_xticklabels(labels, rotation=35, ha="right")
+        ax.set_title(title)
+        ax.set_xlabel(col)
+        ax.grid(axis="y", alpha=0.25)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+    axes[0].set_ylabel("Response")
+    fig.tight_layout()
+    return fig, axes
+
+
+def plot_lme_model_outputs(results, response_table=None, include_intercept=False):
+    """
+    Plot fixed effects, model comparison, fitted values, and response summaries.
+    """
+    figures = {}
+    fixed_fig, fixed_axes = _plot_lme_fixed_effects(
+        results.get("fixed_effects"),
+        include_intercept=include_intercept,
+    )
+    if fixed_fig is not None:
+        figures["fixed_effects"] = (fixed_fig, fixed_axes)
+
+    comparison_fig, comparison_ax = _plot_lme_model_comparison(
+        results.get("model_comparison")
+    )
+    if comparison_fig is not None:
+        figures["model_comparison"] = (comparison_fig, comparison_ax)
+
+    fitted_fig, fitted_axes = _plot_lme_observed_vs_fitted(
+        results.get("fit_results", {}),
+        response_table,
+    )
+    if fitted_fig is not None:
+        figures["observed_vs_fitted"] = (fitted_fig, fitted_axes)
+
+    distribution_fig, distribution_axes = _plot_lme_response_distribution(response_table)
+    if distribution_fig is not None:
+        figures["response_distribution"] = (distribution_fig, distribution_axes)
+
+    return figures
+
+
 def plot_motion_delta_distribution(
     delta_df,
     value_col="delta_integral",
@@ -504,6 +681,11 @@ def plot_active_trace_decision_diagnostic(
     motion_onset_key="static_before_sec",
     motion_line_color="tab:red",
     motion_line_style="--",
+    show_active_count_trace=False,
+    active_count_threshold=0.5,
+    active_count_color="tab:blue",
+    active_count_ylabel="# Active neurons",
+    active_count_height_ratio=1.2,
 ):
     """
     Plot pooled significant-response traces beside strict active decisions.
@@ -535,16 +717,32 @@ def plot_active_trace_decision_diagnostic(
     decision_sorted = decision_matrix[neuron_order]
 
     fig = plt.figure(figsize=figsize)
-    gs = gridspec.GridSpec(
-        1,
-        4,
-        width_ratios=[32, 1.0, 7, 0.8],
-        wspace=0.15,
-    )
-    ax_trace = fig.add_subplot(gs[0, 0])
-    cax_trace = fig.add_subplot(gs[0, 1])
-    ax_decision = fig.add_subplot(gs[0, 2], sharey=ax_trace)
-    cax_decision = fig.add_subplot(gs[0, 3])
+    if show_active_count_trace:
+        gs = gridspec.GridSpec(
+            2,
+            4,
+            width_ratios=[32, 1.0, 7, 0.8],
+            height_ratios=[6, active_count_height_ratio],
+            hspace=0.05,
+            wspace=0.15,
+        )
+        ax_trace = fig.add_subplot(gs[0, 0])
+        ax_active_count = fig.add_subplot(gs[1, 0], sharex=ax_trace)
+        cax_trace = fig.add_subplot(gs[0, 1])
+        ax_decision = fig.add_subplot(gs[0, 2], sharey=ax_trace)
+        cax_decision = fig.add_subplot(gs[0, 3])
+    else:
+        gs = gridspec.GridSpec(
+            1,
+            4,
+            width_ratios=[32, 1.0, 7, 0.8],
+            wspace=0.15,
+        )
+        ax_trace = fig.add_subplot(gs[0, 0])
+        ax_active_count = None
+        cax_trace = fig.add_subplot(gs[0, 1])
+        ax_decision = fig.add_subplot(gs[0, 2], sharey=ax_trace)
+        cax_decision = fig.add_subplot(gs[0, 3])
 
     trace_im = ax_trace.imshow(
         trace_sorted,
@@ -569,6 +767,8 @@ def plot_active_trace_decision_diagnostic(
 
     for boundary in boundaries[:-1]:
         ax_trace.axvline(boundary - 0.5, color="0.65", linewidth=0.8, alpha=0.8)
+        if ax_active_count is not None:
+            ax_active_count.axvline(boundary - 0.5, color="0.65", linewidth=0.8, alpha=0.8)
 
     if stimuli_durations is not None:
         for start, label, width, n_time, n_reps in zip(
@@ -600,6 +800,14 @@ def plot_active_trace_decision_diagnostic(
                             linewidth=1.0,
                             alpha=0.9,
                         )
+                        if ax_active_count is not None:
+                            ax_active_count.axvline(
+                                xpos - 0.5,
+                                color=motion_line_color,
+                                linestyle=motion_line_style,
+                                linewidth=1.0,
+                                alpha=0.9,
+                            )
             else:
                 xpos = start + motion_frame
                 if xpos < start + width:
@@ -610,11 +818,34 @@ def plot_active_trace_decision_diagnostic(
                         linewidth=1.0,
                         alpha=0.9,
                     )
+                    if ax_active_count is not None:
+                        ax_active_count.axvline(
+                            xpos - 0.5,
+                            color=motion_line_color,
+                            linestyle=motion_line_style,
+                            linewidth=1.0,
+                            alpha=0.9,
+                        )
 
     ax_trace.set_xticks(centers)
     ax_trace.set_xticklabels(stim_labels, rotation=45, ha="right")
     ax_trace.set_xlabel("Aligned time blocks")
     ax_trace.set_ylabel("Pooled neurons")
+
+    if ax_active_count is not None:
+        active_count = np.nansum(trace_matrix >= active_count_threshold, axis=0)
+        x = np.arange(trace_matrix.shape[1])
+        ax_active_count.plot(x, active_count, color=active_count_color, linewidth=1.5)
+        ax_active_count.set_xlim(-0.5, trace_matrix.shape[1] - 0.5)
+        ax_active_count.set_xticks(centers)
+        ax_active_count.set_xticklabels(stim_labels, rotation=45, ha="right")
+        ax_active_count.set_ylabel(active_count_ylabel)
+        ax_active_count.set_xlabel("Aligned time blocks")
+        ax_active_count.set_ylim(bottom=0)
+        ax_active_count.spines["top"].set_visible(False)
+        ax_active_count.spines["right"].set_visible(False)
+        plt.setp(ax_trace.get_xticklabels(), visible=False)
+        ax_trace.set_xlabel("")
 
     ax_decision.set_xticks(np.arange(len(stim_labels)))
     ax_decision.set_xticklabels(stim_labels, rotation=45, ha="right")
@@ -637,7 +868,10 @@ def plot_active_trace_decision_diagnostic(
     fig.colorbar(decision_im, cax=cax_decision, label="Final active (0/1)")
 
     fig.subplots_adjust(left=0.08, right=0.94, bottom=0.18, top=0.90)
-    return fig, (ax_trace, ax_decision), neuron_order
+    axes = (ax_trace, ax_decision)
+    if ax_active_count is not None:
+        axes = (ax_trace, ax_active_count, ax_decision)
+    return fig, axes, neuron_order
 # def add_stimuli_markers(ax, exp_log, stimuli_durations, stimuli_colors, time_offset=0, trace='movement'):
 #     """
 #     Add vertical lines for stimulus movement starts and return legend handles.

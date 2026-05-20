@@ -30,7 +30,7 @@ Use this file when
 - `src/analysis_tools.py` owns trial alignment, response-window frame selection, filtering, classification, and derived metrics.
 - `src/multifish_analysis.py` owns pure multi-fish matrix and response-matrix construction from already trial-aligned per-fish traces.
 - `src/significant_traces.py` owns the noise-model and rasterization pipeline.
-- `src/plotting.py` owns reusable raster, chunk, and mean-trace figure construction.
+- `src/plotting.py` owns reusable raster, chunk, mean-trace, and active-count trace figure construction.
 - Analysis notebooks own configuration, orchestration, and interpretation around those shared helpers.
 
 ## Navigation notes

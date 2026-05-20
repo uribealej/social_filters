@@ -4,3 +4,6 @@
 # Python cache files
 __pycache__/
 *.py[cod]
+
+__pycache__/
+*.pyc
