@@ -137,3 +137,12 @@ Use this log for experiment loading, alignment, filtering, classification, plott
 - Remaining in-slice work: rerun notebook cells through validation and at least one baseline model fit on the analysis machine.
 - Next likely breakpoint: singular or non-converged mixed-effects fits may require editing only the notebook `model_specs` block or optimizer options.
 - Rerun implications: update the conda environment, then run the new notebook from setup through plots.
+
+## 2026-05-30 - Exp5 reusable several-fish refactor
+- Slice goal: create a short reusable Exp5 several-fish notebook while preserving the original notebook.
+- Passes completed in this session: routed workflow read, owner-module helper extraction, new refactored notebook creation, docs update, and smoke validation.
+- What changed: `src.data_loading` owns the reusable load-and-align wrapper; `src.analysis_tools` exposes per-trial AUC; `src.multifish_analysis` now owns stimulus-vector similarity and segment-selectivity summaries; `src.plotting` includes compact similarity plots; `Exp5_map_positions_several_refactored.ipynb` orchestrates the reusable workflow without classification thresholds or clustered response-profile plotting.
+- What remains broken: full notebook validation still requires running against the local Exp5 dataset.
+- Remaining in-slice work: rerun the new notebook through the summary and plot cells on the analysis machine.
+- Next likely breakpoint: future behavior changes should adjust the owner helpers, not reintroduce notebook-local copies.
+- Rerun implications: rerun setup/load cells, response summary cells, similarity plots, and the chosen output plot cells.

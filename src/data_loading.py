@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 import src.stimuli_timeline as st
-from src.analysis_tools import find_file_with_suffix
+from src.analysis_tools import build_trial_aligned_traces, find_file_with_suffix
 
 
 def transform_stimuli_duration(stimuli_durations: Dict[str, dict]) -> Dict[str, dict]:
@@ -329,4 +329,85 @@ def load_2p_experiment(
         "plane_ids": plane_ids,
         "mean_imgs": mean_imgs,
         "stat_per_plane": stat_per_plane,
+    }
+
+
+def load_and_align_2p_experiment(
+    fish_id: str,
+    experiment_name: str,
+    main_path: Path,
+    stimuli_main_path: Path,
+    fps_2p: float,
+    selected_blocks,
+    t_pre_s: float,
+    t_post_s: float,
+    verbose: bool = True,
+) -> Dict[str, Any]:
+    """
+    Load one fish experiment and build aligned dFoF, raster, normalized, and z-score traces.
+
+    This is the reusable owner-layer version of the several-fish notebook
+    loading cell. It preserves the notebook data shape expected by
+    ``src.multifish_analysis`` helpers.
+    """
+    results = load_2p_experiment(
+        fish_id=fish_id,
+        experiment_name=experiment_name,
+        main_path=main_path,
+        stimuli_main_path=stimuli_main_path,
+        fps_2p=fps_2p,
+        selected_blocks=selected_blocks,
+    )
+
+    required_arrays = ["dfof", "raster", "deltaF_center", "z_traces"]
+    missing_arrays = [name for name in required_arrays if results.get(name) is None]
+    if missing_arrays:
+        raise ValueError(
+            "Cannot build aligned experiment bundle; missing cached array(s): "
+            + ", ".join(missing_arrays)
+        )
+
+    dfof_center = np.asarray(results["deltaF_center"], dtype=float)
+    min_val = np.nanmin(dfof_center)
+    max_val = np.nanmax(dfof_center)
+    value_range = max_val - min_val + 1e-12
+    dfof_center_norm = (dfof_center - min_val) / value_range
+
+    align_kwargs = {
+        "stimuli_trace_60": results["stimuli_trace_60"],
+        "fps_2p": fps_2p,
+        "t_pre_s": t_pre_s,
+        "t_post_s": t_post_s,
+        "stimuli_id_map": results["stimuli_id_map"],
+        "verbose": verbose,
+    }
+    aligned_dfof = build_trial_aligned_traces(dfof=results["dfof"], **align_kwargs)
+    aligned_raster = build_trial_aligned_traces(dfof=results["raster"], **align_kwargs)
+    aligned_norm = build_trial_aligned_traces(dfof=dfof_center_norm, **align_kwargs)
+    aligned_zscore = build_trial_aligned_traces(dfof=results["z_traces"], **align_kwargs)
+
+    return {
+        "trial_aligned_traces": aligned_dfof["trial_aligned_traces"],
+        "stimuli_ids": aligned_dfof["stimuli_ids"],
+        "stimuli_names": aligned_dfof["stimuli_names"],
+        "win_length": aligned_dfof["win_length"],
+        "stimuli_trace": aligned_dfof["stimuli_trace"],
+        "onsets_by_id": aligned_dfof["onsets_by_id"],
+        "trial_aligned_traces_raster": aligned_raster["trial_aligned_traces"],
+        "trial_aligned_traces_norm": aligned_norm["trial_aligned_traces"],
+        "trial_aligned_traces_z_core": aligned_zscore["trial_aligned_traces"],
+        "dfof": results["dfof"],
+        "raster": results["raster"],
+        "dfof_center": results["deltaF_center"],
+        "dFoF_merged_map": results["dFoF_merged_map"],
+        "stimuli_durations": results["stimuli_durations"],
+        "kept_neuron_indices": results["kept_neuron_indices"],
+        "stimuli_id_map": results["stimuli_id_map"],
+        "meta": {
+            "frames_per_block": results["frames_per_block"],
+            "duration_2p_block_sec": results["duration_2p_block_sec"],
+            "paths": results["paths"],
+            "plane_ids": results["plane_ids"],
+            "stat_per_plane": results["stat_per_plane"],
+        },
     }

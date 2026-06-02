@@ -110,6 +110,81 @@ def build_stimulus_style_maps(
     return stimuli_colors, stimuli_linestyles
 
 
+def plot_similarity_heatmaps(
+    pearson_similarity_matrix,
+    cosine_similarity_matrix,
+    figsize=(10, 4),
+    cmap="vlag",
+):
+    """Plot Pearson and cosine stimulus-vector similarity heatmaps."""
+    import seaborn as sns
+
+    fig, axes = plt.subplots(1, 2, figsize=figsize, constrained_layout=True)
+    for ax, matrix, title in (
+        (axes[0], pearson_similarity_matrix, "Pearson similarity"),
+        (axes[1], cosine_similarity_matrix, "Cosine similarity"),
+    ):
+        sns.heatmap(
+            matrix,
+            annot=True,
+            fmt=".2f",
+            cmap=cmap,
+            center=0,
+            vmin=-1,
+            vmax=1,
+            square=True,
+            ax=ax,
+        )
+        ax.set_title(title)
+    return fig, axes
+
+
+def plot_similarity_by_distance(
+    pair_similarity,
+    similarity_column="pearson_similarity",
+    ax=None,
+    title=None,
+):
+    """Plot pairwise stimulus-vector similarity grouped by selected-order distance."""
+    if similarity_column not in pair_similarity.columns:
+        raise ValueError(f"pair_similarity is missing {similarity_column!r}.")
+
+    if ax is None:
+        _, ax = plt.subplots(figsize=(5, 4))
+
+    plot_df = pair_similarity.dropna(subset=[similarity_column]).copy()
+    if not plot_df.empty:
+        pair_offsets = plot_df.groupby("segment_distance").cumcount()
+        pair_counts = plot_df.groupby("segment_distance")[similarity_column].transform("size")
+        pair_jitter = (pair_offsets - (pair_counts - 1) / 2.0) * 0.04
+        ax.scatter(
+            plot_df["segment_distance"] + pair_jitter,
+            plot_df[similarity_column],
+            color="0.25",
+            s=45,
+            alpha=0.85,
+            label="Pairs",
+        )
+        distance_means = plot_df.groupby("segment_distance", as_index=False)[
+            similarity_column
+        ].mean()
+        ax.plot(
+            distance_means["segment_distance"],
+            distance_means[similarity_column],
+            marker="D",
+            color="tab:red",
+            linewidth=1.5,
+            label="Mean",
+        )
+        ax.legend(frameon=False)
+
+    ylabel = similarity_column.replace("_", " ").capitalize()
+    ax.set_xlabel("Segment distance")
+    ax.set_ylabel(ylabel)
+    ax.set_title(title or f"{ylabel} by segment distance")
+    return ax
+
+
 def _resolve_analysis_label(summary_table, analysis_label=None):
     if analysis_label is not None:
         return str(analysis_label)

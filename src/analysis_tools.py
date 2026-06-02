@@ -444,6 +444,55 @@ def compute_zscore_response_auc(trial_aligned_trace, frame_indices, time_s=None,
     return np.nanmean(auc_by_rep, axis=1)
 
 
+def compute_trial_auc_by_neuron(trial_aligned_trace, frame_indices, time_s=None, fps_2p=None):
+    """
+    Return per-neuron, per-trial AUC values for a response window.
+
+    Parameters mirror ``compute_zscore_response_auc``, but this keeps the
+    repetition axis instead of averaging over repetitions. The returned array
+    has shape ``(n_neurons, n_reps)``.
+    """
+    arr = np.asarray(trial_aligned_trace, dtype=float)
+    if arr.ndim != 3:
+        raise ValueError(
+            f"trial_aligned_trace has shape {arr.shape}; "
+            "expected (n_neurons, n_time, n_reps)."
+        )
+
+    frame_indices = np.asarray(frame_indices, dtype=int).ravel()
+    if frame_indices.size == 0:
+        raise ValueError("frame_indices must contain at least one frame.")
+    if np.any(frame_indices < 0) or np.any(frame_indices >= arr.shape[1]):
+        raise IndexError(
+            "frame_indices are outside the trace time axis "
+            f"with n_time={arr.shape[1]}."
+        )
+
+    response = arr[:, frame_indices, :]
+    trapz = np.trapezoid if hasattr(np, "trapezoid") else np.trapz
+
+    if time_s is not None:
+        time_s = np.asarray(time_s, dtype=float)
+        if time_s.ndim != 1 or time_s.shape[0] != arr.shape[1]:
+            raise ValueError(
+                "time_s must be a 1D array with one entry per trace frame."
+            )
+        x = time_s[frame_indices]
+        if x.size == 1:
+            if fps_2p is None:
+                raise ValueError("fps_2p is required for single-frame AUC windows.")
+            return response[:, 0, :] / float(fps_2p)
+        return trapz(response, x=x, axis=1)
+
+    if fps_2p is None:
+        raise ValueError("Either time_s or fps_2p is required.")
+    if fps_2p <= 0:
+        raise ValueError("fps_2p must be > 0")
+    if frame_indices.size == 1:
+        return response[:, 0, :] / float(fps_2p)
+    return trapz(response, dx=1.0 / float(fps_2p), axis=1)
+
+
 def compute_stimulus_selectivity_metrics(response_values, stimulus_labels):
     """
     Compute raw-response preference and non-negative selectivity metrics.

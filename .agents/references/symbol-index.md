@@ -26,6 +26,7 @@ Use this file when
 
 ### `src/data_loading.py`
 - `load_2p_experiment` - high-level experiment bundle loader that assembles dFoF, cache lookups, paths, stimulus traces, and plane metadata.
+- `load_and_align_2p_experiment` - load one fish and build aligned dFoF, raster, normalized, and z-score traces for several-fish notebooks.
 
 Not public here yet:
 - preprocessing notebook helpers such as `ensure_dir`, `find_experiments`, `plane_dir` / `plane_dirs`, and `experiment_prefix` are still duplicated outside `src/` and should not be treated as stable callable API.
@@ -46,6 +47,7 @@ Boundary note:
 - `resolve_selected_stimuli` - normalize ordered stimulus selections from names or IDs.
 - `compute_response_window_frames` - compute clipped aligned-trace response-window frame indices.
 - `compute_zscore_response_auc` - compute per-neuron mean z-score AUC across repetitions for one stimulus.
+- `compute_trial_auc_by_neuron` - compute per-neuron/per-trial AUC values for one stimulus response window.
 - `compute_stimulus_selectivity_metrics` - compute raw-response preference, raw selectivity index, and non-negative selectivity metrics.
 - `classify_stimulus_specificity_neuron` - classify one neuron from sparseness, breadth, and positive response strength.
 - `filter_neurons_by_trial_reliability` - keep neurons based on per-stimulus trial-to-trial reliability.
@@ -66,6 +68,9 @@ Boundary note:
 - `add_selectivity_metrics_to_summary_table` - add preference, sparseness, raw selectivity index, selectivity, and active-breadth metrics.
 - `classify_stimulus_specificity_summary_table` - add adaptive neuron classes using configurable thresholds.
 - `build_stimulus_specificity_neuron_order` - sort pooled rows by preferred stimulus, sparseness, and response strength.
+- `build_stimulus_vector_similarity` - compute Pearson/cosine stimulus-vector similarity matrices and pairwise distance summaries.
+- `resolve_segment_labels` - resolve short segment labels against selected stimulus labels.
+- `build_segment_selectivity_permutation_summary` - compute pooled per-neuron segment-selectivity permutation summaries.
 - `build_active_neuron_matrices_all_fish` - build one binary neuron-by-stimulus active matrix per fish.
 - `compute_active_neuron_jaccard_overlap` - compute pairwise Jaccard overlap between active-neuron condition sets.
 - `build_active_neuron_overlap_matrices_all_fish` - build pooled and mean-per-fish left/right active-neuron overlap matrices.
@@ -83,6 +88,8 @@ Boundary note:
 ### `src/plotting.py`
 - `list_stimulus_names` - discover stimulus names from `*_trajectory.*` files by stripping `_trajectory`.
 - `build_stimulus_style_maps` - build reusable stimulus color and linestyle dictionaries from discovered stimulus names.
+- `plot_similarity_heatmaps` - plot Pearson and cosine stimulus-vector similarity heatmaps.
+- `plot_similarity_by_distance` - plot pairwise stimulus-vector similarity as a function of selected-order distance.
 - `plot_motion_delta_distribution` - plot motion-minus-fixed metric distributions grouped by selected stimulus labels.
 - `plot_active_trace_decision_diagnostic` - plot pooled binary trace diagnostics beside strict active-neuron decisions, with an optional active-count trace panel.
 - `plot_stimulus_specificity_sparseness` - plot lifetime sparseness against maximum response strength.
