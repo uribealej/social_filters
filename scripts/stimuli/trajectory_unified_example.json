@@ -1,0 +1,68 @@
+{
+  "_experiment": {
+    "output_path": "D:\\Alejandro\\Data\\OneDrive - Université de Lausanne\\Lab\\Data\\stimuli\\my_unified_test",
+    "angle_ranges": [[-40, -160]],
+    "radius_cm": 1.8,
+    "speed_cm_sec": 0.497,
+    "framerate": 60,
+    "update_interval_ms": 600,
+    "static_period_sec": 8,
+    "flicker_interval_ms": 300,
+    "dot_size_on": 0.2,
+    "rotation_angle_deg": 45,
+    "pause_before_sec": 12.5,
+    "pause_after_sec": 12.5
+  },
+  "ordered_control": {
+    "type": "ordered_motion",
+    "positions": "all"
+  },
+  "ordered_1_5": {
+    "type": "ordered_motion",
+    "positions": "1-5"
+    
+  },
+  "ordered_1_5_flicker": {
+    "type": "ordered_motion",
+    "positions": "1-5",
+    "flickering": true,
+    "flicker_on_ms": 300,
+    "flicker_off_ms": 300
+  },
+  "random_1_5": {
+    "type": "random_motion",
+    "positions": "1-5",
+    "max_jump": 2,
+    "max_same_position_consecutive": 2,
+    "balanced_visits": true,
+    "randomize_each_repeat": true,
+    "repeats": 2,
+    "seed": 457
+  },
+  "rocking_1_5": {
+    "type": "rocking",
+    "positions": [1, 5],
+    "repeats": 5
+  },
+  "rocking_1_5_flicker": {
+    "type": "rocking",
+    "positions": [1, 5],
+    "flickering": true,
+    "flicker_on_ms": 300,
+    "flicker_off_ms": 300
+  },
+  "single_flicker_pos_3": {
+    "type": "single_flicker",
+    "position": 3,
+    "flicker_on_ms": 300,
+    "flicker_off_ms": 300,
+    "repeats": 2
+  },
+  "multi_flicker_1_5": {
+    "type": "multi_flicker",
+    "positions": "1-5",
+    "flicker_on_ms": 300,
+    "flicker_off_ms": 300,
+    "repeats": 5
+  }
+}

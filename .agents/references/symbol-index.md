@@ -44,10 +44,13 @@ Boundary note:
 
 ### `src/analysis_tools.py`
 - `build_trial_aligned_traces` - build trial windows keyed by stimulus id.
+- `compute_trial_mean_response_metrics` - build per-stimulus trial-mean traces plus peak, AUC, and average response metrics.
 - `resolve_selected_stimuli` - normalize ordered stimulus selections from names or IDs.
 - `compute_response_window_frames` - compute clipped aligned-trace response-window frame indices.
 - `compute_zscore_response_auc` - compute per-neuron mean z-score AUC across repetitions for one stimulus.
 - `compute_trial_auc_by_neuron` - compute per-neuron/per-trial AUC values for one stimulus response window.
+- `compute_response_pair_index` - compute a paired stimulus preference index from a neuron-by-stimulus response matrix.
+- `build_response_index_keep_mask` - convert a paired response index into a reusable neuron keep mask.
 - `compute_stimulus_selectivity_metrics` - compute raw-response preference, raw selectivity index, and non-negative selectivity metrics.
 - `classify_stimulus_specificity_neuron` - classify one neuron from sparseness, breadth, and positive response strength.
 - `filter_neurons_by_trial_reliability` - keep neurons based on per-stimulus trial-to-trial reliability.
@@ -76,6 +79,19 @@ Boundary note:
 - `build_active_neuron_overlap_matrices_all_fish` - build pooled and mean-per-fish left/right active-neuron overlap matrices.
 - `build_pooled_active_trace_diagnostic` - pool binary trial-aligned traces and active decisions across fish for strictness diagnostics.
 
+### `src/reusable_several_fish.py`
+- `resolve_stimulus_set` - resolve editable notebook stimulus sets against a reference fish.
+- `save_analysis_report_run` - save a timestamped several-fish run folder with settings, comments, metadata, tables, and optional notebook export.
+- `export_notebook_report` - export a saved notebook to a report folder through nbconvert.
+- `build_response_window_validation` - build compact response-window validation tables for selected fish and stimuli.
+- `resolve_response_control_columns` - resolve left/right control IDs or names to response-matrix columns.
+- `build_selected_neuron_summary` - build selected/all-stimulus summary tables plus response-index filter outputs.
+- `build_high_sparseness_raster_data` - prepare high lifetime-sparseness raster matrices and row order.
+- `build_pooled_mean_trace_by_stimulus` - build per-fish mean traces for pooled time-course plots.
+- `build_fish_keep_masks` - split a pooled neuron keep mask into per-fish masks in response-row order.
+- `build_filtered_trial_aligned_traces_for_fish` - subset one fish's selected trial-aligned traces by preprocessing and optional pooled-filter rows.
+- `build_overlap_diagnostic_data` - prepare active-neuron overlap matrices and pooled trace diagnostics for reusable notebooks.
+
 ### `src/lme_feature_decomposition.py`
 - `build_lme_response_table` - convert per-fish neuron-by-stimulus response matrices plus editable stimulus metadata into a long LME response table.
 - `validate_lme_response_table` - validate fish/neuron/stimulus row contracts, metadata labels, duplicates, missing responses, and response ranges while printing compact summaries.
@@ -84,6 +100,7 @@ Boundary note:
 
 ### `src/significant_traces.py`
 - `compute_noise_model_romano_fast_modular` - build centered dFoF, significance maps, and event rasters from the Romano-style noise model.
+- `clean_binary_raster_columns` - remove non-finite or zero-variance raster columns before correlation-based sorting.
 
 ### `src/plotting.py`
 - `list_stimulus_names` - discover stimulus names from `*_trajectory.*` files by stripping `_trajectory`.

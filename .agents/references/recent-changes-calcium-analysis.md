@@ -146,3 +146,12 @@ Use this log for experiment loading, alignment, filtering, classification, plott
 - Remaining in-slice work: rerun the new notebook through the summary and plot cells on the analysis machine.
 - Next likely breakpoint: future behavior changes should adjust the owner helpers, not reintroduce notebook-local copies.
 - Rerun implications: rerun setup/load cells, response summary cells, similarity plots, and the chosen output plot cells.
+
+## 2026-06-05 - Exp7 reusable single-fish notebook
+- Slice goal: create a shorter reusable single-fish notebook derived from `Exp_7_trans_stat.ipynb` while preserving the original notebook.
+- Passes completed in this session: routed workflow read, owner-module helper extraction, new notebook creation, docs update, and synthetic validation.
+- What changed: `src.analysis_tools` now builds trial-mean response metrics from aligned traces; `src.significant_traces` now cleans binary raster columns before correlation sorting; `General_analysis_single_fish_reusable.ipynb` orchestrates loading, z-score caching, reliability filtering, mean traces, significant-trace diagnostics, and sorted chunk plots.
+- What remains broken: full notebook validation still requires running against the local Exp7 data paths.
+- Remaining in-slice work: rerun the new notebook end to end on the analysis machine.
+- Next likely breakpoint: future single-fish notebook cleanup should keep reusable metric and raster-cleaning logic in `src/`.
+- Rerun implications: rerun setup/load, z-score save, reliability filtering, significant-trace save, and final binary raster plot cells.

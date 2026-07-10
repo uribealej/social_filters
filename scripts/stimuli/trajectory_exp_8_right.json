@@ -1,0 +1,68 @@
+{
+  "_experiment": {
+    "output_path": "D:\\Alejandro\\Data\\OneDrive - Université de Lausanne\\Lab\\Data\\stimuli\\exp_8_accumulation_evidence_2",
+    "angle_ranges": [[30, 160]],
+    "radius_cm": 1.8,
+    "speed_cm_sec": 0.497,
+    "framerate": 60,
+    "update_interval_ms": 600,
+    "static_period_sec": 8,
+    "flicker_interval_ms": 300,
+    "dot_size_on": 0.2,
+    "rotation_angle_deg": 45,
+    "pause_before_sec": 12.5,
+    "pause_after_sec": 12.5
+  },
+  "RiB": {
+    "type": "ordered_motion",
+    "positions": "all"
+  },
+
+   "RiBseg2": {
+    "type": "ordered_motion",
+    "positions": "2-9"
+    
+  },
+
+  "RiBseg1": {
+    "type": "ordered_motion",
+    "positions": "2-6"
+    
+  },
+ 
+  "RiBseg135": {
+    "type": "ordered_motion",
+    "positions": "2,4,6"
+    
+  },
+
+  "RiBseg1rnd": {
+    "type": "random_motion",
+    "positions": "2-6",
+    "max_jump": 2,
+    "max_same_position_consecutive": 2,
+    "balanced_visits": true,
+    "randomize_each_repeat": true,
+    "seed": 457
+  },
+  
+ "RiBflick5": {
+    "type": "multi_flicker",
+    "positions": "2-6",
+    "flicker_on_ms": 300,
+    "flicker_off_ms": 300    
+  },
+
+  "RiBrock": {
+    "type": "rocking",
+    "positions": [2, 4]
+  },
+
+  "RiBflick1": {
+    "type": "single_flicker",
+    "positions": "2",
+    "flicker_on_ms": 300,
+    "flicker_off_ms": 300    
+  }
+
+}

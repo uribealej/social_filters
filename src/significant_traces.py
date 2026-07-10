@@ -615,6 +615,33 @@ def compute_noise_model_romano_fast_modular(
     return mapOfOdds, deltaF_center, density_data, density_noise, xev, yev, raster, mapOfOddsJoint
 
 
+def clean_binary_raster_columns(raster):
+    """
+    Remove neuron columns that cannot be used for correlation-based sorting.
+
+    Returns the cleaned raster plus masks for columns containing non-finite
+    values or zero variance. Input and output use the standard ``(T, N)``
+    time-by-neuron convention.
+    """
+    raster = np.asarray(raster)
+    if raster.ndim != 2:
+        raise ValueError("raster must be a 2D array shaped (time, neurons).")
+
+    nan_mask = ~np.isfinite(raster).all(axis=0)
+    zero_var_mask = np.nanstd(raster, axis=0) == 0
+    bad_mask = nan_mask | zero_var_mask
+    good_mask = ~bad_mask
+
+    return {
+        "raster_clean": raster[:, good_mask],
+        "nan_mask": nan_mask,
+        "zero_var_mask": zero_var_mask,
+        "bad_mask": bad_mask,
+        "good_mask": good_mask,
+        "good_indices": np.flatnonzero(good_mask),
+    }
+
+
 def plot_dff_and_raster(deltaF_center, raster, fps=2.0, vmax_dff=0.15, title=None):
     """
     Plot one figure with two panels (same neuron order):

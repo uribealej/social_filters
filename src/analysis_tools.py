@@ -147,6 +147,89 @@ def build_trial_aligned_traces(
 
     return result
 
+
+def compute_trial_mean_response_metrics(
+    trial_aligned_traces,
+    stimuli_ids=None,
+    fps_2p=2.0,
+    t_pre_s=5.0,
+    t_post_s=None,
+    kept_neuron_indices=None,
+):
+    """
+    Build per-stimulus trial-mean traces plus simple response metrics.
+
+    ``trial_aligned_traces`` is expected to map stimulus IDs to arrays shaped
+    ``(n_neurons, n_time, n_trials)``. The returned ``mean_traces`` dict keeps
+    the plotting convention used by ``src.plotting.plot_stimulus_means``:
+    each value is shaped ``(n_selected_neurons, n_time)``.
+    """
+    if stimuli_ids is None:
+        stimuli_ids = list(trial_aligned_traces.keys())
+
+    pre_frames = int(round(float(t_pre_s) * float(fps_2p)))
+    dt = 1.0 / float(fps_2p)
+
+    if kept_neuron_indices is not None:
+        kept_neuron_indices = np.asarray(kept_neuron_indices, dtype=int).ravel()
+
+    mean_traces = {}
+    peaks = {}
+    aucs = {}
+    averages = {}
+
+    for stim in stimuli_ids:
+        if stim not in trial_aligned_traces:
+            raise KeyError(f"Stimulus {stim!r} not found in trial_aligned_traces.")
+
+        trace = np.asarray(trial_aligned_traces[stim], dtype=float)
+        if trace.ndim != 3:
+            raise ValueError(
+                "Each trial-aligned trace must be shaped "
+                "(n_neurons, n_time, n_trials)."
+            )
+
+        if kept_neuron_indices is not None:
+            if kept_neuron_indices.size and (
+                kept_neuron_indices.min() < 0
+                or kept_neuron_indices.max() >= trace.shape[0]
+            ):
+                raise IndexError(
+                    f"kept_neuron_indices contains values outside stimulus {stim!r} "
+                    f"neuron axis of length {trace.shape[0]}."
+                )
+            trace = trace[kept_neuron_indices, :, :]
+
+        mean_trace = np.nanmean(trace, axis=2)
+        n_time = mean_trace.shape[1]
+        if t_post_s is None:
+            stop_frame = n_time
+        else:
+            stop_frame = min(n_time, pre_frames + int(round(float(t_post_s) * float(fps_2p))))
+        start_frame = min(pre_frames, n_time)
+
+        response_trace = mean_trace[:, start_frame:stop_frame]
+        mean_traces[stim] = mean_trace
+
+        if response_trace.shape[1] == 0:
+            n_neurons = mean_trace.shape[0]
+            peaks[stim] = np.full(n_neurons, np.nan, dtype=float)
+            aucs[stim] = np.full(n_neurons, np.nan, dtype=float)
+            averages[stim] = np.full(n_neurons, np.nan, dtype=float)
+        else:
+            peaks[stim] = np.nanmax(response_trace, axis=1)
+            aucs[stim] = np.trapezoid(np.nan_to_num(response_trace), dx=dt, axis=1)
+            averages[stim] = np.nanmean(response_trace, axis=1)
+
+    return {
+        "mean_traces": mean_traces,
+        "peaks": peaks,
+        "aucs": aucs,
+        "averages": averages,
+        "pre_frames": pre_frames,
+        "response_start_frame": pre_frames,
+    }
+
 # # Example usage:
 # res = build_trial_aligned_traces(
 #     dfof=dfof,
@@ -292,6 +375,55 @@ def resolve_selected_stimuli(selected_stimuli, stimuli_id_map, available_stimuli
         "stimulus_labels": stimulus_labels,
         "stimulus_id_map": dict(zip(stimulus_labels, stimulus_ids)),
     }
+
+
+def compute_response_pair_index(response_matrix, left_stimulus, right_stimulus, eps=1e-12):
+    """
+    Compute a paired preference index from a neuron-by-stimulus response matrix.
+
+    The returned index is ``(left - right) / (left + right)``. Missing
+    configured stimulus columns return an all-NaN vector so notebooks can keep
+    running with ``left_right_filter_mode='none'`` while still reporting the
+    missing control pair.
+    """
+    response_matrix = pd.DataFrame(response_matrix)
+    n_rows = response_matrix.shape[0]
+    index_values = np.full(n_rows, np.nan, dtype=float)
+
+    if left_stimulus not in response_matrix.columns or right_stimulus not in response_matrix.columns:
+        return index_values
+
+    left = response_matrix[left_stimulus].to_numpy(dtype=float)
+    right = response_matrix[right_stimulus].to_numpy(dtype=float)
+    denom = left + right
+    finite = np.isfinite(left) & np.isfinite(right) & np.isfinite(denom) & (np.abs(denom) > eps)
+    index_values[finite] = (left[finite] - right[finite]) / denom[finite]
+    return index_values
+
+
+def build_response_index_keep_mask(index_values, mode="none", threshold=0.3, value_range=(-0.3, 0.3)):
+    """
+    Build a neuron keep mask from a paired response index.
+
+    Modes match the reusable notebook settings:
+    ``none``, ``abs``, ``left``, ``right``, and ``range``.
+    """
+    index_values = np.asarray(index_values, dtype=float)
+    mode = str(mode)
+
+    if mode == "none":
+        return np.ones(index_values.shape[0], dtype=bool)
+    if mode == "abs":
+        return np.isfinite(index_values) & (np.abs(index_values) >= float(threshold))
+    if mode == "left":
+        return np.isfinite(index_values) & (index_values >= float(threshold))
+    if mode == "right":
+        return np.isfinite(index_values) & (index_values <= -float(threshold))
+    if mode == "range":
+        lo, hi = value_range
+        return np.isfinite(index_values) & (index_values >= float(lo)) & (index_values <= float(hi))
+
+    raise ValueError("mode must be 'none', 'abs', 'left', 'right', or 'range'.")
 
 
 def compute_response_window_frames(
@@ -1111,11 +1243,12 @@ def filter_neurons_by_trial_reliability(
     fps_2p: float,
     plots_path: Path,
     prefix: str = "",
-    costom_threshold :[float] = None,
+    costom_threshold: float | None = None,
     folder_name: str | None = None,
     make_plots: bool = True,
     save_indices: bool = True,
     hist_bins: int = 70,
+    custom_threshold: float | None = None,
 ):
     """
 
@@ -1150,6 +1283,10 @@ def filter_neurons_by_trial_reliability(
         Base path used only to save kept neuron indices (.npy).
     prefix : str
         Optional string to prepend in the saved filename.
+    custom_threshold : float or None
+        Optional fixed reliability threshold. If None, Otsu's threshold is used.
+    costom_threshold : float or None
+        Deprecated spelling of custom_threshold, kept for older notebooks.
     filename_mid : str
         Optional middle part of the saved filename (e.g. session ID).
     folder_name : str or None
@@ -1177,6 +1314,9 @@ def filter_neurons_by_trial_reliability(
     """
 
     T, n_neurons = dfof.shape
+    if custom_threshold is not None and costom_threshold is not None:
+        raise ValueError("Use only one of custom_threshold or deprecated costom_threshold")
+    threshold_override = custom_threshold if custom_threshold is not None else costom_threshold
 
     # --- reliability per neuron x stimulus ---
     reliability_per_stim = np.full((n_neurons, len(stimuli_ids)), np.nan, dtype=float)
@@ -1210,10 +1350,8 @@ def filter_neurons_by_trial_reliability(
     else:
         otsu_threshold = np.nan
 
-    if costom_threshold is None:
-        otsu_threshold = otsu_threshold
-    else:
-        otsu_threshold = costom_threshold
+    if threshold_override is not None:
+        otsu_threshold = float(threshold_override)
 
     kept_mask = np.isfinite(max_stimuli_correlation) & (max_stimuli_correlation >= otsu_threshold)
     kept_neuron_indices = np.flatnonzero(kept_mask)
