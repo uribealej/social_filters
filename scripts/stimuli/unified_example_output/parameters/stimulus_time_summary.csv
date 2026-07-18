@@ -1,9 +1,0 @@
-stimulus_key,type,n_frames,csv_duration_sec,pause_before_sec,pause_after_sec,duration_with_pauses_sec
-ordered_control,ordered_motion,1020,17.0,12.5,12.5,42.0
-ordered_1_5,ordered_motion,840,14.0,12.5,12.5,39.0
-ordered_1_5_flicker,ordered_motion,660,11.0,12.5,12.5,36.0
-random_1_5,random_motion,1020,17.0,12.5,12.5,42.0
-rocking_1_5,rocking,1056,17.6,12.5,12.5,42.6
-rocking_1_5_flicker,rocking,1056,17.6,12.5,12.5,42.6
-single_flicker_pos_3,single_flicker,973,16.216667,12.5,12.5,41.216667
-multi_flicker_1_5,multi_flicker,973,16.216667,12.5,12.5,41.216667

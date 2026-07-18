@@ -1,9 +1,0 @@
-stimulus_key,type,positions,repeats,angle_ranges,radius_cm,speed_cm_sec,framerate,update_interval_ms,static_period_sec,flicker_interval_ms,dot_size_on,rotation_angle_deg,pause_before_sec,pause_after_sec,base_motion_duration_sec,date,flickering,flicker_on_ms,flicker_off_ms,max_jump,max_same_position_consecutive,balanced_visits,randomize_each_repeat,seed,position
-ordered_control,ordered_motion,all,1.0,"[[30, 160]]",1.8,0.497,60,600,8,300,0.2,45,12.5,12.5,8.2174,2026-06-26 14:04:16,,,,,,,,,
-ordered_1_5,ordered_motion,1-5,2.0,"[[30, 160]]",1.8,0.497,60,600,8,300,0.2,45,12.5,12.5,8.2174,2026-06-26 14:04:16,,,,,,,,,
-ordered_1_5_flicker,ordered_motion,1-5,1.0,"[[30, 160]]",1.8,0.497,60,600,8,300,0.2,45,12.5,12.5,8.2174,2026-06-26 14:04:16,True,300.0,300.0,,,,,,
-random_1_5,random_motion,1-5,3.0,"[[30, 160]]",1.8,0.497,60,600,8,300,0.2,45,12.5,12.5,8.2174,2026-06-26 14:04:16,,,,2.0,2.0,True,True,123.0,
-rocking_1_5,rocking,"[1, 5]",8.0,"[[30, 160]]",1.8,0.497,60,600,8,300,0.2,45,12.5,12.5,8.2174,2026-06-26 14:04:16,,,,,,,,,
-rocking_1_5_flicker,rocking,"[1, 5]",8.0,"[[30, 160]]",1.8,0.497,60,600,8,300,0.2,45,12.5,12.5,8.2174,2026-06-26 14:04:16,True,300.0,300.0,,,,,,
-single_flicker_pos_3,single_flicker,,,"[[30, 160]]",1.8,0.497,60,600,8,300,0.2,45,12.5,12.5,8.2174,2026-06-26 14:04:16,,300.0,300.0,,,,,,3.0
-multi_flicker_1_5,multi_flicker,1-5,,"[[30, 160]]",1.8,0.497,60,600,8,300,0.2,45,12.5,12.5,8.2174,2026-06-26 14:04:16,,300.0,300.0,,,,,,
