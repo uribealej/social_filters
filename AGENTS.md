@@ -13,10 +13,12 @@ This repository uses a routed instruction system under `.agents/` so future agen
 ## Non-negotiable repo rules
 - `src/` owns reusable analysis logic, timing semantics, and plotting helpers.
 - Notebooks in `scripts/calcium_analysis/` stay orchestration, exploration, and reporting first.
+- Keep notebook cells short and single-purpose, with minimal success output. Move reusable or verbose loading, analysis, and plotting orchestration into the owning `src/` helper; notebook cells should show only the configuration, a brief explanation, and the call.
 - Stimulus generation scripts in `scripts/stimuli/` are wrappers around experiment-specific asset generation, not downstream timing authority.
 - Fix scientific or file-contract semantics at the narrowest owner layer instead of patching downstream notebooks.
 - Preserve canonical output names, folder layouts, and stage order unless a task explicitly includes a migration.
 - Validate changes with the smallest practical rerun or smoke check; do not claim success from static reasoning alone.
+- For every new or materially changed figure, render a screenshot during validation and inspect it for overlapping labels, legends, ticks, annotations, clipped content, or unreadable layout. Iterate on the figure until the screenshot is clear; record any environment limitation that prevents this check.
 
 ## Reference files
 - `.agents/workflows/social-filters-router.md` - top-level dispatcher for all repo work.
@@ -30,6 +32,9 @@ This repository uses a routed instruction system under `.agents/` so future agen
 - `.agents/references/refactor-loop-policy.md` - default slice size, keep-going rules, and handoff expectations.
 - `.agents/references/recent-changes.md` - index for workflow-specific handoff logs.
 
+## Cross-experiment notebook copies
+
+When creating an analysis notebook for a new experiment from an existing notebook, keep the shared `src/` helper workflow and discover the new experiment's fish IDs, stimulus IDs/order, timing, controls, and paths from its data or configuration—never copy these values blindly. Keep figure-size controls beside their individual plotting calls, preserve the configured stimulus order in summary plots, and validate every code cell plus the smallest practical data-backed run. Do not alter the source experiment notebook.
 ## Scope note
 
 Keep this file short. Workflow-specific routing, stage maps, output semantics, current-state warnings, and handoff logs live under `.agents/`.

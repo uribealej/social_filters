@@ -49,6 +49,8 @@ Boundary note:
 - `compute_response_window_frames` - compute clipped aligned-trace response-window frame indices.
 - `compute_zscore_response_auc` - compute per-neuron mean z-score AUC across repetitions for one stimulus.
 - `compute_trial_auc_by_neuron` - compute per-neuron/per-trial AUC values for one stimulus response window.
+- `compute_static_flicker_trial_metrics` - build per-trial and per-position static--flicker AUC, activity, category, and raster-display data for one fish.
+- `validate_static_flicker_recruitment_result` - smoke-check one fish's static--flicker windows, categories, and raster-display rows.
 - `compute_response_pair_index` - compute a paired stimulus preference index from a neuron-by-stimulus response matrix.
 - `build_response_index_keep_mask` - convert a paired response index into a reusable neuron keep mask.
 - `compute_stimulus_selectivity_metrics` - compute raw-response preference, raw selectivity index, and non-negative selectivity metrics.
@@ -77,6 +79,7 @@ Boundary note:
 - `build_active_neuron_matrices_all_fish` - build one binary neuron-by-stimulus active matrix per fish.
 - `compute_active_neuron_jaccard_overlap` - compute pairwise Jaccard overlap between active-neuron condition sets.
 - `build_active_neuron_overlap_matrices_all_fish` - build pooled and mean-per-fish left/right active-neuron overlap matrices.
+- `build_static_flicker_recruitment_analysis` - combine per-fish, per-position static--flicker metrics into category, shared-ΔAUC, and recruitment/amplification summaries.
 - `build_pooled_active_trace_diagnostic` - pool binary trial-aligned traces and active decisions across fish for strictness diagnostics.
 
 ### `src/reusable_several_fish.py`
@@ -91,6 +94,12 @@ Boundary note:
 - `build_fish_keep_masks` - split a pooled neuron keep mask into per-fish masks in response-row order.
 - `build_filtered_trial_aligned_traces_for_fish` - subset one fish's selected trial-aligned traces by preprocessing and optional pooled-filter rows.
 - `build_overlap_diagnostic_data` - prepare active-neuron overlap matrices and pooled trace diagnostics for reusable notebooks.
+- `load_and_preflight_fish_raster_inputs` - load and validate a configured several-fish raster cohort.
+- `build_all_fish_raster_figure` - build an all-fish raster with configurable labels and sorting.
+- `build_plot_all_fish_mean_zscore_traces` - render mean z-score traces for an ordered stimulus set.
+- `plot_left_right_active_overlap_diagnostics` - render left/right active-neuron overlap and raster diagnostics.
+- `plot_motion_active_neuron_counts` - render ordered per-stimulus active counts with one point per fish and no fish legend.
+- `plot_lifetime_sparseness_analysis` - render lifetime sparseness and a high-sparseness raster with an optional analysis label.
 
 ### `src/lme_feature_decomposition.py`
 - `build_lme_response_table` - convert per-fish neuron-by-stimulus response matrices plus editable stimulus metadata into a long LME response table.
@@ -118,6 +127,10 @@ Boundary note:
 - `plot_sorted_chunks_single_mode` - build and plot one sorted stimulus-chunk raster.
 - `plot_stimulus_means` - plot per-stimulus mean traces with style dictionaries and optional save behavior.
 - `plot_allfish_flat_raster` - render flattened multi-fish matrices with stimulus movement markers and optional mean trace panels.
+- `plot_static_flicker_classification_raster` - render independent left and right category-ordered static--flicker significant-raster figures.
+- `plot_static_flicker_category_proportions` - render per-position, per-fish stacked category proportions.
+- `plot_shared_static_flicker_auc_summary` - render separate left/right shared-neuron AUC comparisons with per-stimulus distributions of per-fish mean ΔAUC.
+- `plot_recruitment_amplification` - render per-position, per-fish recruitment and amplification components.
 
 ## Ownership notes
 - If a notebook calls one of the symbols above, start in the owning module before editing the notebook.

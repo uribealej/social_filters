@@ -12,6 +12,15 @@ Use this log for experiment loading, alignment, filtering, classification, plott
 - Next likely breakpoint:
 - Rerun implications:
 
+## 2026-08-04 - Exp 1 static--flicker recruitment
+- Slice goal: add a maintained Exp 1 notebook for static--flicker recruitment and amplification summaries.
+- Passes completed in this session: shared trial-first analysis, multi-fish aggregation, reusable plotting, notebook/report orchestration, and smoke validation.
+- What changed: `src.analysis_tools` now computes static `[onset-8, onset-4)` and flicker `[onset, onset+4)` metrics from aligned z-score/raster traces; `src.multifish_analysis` aggregates fish-level summaries; `src.plotting` renders the four requested figures; `02_static_flicker_recruitment.ipynb` is the new consumer.
+- What remains broken: full cohort execution requires the local Exp 1 data/cache files.
+- Remaining in-slice work: none after validation.
+- Next likely breakpoint: change local notebook thresholds or selected stimuli, not shared timing semantics.
+- Rerun implications: rerun notebook cells 01 through 09 after changing selections, thresholds, or cached input arrays.
+
 ## 2026-04-21 - Initial guidance system seed
 - Slice goal: create the routed guidance docs for calcium-analysis ownership and handoff.
 - Passes completed in this session: repo inspection, router creation, stage-map creation, symbol indexing, and current-state documentation.
@@ -155,3 +164,9 @@ Use this log for experiment loading, alignment, filtering, classification, plott
 - Remaining in-slice work: rerun the new notebook end to end on the analysis machine.
 - Next likely breakpoint: future single-fish notebook cleanup should keep reusable metric and raster-cleaning logic in `src/`.
 - Rerun implications: rerun setup/load, z-score save, reliability filtering, significant-trace save, and final binary raster plot cells.
+
+## 2026-08-05 - Exp 8 all-fish raster
+- Slice goal: add the maintained all-fish raster workflow for Exp 8 accumulation evidence.
+- What changed: added `Exp_8_accumulation_ev/01_all_fish_raster.ipynb`, using shared several-fish helpers with the validated six-fish cohort, B1--B4 blocks, 16-stimulus order, and Exp 8 labels. Raster and sparseness labels are configurable; active-count points have no fish legend and rotate long stimulus labels. Cell 06 now rescales its temporal active-neuron count axis after movement markers are drawn, preventing real counts from being clipped to 0--1.
+- Validation: JSON and all code cells compiled; one-fish data-backed run confirmed all 16 IDs and four repetitions per stimulus, rendered every figure type, and passed layout review after the active-count tick-label adjustment.
+- Rerun implications: run Cells 01--08 for a full Exp 8 cohort analysis; enable Cell 09 only after review.

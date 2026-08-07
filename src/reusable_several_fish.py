@@ -4,14 +4,20 @@ import json
 import platform
 import subprocess
 import sys
+from contextlib import redirect_stdout
 from datetime import datetime
+from io import StringIO
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 import src.analysis_tools as at
+import src.data_loading as exio
 import src.multifish_analysis as mfa
+import src.plotting as plott
 
 
 def _json_safe(value):
@@ -38,6 +44,176 @@ def _slugify_label(label):
     clean = "".join(ch if ch.isalnum() or ch in "-_" else "-" for ch in str(label).strip())
     clean = "-".join(part for part in clean.split("-") if part)
     return clean or "run"
+
+
+def load_and_preflight_fish_raster_inputs(settings):
+    """Quietly load a configured fish cohort and validate its raster stimulus order.
+
+    Returns the loaded data, resolved paths, and reference-fish metadata used by
+    several-fish raster notebooks. Loader output is suppressed on success; any
+    unavailable fish or stimulus raises one concise exception.
+    """
+    settings = dict(settings)
+    timing = dict(settings["timing"])
+    fish_ids = list(settings["fish_ids"])
+    stim_order = list(settings["stim_order"])
+    if not fish_ids:
+        raise ValueError("settings['fish_ids'] must contain at least one fish.")
+    if not stim_order:
+        raise ValueError("settings['stim_order'] must contain at least one stimulus ID.")
+
+    data_base = Path(settings["data_base"])
+    onedrive_candidates = [
+        data_base / "OneDrive - Universite de Lausanne",
+        *sorted(data_base.glob("OneDrive - Universit* de Lausanne")),
+    ]
+    onedrive_root = next((path for path in onedrive_candidates if path.exists()), None)
+    if onedrive_root is None:
+        raise FileNotFoundError(f"Could not find the OneDrive Lab folder below: {data_base}")
+
+    main_path = onedrive_root / "Lab" / "Data" / "2p"
+    analysis_path = onedrive_root / "Lab" / "Analysis"
+    all_fish_data = {}
+    load_errors = {}
+    for fish_id in fish_ids:
+        try:
+            with redirect_stdout(StringIO()):
+                all_fish_data[fish_id] = exio.load_and_align_2p_experiment(
+                    fish_id=fish_id,
+                    experiment_name=settings["experiment_name"],
+                    main_path=main_path,
+                    stimuli_main_path=analysis_path,
+                    fps_2p=timing["fps_2p"],
+                    selected_blocks=settings["selected_blocks"],
+                    t_pre_s=timing["t_pre_s"],
+                    t_post_s=timing["t_post_s"],
+                    verbose=settings.get("verbose_loading", False),
+                )
+        except Exception as error:
+            load_errors[fish_id] = f"{type(error).__name__}: {error}"
+
+    if load_errors:
+        details = "; ".join(f"{fish_id}: {message}" for fish_id, message in load_errors.items())
+        raise RuntimeError(f"Could not load all configured fish. {details}")
+
+    for fish_id, fish_data in all_fish_data.items():
+        try:
+            at.resolve_selected_stimuli(
+                stim_order,
+                stimuli_id_map=fish_data["stimuli_id_map"],
+                available_stimuli=fish_data["trial_aligned_traces_z_core"].keys(),
+            )
+        except Exception as error:
+            raise ValueError(
+                f"Stimulus order {stim_order} is unavailable for {fish_id}. "
+                f"Detected map: {fish_data['stimuli_id_map']}"
+            ) from error
+
+    reference_fish_id = fish_ids[0]
+    reference_fish = all_fish_data[reference_fish_id]
+    return {
+        "settings": settings,
+        "timing": timing,
+        "fish_ids": fish_ids,
+        "stim_order": stim_order,
+        "main_path": main_path,
+        "analysis_path": analysis_path,
+        "all_fish_data": all_fish_data,
+        "reference_fish_id": reference_fish_id,
+        "reference_fish": reference_fish,
+        "trial_aligned_traces": reference_fish["trial_aligned_traces_z_core"],
+        "stimuli_id_map": reference_fish["stimuli_id_map"],
+        "stimuli_durations": reference_fish["stimuli_durations"],
+        "stimuli_names": reference_fish["stimuli_names"],
+    }
+
+
+def build_all_fish_raster_figure(
+    all_fish_data,
+    fish_ids,
+    stim_order,
+    reference_fish,
+    timing,
+    raster_settings,
+    stimuli_colors,
+    stimuli_linestyles,
+    figsize=(8, 8),
+):
+    """Build and order a configured all-fish raster figure.
+
+    ``raster_sort_mode='left_right_index'`` orders kept neurons using the AUC
+    response-pair index between the configured left and right control IDs.
+    """
+    flat_matrix_all_fish = mfa.build_matrix_all_fish(
+        all_fish_data=all_fish_data,
+        stim_order=stim_order,
+        fish_ids=fish_ids,
+        combine_mode=raster_settings["combine_mode"],
+        trace_type=raster_settings["trace_type"],
+    )
+
+    raster_neuron_order = None
+    raster_sort_label = None
+    raster_left_right_index = None
+    if raster_settings["raster_sort_mode"] == "left_right_index":
+        left_selection = at.resolve_selected_stimuli(
+            [raster_settings["left_control"]],
+            stimuli_id_map=reference_fish["stimuli_id_map"],
+            available_stimuli=reference_fish["trial_aligned_traces_z_core"].keys(),
+        )
+        right_selection = at.resolve_selected_stimuli(
+            [raster_settings["right_control"]],
+            stimuli_id_map=reference_fish["stimuli_id_map"],
+            available_stimuli=reference_fish["trial_aligned_traces_z_core"].keys(),
+        )
+        sort_response = mfa.build_zscore_response_matrices_all_fish(
+            all_fish_data=all_fish_data,
+            fish_ids=fish_ids,
+            selected_stimuli=left_selection["stimulus_labels"] + right_selection["stimulus_labels"],
+            fps_2p=timing["fps_2p"],
+            t_pre_s=timing["t_pre_s"],
+        )["pooled_response_matrix"]
+        raster_left_right_index = at.compute_response_pair_index(
+            pd.DataFrame(
+                {
+                    "left": sort_response[left_selection["stimulus_labels"][0]],
+                    "right": sort_response[right_selection["stimulus_labels"][0]],
+                }
+            ),
+            left_stimulus="left",
+            right_stimulus="right",
+        )
+        sort_values = np.where(np.isfinite(raster_left_right_index), raster_left_right_index, np.inf)
+        raster_neuron_order = np.argsort(sort_values, kind="stable")
+        raster_sort_label = "left-right index"
+
+    fig, ax, image, neuron_order = plott.plot_allfish_flat_raster(
+        data=flat_matrix_all_fish,
+        trial_aligned_traces=reference_fish["trial_aligned_traces_z_core"],
+        stim_order=stim_order,
+        stimuli_id_map=reference_fish["stimuli_id_map"],
+        stimuli_durations=reference_fish["stimuli_durations"],
+        stimuli_colors=stimuli_colors,
+        stimuli_linestyles=stimuli_linestyles,
+        fps_2p=timing["fps_2p"],
+        t_pre_s=timing["t_pre_s"],
+        combine_mode=raster_settings["combine_mode"],
+        sort_mode=("corravg" if raster_neuron_order is not None else raster_settings["raster_sort_mode"]),
+        neuron_order=raster_neuron_order,
+        sort_label=raster_sort_label,
+        is_binary=False,
+        show_mean_trace=True,
+        figsize=figsize,
+        fish_id=f"all_fish_{_slugify_label(raster_settings.get('analysis_label', raster_settings.get('experiment_name', 'analysis')))}",
+    )
+    return {
+        "flat_matrix_all_fish": flat_matrix_all_fish,
+        "raster_left_right_index": raster_left_right_index,
+        "neuron_order": neuron_order,
+        "figure": fig,
+        "axes": ax,
+        "image": image,
+    }
 
 
 def export_notebook_report(
@@ -124,8 +300,9 @@ def save_analysis_report_run(
     tables=None,
     notebook_path=None,
     extra_metadata=None,
+    report_name=None,
 ):
-    """Save one timestamped several-fish analysis run record and optional notebook report."""
+    """Save one timestamped analysis run record and an optional named notebook report."""
     if not report_settings.get("save_report", False):
         print("Report saving is off. Set REPORT_SETTINGS['save_report'] = True to save this run.")
         return None
@@ -176,10 +353,11 @@ def save_analysis_report_run(
 
     export_result = None
     if notebook_path is not None and report_settings.get("export_notebook", True):
+        report_name = _slugify_label(report_name or "several_fish_report")
         export_result = export_notebook_report(
             notebook_path=notebook_path,
             output_dir=run_dir,
-            report_name="several_fish_report",
+            report_name=report_name,
             report_format=report_settings.get("report_format", "pdf"),
             fallback_to_html=report_settings.get("fallback_to_html", True),
         )
@@ -443,6 +621,106 @@ def build_high_sparseness_raster_data(
     }
 
 
+def plot_lifetime_sparseness_analysis(
+    all_fish_data,
+    fish_ids,
+    reference_fish,
+    timing,
+    selected_stimuli,
+    lifetime_sparseness_threshold,
+    stimuli_colors,
+    stimuli_linestyles,
+    combine_mode="concat",
+    sparseness_figsize=(5, 4),
+    raster_figsize=(12, 8),
+    analysis_label="",
+):
+    """Plot lifetime sparseness and a high-sparseness z-score raster only."""
+    if combine_mode not in {"mean", "concat"}:
+        raise ValueError("combine_mode must be 'mean' or 'concat'.")
+    selection = at.resolve_selected_stimuli(
+        selected_stimuli,
+        stimuli_id_map=reference_fish["stimuli_id_map"],
+        available_stimuli=reference_fish["trial_aligned_traces_z_core"].keys(),
+    )
+    response_results = mfa.build_zscore_response_matrices_all_fish(
+        all_fish_data=all_fish_data,
+        fish_ids=fish_ids,
+        selected_stimuli=selection["stimulus_labels"],
+        fps_2p=timing["fps_2p"],
+        t_pre_s=timing["t_pre_s"],
+    )
+    response_matrix = response_results["pooled_response_matrix"]
+    metric_rows = [
+        mfa.compute_stimulus_selectivity_metrics(
+            row.to_numpy(dtype=float),
+            stimulus_labels=selection["stimulus_labels"],
+        )
+        for _, row in response_matrix.iterrows()
+    ]
+    summary_table = pd.concat(
+        [
+            response_results["row_metadata"].reset_index(drop=True),
+            pd.DataFrame(metric_rows).reset_index(drop=True),
+        ],
+        axis=1,
+    )
+
+    fig_sparseness, ax_sparseness = plt.subplots(figsize=sparseness_figsize)
+    plott.plot_stimulus_specificity_sparseness(
+        summary_table,
+        selected_stimulus_labels=selection["stimulus_labels"],
+        analysis_label=analysis_label,
+        ax=ax_sparseness,
+    )
+    plt.tight_layout()
+    plt.show()
+
+    high_sparseness = build_high_sparseness_raster_data(
+        all_fish_data=all_fish_data,
+        fish_ids=fish_ids,
+        summary_table=summary_table,
+        stim_order=selection["stimulus_ids"],
+        preferred_stimulus_order=selection["stimulus_labels"],
+        lifetime_sparseness_threshold=lifetime_sparseness_threshold,
+        combine_mode=combine_mode,
+        trace_type="zscore",
+    )
+    if high_sparseness["matrix"].shape[0] == 0:
+        print("No neurons exceeded the selected lifetime-sparseness threshold.")
+        high_sparseness_figure = None
+    else:
+        high_sparseness_figure, _, _, _ = plott.plot_allfish_flat_raster(
+            data=high_sparseness["matrix"],
+            trial_aligned_traces=reference_fish["trial_aligned_traces_z_core"],
+            stim_order=selection["stimulus_ids"],
+            stimuli_id_map=reference_fish["stimuli_id_map"],
+            stimuli_durations=reference_fish["stimuli_durations"],
+            stimuli_colors=stimuli_colors,
+            stimuli_linestyles=stimuli_linestyles,
+            fps_2p=timing["fps_2p"],
+            t_pre_s=timing["t_pre_s"],
+            combine_mode=combine_mode,
+            sort_mode="unsorted",
+            neuron_order=high_sparseness["plot_neuron_order"],
+            sort_label=f"lifetime sparseness > {lifetime_sparseness_threshold}",
+            is_binary=False,
+            show_mean_trace=True,
+            figsize=raster_figsize,
+            fish_id=f"all_fish_{_slugify_label(analysis_label or 'analysis')}_high_lifetime_sparseness_zscore",
+            vmax=4,
+        )
+        plt.show()
+
+    return {
+        "summary_table": summary_table,
+        "selection": selection,
+        "sparseness_figure": fig_sparseness,
+        "high_sparseness": high_sparseness,
+        "high_sparseness_figure": high_sparseness_figure,
+    }
+
+
 def build_pooled_mean_trace_by_stimulus(
     all_fish_data,
     fish_ids,
@@ -497,6 +775,235 @@ def build_pooled_mean_trace_by_stimulus(
             mean_traces[stim].append(np.nanmean(mean_by_neuron, axis=0))
 
     return {stim: np.vstack(rows) for stim, rows in mean_traces.items()}
+
+
+def build_plot_all_fish_mean_zscore_traces(
+    all_fish_data,
+    fish_ids,
+    stim_order,
+    reference_fish,
+    timing,
+    stimuli_colors,
+    stimuli_linestyles,
+    figsize=(7, 4.5),
+):
+    """Plot the all-fish mean z-score traces for the selected stimulus order."""
+    selection = at.resolve_selected_stimuli(
+        stim_order,
+        stimuli_id_map=reference_fish["stimuli_id_map"],
+        available_stimuli=reference_fish["trial_aligned_traces_z_core"].keys(),
+    )
+    mean_traces = build_pooled_mean_trace_by_stimulus(
+        all_fish_data=all_fish_data,
+        fish_ids=fish_ids,
+        stim_order=selection["stimulus_ids"],
+        trace_type="zscore",
+        use_kept_neurons=True,
+    )
+    fig, ax, colors_used, _ = plott.plot_stimulus_means(
+        mean_traces=mean_traces,
+        stimuli_ids=selection["stimulus_ids"],
+        stimuli_names=selection["stimulus_labels"],
+        title_prefix="",
+        fps_2p=timing["fps_2p"],
+        t_post_s=timing["t_post_s"],
+        t_pre_s=timing["t_pre_s"],
+        stimuli_durations=reference_fish["stimuli_durations"],
+        plots_path=None,
+        prefix=None,
+        save=False,
+        stimuli_colors=stimuli_colors,
+        stimuli_linestyles=stimuli_linestyles,
+        close_after=False,
+        kept_cells=None,
+        comment="all_stimuli",
+        figsize=figsize,
+    )
+    return {
+        "mean_traces": mean_traces,
+        "stimulus_ids": selection["stimulus_ids"],
+        "stimulus_labels": selection["stimulus_labels"],
+        "figure": fig,
+        "axes": ax,
+        "colors_used": colors_used,
+    }
+
+
+def plot_left_right_active_overlap_diagnostics(
+    all_fish_data,
+    fish_ids,
+    reference_fish,
+    timing,
+    side_stimuli,
+    show_overlap=True,
+    show_significant_raster=True,
+    active_fraction_threshold=0.10,
+    min_epoch_s=1.0,
+    min_active_reps=2,
+    expected_reps=4,
+    require_expected_reps=True,
+    motion_onset_s=8.0,
+    tau_s=6.0,
+    motion_duration_key="motion_sec",
+    overlap_figsize=(5, 4),
+    raster_figsize=(12, 7),
+):
+    """Plot separate overlap heatmaps and significant-raster diagnostics per side."""
+    expected_sides = {"left", "right"}
+    if set(side_stimuli) != expected_sides:
+        raise ValueError("side_stimuli must contain exactly 'left' and 'right'.")
+
+    selections = {
+        side: at.resolve_selected_stimuli(
+            stimuli,
+            stimuli_id_map=reference_fish["stimuli_id_map"],
+            available_stimuli=reference_fish["trial_aligned_traces_raster"].keys(),
+        )
+        for side, stimuli in side_stimuli.items()
+    }
+    side_stimulus_ids = {side: selection["stimulus_ids"] for side, selection in selections.items()}
+    side_stimulus_labels = {side: selection["stimulus_labels"] for side, selection in selections.items()}
+    active_stim_order = list(dict.fromkeys(side_stimulus_ids["left"] + side_stimulus_ids["right"]))
+    active_matrices = mfa.build_active_neuron_matrices_all_fish(
+        all_fish_data=all_fish_data,
+        fish_ids=fish_ids,
+        stim_order=active_stim_order,
+        fps_2p=timing["fps_2p"],
+        t_pre_s=timing["t_pre_s"],
+        motion_onset_s=motion_onset_s,
+        active_fraction_threshold=active_fraction_threshold,
+        min_epoch_s=min_epoch_s,
+        min_active_reps=min_active_reps,
+        expected_reps=expected_reps,
+        require_expected_reps=require_expected_reps,
+        tau_s=tau_s,
+        motion_duration_key=motion_duration_key,
+    )
+
+    results = {}
+    for side in ("left", "right"):
+        diagnostic_data = build_overlap_diagnostic_data(
+            all_fish_data=all_fish_data,
+            active_matrices=active_matrices,
+            fish_ids=fish_ids,
+            side_stimulus_ids=side_stimulus_ids,
+            side_stimulus_labels=side_stimulus_labels,
+            response_row_metadata=None,
+            keep_mask=None,
+            side_to_plot=side,
+            aggregation="mean_per_fish",
+            plot_mode="significant_raster",
+            combine_mode="mean",
+            sort_mode="decision_then_mean",
+        )
+        results[side] = diagnostic_data
+
+        if show_overlap:
+            fig, ax = plt.subplots(figsize=overlap_figsize)
+            sns.heatmap(
+                diagnostic_data["matrix_to_plot"],
+                vmin=0,
+                vmax=1,
+                square=True,
+                annot=True,
+                fmt=".2f",
+                cmap="viridis",
+                cbar_kws={"label": "Jaccard overlap"},
+                ax=ax,
+            )
+            ax.set(title=f"{side.capitalize()} active-neuron overlap", xlabel="", ylabel="")
+            plt.tight_layout()
+            plt.show()
+
+        if show_significant_raster:
+            diagnostic = diagnostic_data["active_trace_diagnostic"]
+            if diagnostic["trace_matrix"].shape[0] == 0:
+                print(f"No active neurons passed the {side} settings.")
+            else:
+                plott.plot_active_trace_decision_diagnostic(
+                    diagnostic,
+                    fps_2p=timing["fps_2p"],
+                    stimuli_durations=reference_fish["stimuli_durations"],
+                    t_pre_s=timing["t_pre_s"],
+                    sort_mode=None,
+                    neuron_order=diagnostic_data["diagnostic_neuron_order"],
+                    trace_cmap="Greys",
+                    show_active_count_trace=True,
+                    active_count_threshold=0.5,
+                    active_count_ylabel="# Active neurons",
+                    active_count_color="black",
+                    active_count_height_ratio=1.8,
+                    figsize=raster_figsize,
+                )
+                plt.show()
+
+    return results
+
+
+def plot_motion_active_neuron_counts(
+    all_fish_data,
+    fish_ids,
+    reference_fish,
+    timing,
+    selected_stimuli,
+    stimuli_colors,
+    figsize=(10, 4.5),
+    active_fraction_threshold=0.10,
+    min_epoch_s=1.0,
+    min_active_reps=2,
+    expected_reps=4,
+    require_expected_reps=True,
+    motion_onset_s=8.0,
+    tau_s=6.0,
+    motion_duration_key="motion_sec",
+):
+    """Plot mean motion-active neuron counts with one point per fish."""
+    selection = at.resolve_selected_stimuli(
+        selected_stimuli,
+        stimuli_id_map=reference_fish["stimuli_id_map"],
+        available_stimuli=reference_fish["trial_aligned_traces_raster"].keys(),
+    )
+    active_matrices = mfa.build_active_neuron_matrices_all_fish(
+        all_fish_data=all_fish_data,
+        fish_ids=fish_ids,
+        stim_order=selection["stimulus_ids"],
+        fps_2p=timing["fps_2p"],
+        t_pre_s=timing["t_pre_s"],
+        motion_onset_s=motion_onset_s,
+        active_fraction_threshold=active_fraction_threshold,
+        min_epoch_s=min_epoch_s,
+        min_active_reps=min_active_reps,
+        expected_reps=expected_reps,
+        require_expected_reps=require_expected_reps,
+        tau_s=tau_s,
+        motion_duration_key=motion_duration_key,
+    )
+    counts = pd.DataFrame(
+        {
+            label: [active_matrices[fish_id][stim_id].sum() for fish_id in fish_ids]
+            for stim_id, label in zip(selection["stimulus_ids"], selection["stimulus_labels"])
+        },
+        index=fish_ids,
+    )
+
+    fig, ax = plt.subplots(figsize=figsize)
+    x = np.arange(counts.shape[1])
+    colors = [stimuli_colors.get(label, f"C{idx}") for idx, label in enumerate(counts.columns)]
+    ax.bar(x, counts.mean(axis=0), color=colors, alpha=0.7)
+    for offset, fish_id in zip(np.linspace(-0.12, 0.12, len(fish_ids)), fish_ids):
+        ax.scatter(x + offset, counts.loc[fish_id], color="black", s=32, zorder=3)
+    ax.set(
+        xticks=x,
+        xticklabels=counts.columns,
+        ylabel="Active neurons per fish",
+        title="Motion-period active neurons per stimulus",
+    )
+    ax.set_ylim(bottom=0)
+    ax.tick_params(axis="x", rotation=35)
+    ax.spines[["top", "right"]].set_visible(False)
+    fig.tight_layout()
+    plt.show()
+    return {"selection": selection, "active_matrices": active_matrices, "counts": counts, "figure": fig, "axes": ax}
 
 
 def build_fish_keep_masks(response_row_metadata, keep_mask, fish_ids):

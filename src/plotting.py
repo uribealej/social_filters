@@ -8,13 +8,454 @@ import matplotlib.pyplot as plt
 from matplotlib import gridspec
 from pathlib import Path
 import re
+import math
 import src.stimuli_timeline as st
 from matplotlib.patches import Patch
+from matplotlib.lines import Line2D
 import pandas as pd
 
 
 def _natural_sort_key(value):
     return [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", value)]
+
+
+STATIC_FLICKER_CATEGORY_ORDER = ["non-responsive", "static-only", "shared", "newly recruited"]
+STATIC_FLICKER_CATEGORY_COLORS = {
+    "non-responsive": "#bdbdbd",
+    "static-only": "#4c78a8",
+    "shared": "#59a14f",
+    "newly recruited": "#e15759",
+}
+STATIC_FLICKER_STIMULUS_COLORS = ["#0072B2", "#D55E00", "#CC79A7", "#009E73", "#E69F00"]
+
+
+def plot_bout_flicker_position_figure(side_result, figsize=(15, 11)):
+    """Plot one hemifield's fixed-order bout/flicker position comparison.
+
+    ``side_result`` is produced by
+    ``multifish_analysis.build_bout_flicker_position_analysis``.  It contains
+    both the Cell-06-compatible significant activity decisions and the
+    descriptive matched-position summary.
+    """
+    result = dict(side_result)
+    labels = list(result["stimulus_labels"])
+    if len(labels) != 4:
+        raise ValueError("A bout/flicker position figure requires one bout and three flicker panels.")
+    traces = result["pooled_traces"]
+    time_by_stimulus = result["time_relative_s"]
+    n_neurons = int(traces[labels[0]]["zscore"].shape[0])
+    if n_neurons == 0:
+        raise ValueError("No neurons are available to plot.")
+
+    # A manual layout keeps this many-panel figure responsive even with long
+    # vertical marker labels; constrained_layout repeatedly solves a very
+    # expensive layout problem here.
+    figure = plt.figure(figsize=figsize)
+    grid = figure.add_gridspec(4, 4, height_ratios=(4.2, 4.2, 1.7, 2.5))
+    z_axes = [figure.add_subplot(grid[0, column]) for column in range(4)]
+    # Do not share axes here: inverted image axes plus shared transforms can
+    # trigger a Matplotlib transform recursion on Windows when event markers
+    # are added.  Every panel gets the same explicit time coordinates below.
+    significant_axes = [figure.add_subplot(grid[1, column]) for column in range(4)]
+    count_axes = [figure.add_subplot(grid[2, column]) for column in range(4)]
+    summary_axes = [figure.add_subplot(grid[3, column]) for column in range(3)]
+    figure.add_subplot(grid[3, 3]).set_axis_off()
+
+    all_zscores = np.concatenate([np.ravel(traces[label]["zscore"]) for label in labels])
+    finite_zscores = all_zscores[np.isfinite(all_zscores)]
+    if finite_zscores.size:
+        z_limit = max(2.0, float(np.nanquantile(np.abs(finite_zscores), 0.99)))
+    else:
+        z_limit = 2.0
+    z_image = None
+    sig_image = None
+    bout_label = result["bout_stimulus"]
+    matches = pd.DataFrame(result["position_matches"])
+    marker_colors = dict(zip(matches["flicker_stimulus"], STATIC_FLICKER_STIMULUS_COLORS[:len(matches)]))
+    x_bounds = []
+
+    for column, label in enumerate(labels):
+        time_s = np.asarray(time_by_stimulus[label], dtype=float)
+        zscore = np.asarray(traces[label]["zscore"], dtype=float)
+        significant = np.asarray(traces[label]["significant"], dtype=float)
+        if zscore.shape != significant.shape or zscore.shape[1] != time_s.size:
+            raise ValueError(f"Incompatible plot arrays for stimulus {label!r}.")
+        extent = [time_s[0] - 0.5 / len(time_s) * (time_s[-1] - time_s[0]), time_s[-1], n_neurons - 0.5, -0.5]
+        z_image = z_axes[column].imshow(
+            zscore, aspect="auto", cmap="RdBu_r", vmin=-z_limit, vmax=z_limit, extent=extent
+        )
+        sig_image = significant_axes[column].imshow(
+            significant, aspect="auto", cmap="Greys", vmin=0, vmax=1, extent=extent
+        )
+        active_count = np.sum(significant > 0, axis=0)
+        count_axes[column].plot(time_s, active_count, color="#222222", linewidth=1.4)
+        count_axes[column].set_ylim(bottom=0)
+        z_axes[column].set_title(label, fontweight="bold")
+        x_bounds.extend([time_s[0], time_s[-1]])
+
+        timing = result["panel_timing"][label]
+        for axis in (z_axes[column], significant_axes[column], count_axes[column]):
+            _vertical_reference_line(axis, timing["static_onset_relative_s"], color="#777777", linestyle=":", linewidth=1.0)
+            _vertical_reference_line(axis, 0, color="#222222", linestyle="--", linewidth=1.0)
+            _vertical_reference_line(axis, timing["analysis_end_relative_s"], color="#777777", linestyle="--", linewidth=0.9)
+            if label == bout_label:
+                _add_bout_position_markers(axis, matches, marker_colors)
+
+        if 0 < result["n_bout_active"] < n_neurons:
+            separator = result["n_bout_active"] - 0.5
+            _horizontal_reference_line(z_axes[column], separator, color="#111111", linewidth=0.9)
+            _horizontal_reference_line(significant_axes[column], separator, color="#111111", linewidth=0.9)
+
+        z_axes[column].tick_params(labelbottom=False)
+        significant_axes[column].tick_params(labelbottom=False)
+        count_axes[column].set_xlabel("Time relative to motion/flicker onset (s)")
+        count_axes[column].set_xlim(min(x_bounds), max(x_bounds))
+
+    z_axes[0].set_ylabel("Fixed neuron order\n(bout-active → flicker-only)")
+    significant_axes[0].set_ylabel("Temporal significant activity")
+    count_axes[0].set_ylabel("# significant\nneurons")
+    for axis in z_axes[1:] + significant_axes[1:] + count_axes[1:]:
+        axis.tick_params(labelleft=False)
+
+    # Keep colour scales stated in the row labels rather than adding colourbar
+    # axes: the current Windows Matplotlib build can recurse while rendering
+    # colourbar patches beside inverted image axes.
+    z_axes[-1].text(1.02, 0.5, "z-score\nblue ↔ red", transform=z_axes[-1].transAxes,
+                    rotation=90, va="center", ha="left", fontsize=8)
+    significant_axes[-1].text(1.02, 0.5, "significant-trial\nfraction: 0 → 1",
+                              transform=significant_axes[-1].transAxes,
+                              rotation=90, va="center", ha="left", fontsize=8)
+    _plot_bout_flicker_position_summary(summary_axes, result["summary_table"])
+    side = str(result["side"]).capitalize()
+    figure.suptitle(
+        f"{side}: bout-referenced flicker-position responses\n"
+        "dotted = static onset; black dashed = motion/flicker onset; grey dashed = Cell 06 analysis-window end",
+        fontsize=13,
+    )
+    figure.subplots_adjust(left=0.06, right=0.90, top=0.89, bottom=0.07, wspace=0.32, hspace=0.40)
+    return {"figure": figure, "zscore_axes": z_axes, "significant_axes": significant_axes, "count_axes": count_axes, "summary_axes": summary_axes}
+
+
+def _add_bout_position_markers(axis, matches, marker_colors):
+    for match in matches.itertuples(index=False):
+        color = marker_colors[match.flicker_stimulus]
+        label = (
+            f"{match.flicker_stimulus}\nidx {int(match.nearest_bout_position_index)}\n"
+            f"+{float(match.time_after_motion_onset_s):.2f} s"
+        )
+        _vertical_reference_line(
+            axis, float(match.time_after_motion_onset_s), color=color,
+            linestyle=(0, (4, 2)), linewidth=1.15, alpha=0.9,
+        )
+        y0, y1 = axis.get_ylim()
+        offset = 0.02 * abs(y1 - y0)
+        label_y = y1 + offset if y0 > y1 else y1 - offset
+        axis.text(
+            float(match.time_after_motion_onset_s), label_y, label, transform=axis.transData,
+            rotation=90, va="top", ha="right", fontsize=7, color=color,
+        )
+
+
+def _vertical_reference_line(axis, x, **style):
+    """Draw a vertical marker without Matplotlib's blended axvline transform.
+
+    Some Windows Matplotlib builds recurse while comparing that transform on
+    image axes.  A regular data-coordinate line is visually equivalent here.
+    """
+    y_limits = axis.get_ylim()
+    axis.plot([float(x), float(x)], y_limits, **style)
+    axis.set_ylim(y_limits)
+
+
+def _horizontal_reference_line(axis, y, **style):
+    """Draw a horizontal marker without Matplotlib's blended axhline transform."""
+    x_limits = axis.get_xlim()
+    axis.plot(x_limits, [float(y), float(y)], **style)
+    axis.set_xlim(x_limits)
+
+
+def _plot_bout_flicker_position_summary(axes, summary_table):
+    summary = pd.DataFrame(summary_table).copy()
+    positions = summary[["flicker_stimulus", "nearest_bout_position_index", "time_after_motion_onset_s"]].drop_duplicates()
+    positions = positions.sort_values("time_after_motion_onset_s", kind="stable")
+    colors = {"bout-active": "#4c78a8", "flicker-only": "#e15759"}
+    for axis, position in zip(axes, positions.itertuples(index=False)):
+        data = summary.loc[summary["flicker_stimulus"] == position.flicker_stimulus]
+        for group, color in colors.items():
+            group_data = data.loc[data["group"] == group]
+            axis.scatter(
+                group_data["bout_mean_zscore"], group_data["flicker_mean_zscore"],
+                s=9, alpha=0.32, color=color, linewidths=0, label=group,
+            )
+        finite = data[["bout_mean_zscore", "flicker_mean_zscore"]].to_numpy(float)
+        finite = finite[np.isfinite(finite)]
+        limit = max(1.0, float(np.max(np.abs(finite))) if finite.size else 1.0)
+        axis.plot([-limit, limit], [-limit, limit], color="#555555", linestyle=":", linewidth=0.9)
+        _horizontal_reference_line(axis, 0, color="#bbbbbb", linewidth=0.7)
+        _vertical_reference_line(axis, 0, color="#bbbbbb", linewidth=0.7)
+        axis.set(xlim=(-limit, limit), ylim=(-limit, limit), aspect="equal")
+        axis.set_title(
+            f"{position.flicker_stimulus}: bout idx {int(position.nearest_bout_position_index)}\n"
+            f"+{float(position.time_after_motion_onset_s):.2f} s",
+            fontsize=9,
+        )
+        axis.set_xlabel("Bout-window mean z-score")
+        if axis is axes[0]:
+            axis.set_ylabel("Flicker-window mean z-score")
+            axis.legend(frameon=False, fontsize=7, loc="upper left")
+    for axis in axes[len(positions):]:
+        axis.set_axis_off()
+
+
+def _first_post_onset_raster_time(raster_trace, time_s):
+    """Return the first displayed significant-raster time at/after stimulus onset."""
+    trace = np.asarray(raster_trace, dtype=float)
+    times = np.asarray(time_s, dtype=float)
+    active_after_onset = (times >= 0.0) & (trace > 0)
+    active_indices = np.flatnonzero(active_after_onset)
+    return float(times[active_indices[0]]) if active_indices.size else np.inf
+
+
+def plot_static_flicker_classification_raster(
+    classification_raster_data,
+    static_label="Static",
+    comparison_label="Flicker",
+):
+    """Return independent category rasters for an editable pair of time windows."""
+    data = pd.DataFrame(classification_raster_data).copy()
+    figures = {}
+    for side in ("left", "right"):
+        positions = data.loc[data["side"] == side, ["stim_id", "stimulus"]].drop_duplicates().sort_values("stim_id")
+        n_positions = len(positions)
+        n_cols = min(max(n_positions, 1), 2)
+        n_rows = int(math.ceil(max(n_positions, 1) / n_cols))
+        figure = plt.figure(figsize=(4.6 * n_cols, 4.8 * n_rows))
+        axes = [figure.add_subplot(n_rows, n_cols, index + 1) for index in range(max(n_positions, 1))]
+        for col_idx, position in enumerate(positions.itertuples()):
+            ax = axes[col_idx]
+            subset = data.loc[(data["side"] == side) & (data["stim_id"] == position.stim_id)].copy()
+            subset["category"] = pd.Categorical(
+                subset["category"], categories=STATIC_FLICKER_CATEGORY_ORDER, ordered=True
+            )
+            subset["motion_activity_onset_s"] = [
+                _first_post_onset_raster_time(row.flicker_raster, row.flicker_time_s)
+                for row in subset.itertuples()
+            ]
+            subset = subset.sort_values(
+                ["category", "motion_activity_onset_s", "fish_id", "neuron_id"],
+                kind="stable",
+            )
+            if subset.empty:
+                ax.set_axis_off()
+                continue
+            matrix = np.vstack([
+                np.concatenate([np.asarray(row.static_raster), np.asarray(row.flicker_raster)])
+                for row in subset.itertuples()
+            ])
+            static_width = len(np.asarray(subset.iloc[0]["static_raster"]))
+            activity_rgb = np.repeat((1.0 - matrix)[..., None], 3, axis=2)
+            category_rgb = np.asarray(
+                [
+                    tuple(int(STATIC_FLICKER_CATEGORY_COLORS[name].lstrip("#")[offset:offset + 2], 16) / 255.0
+                          for offset in (0, 2, 4))
+                    for name in subset["category"].astype(str)
+                ]
+            )
+            image_rgb = np.concatenate([category_rgb[:, None, :], activity_rgb], axis=1)
+            ax.imshow(image_rgb, aspect="auto", interpolation="nearest")
+            ax.set_title(f"{side.title()} {position.stimulus}")
+            static_duration = float(subset.iloc[0]["static_window_s"])
+            flicker_duration = float(subset.iloc[0]["flicker_window_s"])
+            static_time_s = np.asarray(subset.iloc[0]["static_time_s"], dtype=float)
+            flicker_time_s = np.asarray(subset.iloc[0]["flicker_time_s"], dtype=float)
+            static_tick_indices = np.unique(np.linspace(0, static_time_s.size - 1, 3, dtype=int))
+            flicker_tick_indices = np.unique(np.linspace(0, flicker_time_s.size - 1, 3, dtype=int))
+            tick_positions = np.concatenate([
+                1 + static_tick_indices,
+                1 + static_width + flicker_tick_indices,
+            ])
+            tick_labels = [
+                f"{time_s:g}" for time_s in np.concatenate([
+                    static_time_s[static_tick_indices], flicker_time_s[flicker_tick_indices]
+                ])
+            ]
+            ax.set_xticks(tick_positions, tick_labels)
+            ax.set_xlabel(
+                f"Time from onset (s): {static_label} {static_duration:g} s | "
+                f"{comparison_label} {flicker_duration:g} s"
+            )
+            event_lines = [(0.0, "black", "--")]
+            stimulus_offset_s = float(subset.iloc[0]["stimulus_offset_relative_s"])
+            if stimulus_offset_s > 0:
+                event_lines.append((stimulus_offset_s, "#d95f02", ":"))
+            for event_s, color, linestyle in event_lines:
+                for start, times in ((1, static_time_s), (1 + static_width, flicker_time_s)):
+                    if times.size and times[0] <= event_s <= times[-1]:
+                        event_x = start + np.interp(event_s, times, np.arange(times.size))
+                        ax.axvline(event_x, color=color, linestyle=linestyle, linewidth=1.1, zorder=3)
+            if col_idx == 0:
+                ax.set_ylabel("Neurons (category, then motion-onset ordered)")
+            else:
+                ax.set_ylabel("")
+                ax.tick_params(axis="y", labelleft=False)
+        figure.suptitle(
+            f"{side.title()} hemifield — categories then first post-onset raster activity: gray non-responsive | blue static-only | green shared | red newly recruited",
+            fontsize=10,
+        )
+        figure.legend(
+            handles=[
+                Line2D([0], [0], color="black", linestyle="--", label="stimulus onset"),
+                Line2D([0], [0], color="#d95f02", linestyle=":", label="stimulus offset"),
+            ],
+            loc="upper center", bbox_to_anchor=(0.5, 0.93), ncol=2, frameon=False, fontsize=8,
+        )
+        figure.subplots_adjust(top=0.79, wspace=0.26, hspace=0.38, bottom=0.14)
+        figures[side] = figure
+    return figures
+
+
+def plot_static_flicker_category_proportions(fish_side_summary, figsize=(12, 5)):
+    """Return independent left/right per-fish category-proportion figures."""
+    summary = pd.DataFrame(fish_side_summary).copy()
+    figures = {}
+    for side in ("left", "right"):
+        positions = summary.loc[summary["side"] == side, ["stim_id", "stimulus"]].drop_duplicates().sort_values("stim_id")
+        n_positions = len(positions)
+        n_cols = min(max(n_positions, 1), 3)
+        n_rows = int(math.ceil(max(n_positions, 1) / n_cols))
+        fig = plt.figure(figsize=(4.6 * n_cols, 4.5 * n_rows))
+        axes = [fig.add_subplot(n_rows, n_cols, index + 1) for index in range(max(n_positions, 1))]
+        for col_idx, position in enumerate(positions.itertuples()):
+            ax = axes[col_idx]
+            subset = summary.loc[(summary["side"] == side) & (summary["stim_id"] == position.stim_id)].sort_values("fish_id")
+            x = np.arange(len(subset))
+            bottom = np.zeros(len(subset), dtype=float)
+            for category in STATIC_FLICKER_CATEGORY_ORDER:
+                values = subset[f"{category}_proportion"].fillna(0).to_numpy(float)
+                ax.bar(x, values, bottom=bottom, color=STATIC_FLICKER_CATEGORY_COLORS[category], label=category)
+                bottom += values
+            ax.set_xticks(x, subset["fish_id"], rotation=45, ha="right")
+            ax.set_ylim(0, 1)
+            ax.set_title(f"{side.title()} {position.stimulus}")
+            ax.set_ylabel("Proportion of valid neurons")
+        if n_positions:
+            axes[0].legend(loc="upper right", frameon=False, fontsize=7)
+        fig.suptitle(f"{side.title()} hemifield: category proportions", fontsize=11)
+        fig.subplots_adjust(top=0.86, bottom=0.22, wspace=0.28)
+        figures[side] = fig
+    return figures
+
+
+def plot_pooled_static_flicker_category_proportions(pooled_category_summary):
+    """Return left/right descriptive pooled-cell category-proportion figures."""
+    summary = pd.DataFrame(pooled_category_summary).copy()
+    figures = {}
+    for side in ("left", "right"):
+        subset = summary.loc[summary["side"] == side].sort_values("stim_id")
+        figure, axis = plt.subplots(figsize=(max(6.4, 1.8 * len(subset)), 4.8))
+        x = np.arange(len(subset))
+        bottom = np.zeros(len(subset), dtype=float)
+        # Draw in reverse so the visible top-to-bottom stack matches Cell 06.
+        for category in reversed(STATIC_FLICKER_CATEGORY_ORDER):
+            values = subset[f"{category}_proportion"].fillna(0).to_numpy(float)
+            axis.bar(x, values, bottom=bottom, width=0.72, color=STATIC_FLICKER_CATEGORY_COLORS[category], label=category)
+            bottom += values
+        axis.set_xticks(x, subset["stimulus"])
+        axis.set_ylim(0, 1)
+        axis.set_xlabel("Stimulus position")
+        axis.set_ylabel("Proportion of pooled valid neurons")
+        axis.set_title(f"{side.title()} hemifield: pooled-cell recruitment categories", pad=12)
+        handles, labels = axis.get_legend_handles_labels()
+        ordered_handles = [handles[labels.index(category)] for category in STATIC_FLICKER_CATEGORY_ORDER]
+        axis.legend(
+            ordered_handles, STATIC_FLICKER_CATEGORY_ORDER,
+            frameon=False, fontsize=8, loc="center left",
+            bbox_to_anchor=(1.02, 0.5), borderaxespad=0,
+        )
+        figure.subplots_adjust(left=0.14, right=0.75, bottom=0.18, top=0.88)
+        figures[side] = figure
+    return figures
+
+
+def plot_shared_static_flicker_auc_summary(
+    shared_neuron_metrics, fish_median_delta_auc, fish_level_statistics, figsize=(12, 5)
+):
+    """Return descriptive neuron views plus fish-level ΔAUC inference views."""
+    shared = pd.DataFrame(shared_neuron_metrics).copy()
+    fish_medians = pd.DataFrame(fish_median_delta_auc).copy()
+    statistics = pd.DataFrame(fish_level_statistics).copy()
+    figures = {}
+    for side in ("left", "right"):
+        figure, (scatter_ax, summary_ax) = plt.subplots(1, 2, figsize=figsize)
+        side_shared = shared.loc[shared["side"] == side].copy()
+        side_medians = fish_medians.loc[fish_medians["side"] == side].copy()
+        positions = side_medians[["stim_id", "stimulus"]].drop_duplicates().sort_values("stim_id")
+        significance_symbols = []
+        for index, position in enumerate(positions.itertuples()):
+            rows = side_shared.loc[side_shared["stim_id"] == position.stim_id]
+            color = STATIC_FLICKER_STIMULUS_COLORS[index % len(STATIC_FLICKER_STIMULUS_COLORS)]
+            scatter_ax.scatter(rows["static_auc"], rows["flicker_auc"], s=13, alpha=0.55, color=color, label=position.stimulus)
+            fish_values = side_medians.loc[side_medians["stim_id"] == position.stim_id, "median_delta_auc"].dropna().to_numpy(float)
+            jitter = np.linspace(-0.10, 0.10, len(fish_values)) if len(fish_values) > 1 else np.array([0.0])
+            summary_ax.scatter(np.full(len(fish_values), index) + jitter, fish_values, color=color, alpha=0.85)
+            test_rows = statistics.loc[
+                (statistics["side"] == side) & (statistics["test"] == "ΔAUC > 0")
+                & (statistics["stimulus_a"] == position.stimulus)
+            ]
+            if len(fish_values) and not test_rows.empty:
+                test_row = test_rows.iloc[0]
+                summary_ax.errorbar(index, test_row["effect_median"], yerr=[[test_row["effect_median"] - test_row["ci_low"]], [test_row["ci_high"] - test_row["effect_median"]]], color="black", capsize=3, linewidth=1.2, zorder=3)
+                summary_ax.scatter(index, test_row["effect_median"], color="black", marker="_", s=320, linewidths=2.5, zorder=4)
+                raw_p = float(test_row["p_wilcoxon"])
+                symbol = "***" if raw_p < 0.001 else "**" if raw_p < 0.01 else "*" if raw_p < 0.05 else ""
+                if symbol:
+                    significance_symbols.append((index, symbol))
+        finite = side_shared[["static_auc", "flicker_auc"]].to_numpy(float)
+        if finite.size:
+            limits = np.nanpercentile(finite, [1, 99])
+            scatter_ax.set_xlim(limits); scatter_ax.set_ylim(limits)
+            scatter_ax.plot(limits, limits, color="black", linestyle="--", linewidth=1.1, label="no change")
+        scatter_ax.set_title(f"{side.title()}: shared neurons"); scatter_ax.set_xlabel("Static AUC"); scatter_ax.set_ylabel("Motion AUC")
+        scatter_ax.legend(title="Stimulus", frameon=False, fontsize=8)
+        summary_ax.axhline(0, color="black", linestyle="--", linewidth=1.1, zorder=0)
+        summary_ax.set_xticks(np.arange(len(positions)), positions["stimulus"])
+        summary_ax.set_title("Fish median ΔAUC versus zero"); summary_ax.set_xlabel("Stimulus"); summary_ax.set_ylabel("Median motion − static AUC")
+        y_bottom, y_top = summary_ax.get_ylim()
+        summary_ax.set_ylim(y_bottom, y_top + 0.10 * (y_top - y_bottom))
+        for index, symbol in significance_symbols:
+            summary_ax.text(index, y_top + 0.04 * (y_top - y_bottom), symbol, ha="center", va="bottom", fontsize=11, fontweight="bold")
+        figure.subplots_adjust(wspace=0.32, bottom=0.18)
+        figures[side] = figure
+    return figures
+
+
+def plot_recruitment_amplification(recruitment_amplification, figsize=(12, 8)):
+    """Return independent left/right recruitment-versus-amplification figures."""
+    data = pd.DataFrame(recruitment_amplification).copy()
+    figures = {}
+    for side in ("left", "right"):
+        positions = data.loc[data["side"] == side, ["stim_id", "stimulus"]].drop_duplicates().sort_values("stim_id")
+        n_positions = len(positions)
+        n_cols = min(max(n_positions, 1), 3)
+        n_rows = int(math.ceil(max(n_positions, 1) / n_cols))
+        fig = plt.figure(figsize=(4.6 * n_cols, 4.8 * n_rows))
+        axes = [fig.add_subplot(n_rows, n_cols, index + 1) for index in range(max(n_positions, 1))]
+        for col_idx, position in enumerate(positions.itertuples()):
+            ax = axes[col_idx]
+            subset = data.loc[(data["side"] == side) & (data["stim_id"] == position.stim_id)].sort_values("fish_id")
+            x = np.arange(len(subset))
+            width = 0.38
+            ax.bar(x - width / 2, subset["recruitment"], width, label="Recruitment", color="#e15759")
+            ax.bar(x + width / 2, subset["amplification"], width, label="Amplification", color="#59a14f")
+            ax.set_xticks(x, subset["fish_id"], rotation=45, ha="right")
+            ax.set_title(f"{side.title()} {position.stimulus}")
+            ax.set_ylabel("Summed z-score AUC")
+        if n_positions:
+            axes[0].legend(frameon=False, fontsize=8)
+        fig.suptitle(f"{side.title()} hemifield: recruitment and amplification", fontsize=11)
+        fig.subplots_adjust(top=0.86, bottom=0.22, wspace=0.30)
+        figures[side] = fig
+    return figures
 
 
 def list_stimulus_names(stimuli_path, pattern="*trajectory.*"):
@@ -761,6 +1202,11 @@ def plot_active_trace_decision_diagnostic(
     active_count_color="tab:blue",
     active_count_ylabel="# Active neurons",
     active_count_height_ratio=1.2,
+    event_markers=None,
+    row_separator=None,
+    trace_title=None,
+    event_marker_label_y=0.98,
+    event_marker_label_va="top",
 ):
     """
     Plot pooled significant-response traces beside strict active decisions.
@@ -841,9 +1287,15 @@ def plot_active_trace_decision_diagnostic(
     centers = starts + np.asarray(block_widths) / 2.0
 
     for boundary in boundaries[:-1]:
-        ax_trace.axvline(boundary - 0.5, color="0.65", linewidth=0.8, alpha=0.8)
+        _vertical_reference_line(ax_trace, boundary - 0.5, color="0.65", linewidth=0.8, alpha=0.8)
         if ax_active_count is not None:
-            ax_active_count.axvline(boundary - 0.5, color="0.65", linewidth=0.8, alpha=0.8)
+            _vertical_reference_line(ax_active_count, boundary - 0.5, color="0.65", linewidth=0.8, alpha=0.8)
+
+    if row_separator is not None:
+        separator = float(row_separator) - 0.5
+        if 0 <= separator < trace_matrix.shape[0] - 0.5:
+            _horizontal_reference_line(ax_trace, separator, color="black", linewidth=1.0)
+            _horizontal_reference_line(ax_decision, separator, color="black", linewidth=1.0)
 
     if stimuli_durations is not None:
         for start, label, width, n_time, n_reps in zip(
@@ -868,7 +1320,8 @@ def plot_active_trace_decision_diagnostic(
                 for rep_idx in range(int(n_reps)):
                     xpos = start + rep_idx * int(n_time) + motion_frame
                     if xpos < start + width:
-                        ax_trace.axvline(
+                        _vertical_reference_line(
+                            ax_trace,
                             xpos - 0.5,
                             color=motion_line_color,
                             linestyle=motion_line_style,
@@ -876,7 +1329,8 @@ def plot_active_trace_decision_diagnostic(
                             alpha=0.9,
                         )
                         if ax_active_count is not None:
-                            ax_active_count.axvline(
+                            _vertical_reference_line(
+                                ax_active_count,
                                 xpos - 0.5,
                                 color=motion_line_color,
                                 linestyle=motion_line_style,
@@ -886,7 +1340,8 @@ def plot_active_trace_decision_diagnostic(
             else:
                 xpos = start + motion_frame
                 if xpos < start + width:
-                    ax_trace.axvline(
+                    _vertical_reference_line(
+                        ax_trace,
                         xpos - 0.5,
                         color=motion_line_color,
                         linestyle=motion_line_style,
@@ -894,13 +1349,57 @@ def plot_active_trace_decision_diagnostic(
                         alpha=0.9,
                     )
                     if ax_active_count is not None:
-                        ax_active_count.axvline(
+                        _vertical_reference_line(
+                            ax_active_count,
                             xpos - 0.5,
                             color=motion_line_color,
                             linestyle=motion_line_style,
                             linewidth=1.0,
                             alpha=0.9,
                         )
+
+    if event_markers:
+        marker_colors = STATIC_FLICKER_STIMULUS_COLORS
+        for block_index, (start, label, width) in enumerate(zip(starts, stim_labels, block_widths)):
+            markers = event_markers.get(label, [])
+            if not markers:
+                continue
+            duration = {} if stimuli_durations is None else stimuli_durations.get(label, {})
+            onset_s = float(duration.get(motion_onset_key, 0.0))
+            for marker_index, marker in enumerate(markers):
+                relative_s = float(marker["time_after_motion_onset_s"])
+                xpos = start + (float(t_pre_s) + onset_s + relative_s) * float(fps_2p) - 0.5
+                if not (start - 0.5 <= xpos < start + width - 0.5):
+                    continue
+                color = marker.get("color", marker_colors[marker_index % len(marker_colors)])
+                _vertical_reference_line(ax_trace, xpos, color=color, linestyle=(0, (4, 2)), linewidth=1.25, alpha=0.9)
+                if ax_active_count is not None:
+                    _vertical_reference_line(ax_active_count, xpos, color=color, linestyle=(0, (4, 2)), linewidth=1.25, alpha=0.9)
+                marker_label = marker.get(
+                    "label",
+                    f"{marker.get('flicker_stimulus', 'position')}\n"
+                    f"idx {int(marker.get('nearest_bout_position_index', -1))}\n+"
+                    f"+{relative_s:.2f} s",
+                )
+                label_x = marker.get("label_x_axes", xpos)
+                label_y = float(marker.get("label_y_axes", event_marker_label_y))
+                label_transform = (
+                    ax_trace.transAxes
+                    if "label_x_axes" in marker
+                    else ax_trace.get_xaxis_transform()
+                )
+                ax_trace.text(
+                    label_x,
+                    label_y,
+                    marker_label,
+                    transform=label_transform,
+                    rotation=marker.get("label_rotation", 90),
+                    va=marker.get("label_va", event_marker_label_va),
+                    ha=marker.get("label_ha", "right"),
+                    color=color,
+                    fontsize=7,
+                    clip_on=False,
+                )
 
     ax_trace.set_xticks(centers)
     ax_trace.set_xticklabels(stim_labels, rotation=45, ha="right")
@@ -916,7 +1415,18 @@ def plot_active_trace_decision_diagnostic(
         ax_active_count.set_xticklabels(stim_labels, rotation=45, ha="right")
         ax_active_count.set_ylabel(active_count_ylabel)
         ax_active_count.set_xlabel("Aligned time blocks")
-        ax_active_count.set_ylim(bottom=0)
+        finite_counts = active_count[np.isfinite(active_count)]
+        count_upper = max(1.0, float(finite_counts.max()) * 1.05) if finite_counts.size else 1.0
+        # Motion-marker lines are added before this trace and otherwise lock the
+        # subplot to their default 0--1 range, clipping the real cell counts.
+        ax_active_count.set_ylim(0, count_upper)
+        # Reference lines were created before the count scale was known. Extend
+        # their y-data now so block boundaries and motion-onset markers match
+        # the temporal raster above across the full count-panel height.
+        for line in ax_active_count.lines[:-1]:
+            xdata = np.asarray(line.get_xdata(), dtype=float)
+            if xdata.size == 2 and np.isclose(xdata[0], xdata[1]):
+                line.set_ydata([0.0, count_upper])
         ax_active_count.spines["top"].set_visible(False)
         ax_active_count.spines["right"].set_visible(False)
         plt.setp(ax_trace.get_xticklabels(), visible=False)
@@ -927,7 +1437,9 @@ def plot_active_trace_decision_diagnostic(
     ax_decision.set_xlabel("Strict active decision")
     ax_decision.tick_params(labelleft=False)
 
-    if fps_2p > 0 and trace_matrix.shape[1] > 0:
+    if trace_title is not None:
+        ax_trace.set_title(str(trace_title))
+    elif fps_2p > 0 and trace_matrix.shape[1] > 0:
         seconds = trace_matrix.shape[1] / float(fps_2p)
         ax_trace.set_title(f"Significant raster ({combine_mode}; {seconds:.1f} s shown)")
     else:
@@ -947,6 +1459,99 @@ def plot_active_trace_decision_diagnostic(
     if ax_active_count is not None:
         axes = (ax_trace, ax_active_count, ax_decision)
     return fig, axes, neuron_order
+
+
+def plot_bout_flicker_position_cell06_style(
+    side_result,
+    fps_2p=2.0,
+    t_pre_s=5.0,
+    onset_match_tolerance_s=None,
+    figsize=(12, 7),
+):
+    """Render the Cell 06 significant-raster diagnostic with bout position markers.
+
+    The data already arrive in the fixed order: bout-active rows ranked by
+    their bout-control onset, followed by flicker-only rows.  This deliberately
+    delegates the visual layout to ``plot_active_trace_decision_diagnostic``
+    so the plot remains the same Cell 06 plot rather than a parallel raster.
+    """
+    result = dict(side_result)
+    matches = pd.DataFrame(result["position_matches"])
+    colors = STATIC_FLICKER_STIMULUS_COLORS
+    markers = []
+    for index, match in enumerate(matches.itertuples(index=False)):
+        markers.append({
+            "flicker_stimulus": match.flicker_stimulus,
+            "nearest_bout_position_index": int(match.nearest_bout_position_index),
+            "time_after_motion_onset_s": float(match.time_after_motion_onset_s),
+            "color": colors[index % len(colors)],
+            # Place the three close position labels in a readable strip above
+            # the raster; their coloured vertical lines retain the exact time.
+            "label": (
+                f"{match.flicker_stimulus} | idx {int(match.nearest_bout_position_index)} | "
+                f"+{float(match.time_after_motion_onset_s):.2f} s"
+            ),
+            "label_x_axes": 0.01,
+            "label_y_axes": 1.005 + 0.045 * index,
+            "label_rotation": 0,
+            "label_va": "bottom",
+            "label_ha": "left",
+        })
+    if onset_match_tolerance_s is None:
+        onset_match_tolerance_s = 0.5 / float(fps_2p)
+    if onset_match_tolerance_s < 0:
+        raise ValueError("onset_match_tolerance_s must be >= 0.")
+
+    figure, axes, neuron_order = plot_active_trace_decision_diagnostic(
+        diagnostic=result["cell06_style_diagnostic"],
+        fps_2p=fps_2p,
+        t_pre_s=t_pre_s,
+        stimuli_durations=result["stimuli_durations"],
+        sort_mode=None,
+        neuron_order=np.arange(len(result["order_table"])),
+        trace_cmap="Greys",
+        show_active_count_trace=False,
+        event_markers={result["bout_stimulus"]: markers},
+        row_separator=None,
+        trace_title="Significant raster",
+        event_marker_label_y=1.01,
+        event_marker_label_va="bottom",
+        figsize=figsize,
+    )
+    trace_axis = axes[0]
+    onset_rows = []
+    order = pd.DataFrame(result["order_table"])
+    for marker_index, marker in enumerate(markers):
+        matching_rows = np.flatnonzero(np.isclose(
+            order["bout_response_onset_s"].to_numpy(float),
+            marker["time_after_motion_onset_s"],
+            atol=float(onset_match_tolerance_s),
+            rtol=0,
+        ))
+        # Rows are ordered by bout onset.  Draw one separator just below the
+        # final row in this onset group, rather than one line per neuron.
+        # This gives each matched flicker position a single horizontal marker.
+        last_matching_row = int(matching_rows[-1]) if matching_rows.size else None
+        if last_matching_row is not None:
+            _horizontal_reference_line(
+                trace_axis,
+                last_matching_row + 0.5,
+                color=marker["color"],
+                linewidth=1.0,
+                alpha=0.85,
+            )
+        onset_rows.append({
+            "flicker_stimulus": marker["flicker_stimulus"],
+            "matched_rows": matching_rows,
+            "last_matching_row": last_matching_row,
+        })
+    return {
+        "figure": figure,
+        "axes": axes,
+        "neuron_order": neuron_order,
+        "markers": markers,
+        "onset_coincidence_rows": onset_rows,
+    }
 # def add_stimuli_markers(ax, exp_log, stimuli_durations, stimuli_colors, time_offset=0, trace='movement'):
 #     """
 #     Add vertical lines for stimulus movement starts and return legend handles.
@@ -1642,7 +2247,8 @@ def plot_stimulus_means(
         dpi: int = 600,
         close_after: bool = False,
         kept_cells = None,  # optional: indices of cells to include
-        comment="all_stimuli"  # for saving
+        comment="all_stimuli",  # for saving
+        figsize=(7, 4.5),
 ):
     """
     Plots mean ± SEM per stimulus.
@@ -1658,7 +2264,7 @@ def plot_stimulus_means(
     t = (np.arange(win_lenght) - pre_frames) / float(fps_2p)
 
 
-    fig, ax = plt.subplots(figsize=(7, 4.5))
+    fig, ax = plt.subplots(figsize=figsize)
     color_by_stim = {}
 
     # optional warnings for missing styles
