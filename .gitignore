@@ -1,9 +1,18 @@
-
+# Editor and IDE settings
+.idea/
 .vscode/
 
-# Python cache files
+# Python bytecode and caches
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
-__pycache__/
-*.pyc
+# Python packaging artifacts
+*.egg-info/
+build/
+dist/
+
+# Jupyter temporary files
+.ipynb_checkpoints/
