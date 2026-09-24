@@ -27,6 +27,7 @@ Use this file when
 - `scripts/stimuli/Trayectory_flicker.py`, `Trayectory_rocking_stimuli.py`, and `trayectory_stimuli.py` own experiment-specific trajectory generation.
 - Mapping and package JSON files own experiment-specific configuration values.
 - `plots_stimuli.ipynb` owns inspection and visualization of generated assets.
+- `src/stimulus_visualization.py` owns reusable batch trajectory loading, visible-direction summaries, inspection figures, and report saving. `scripts/stimuli/plots_stimuli_batch.ipynb` is its configuration/reporting wrapper.
 - `src/stimuli_timeline.py` owns reusable timing extraction and log-to-trace semantics consumed by analysis code.
 - `try_projection.py` owns playback wrapper behavior and timing-log capture.
 

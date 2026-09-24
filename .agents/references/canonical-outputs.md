@@ -47,6 +47,7 @@ Use this file when
 - Playback runs can write:
   - `stimulus_timing_log.csv`
 - Inspection figures from `plots_stimuli.ipynb` are notebook outputs, not canonical writer-stage contracts.
+- The batch inspection report is saved by `src/stimulus_visualization.py` under the configured derived root, `<experiment>/stimuli/`: `stimuli_standard.png`, `stimuli_polar.png` (300 dpi), and `stimuli_summary.csv`. Reruns replace these report files. The CSV contains `stimulus_name`, `unique_angles_deg` (JSON lists), `n_unique_angles`, and `n_dots`; its visible spatial directions are rounded to 0.1 degree, whereas dot count includes all recorded identities. These reports do not alter generated trajectory or timing contracts.
 
 ## Timing ownership
 - `src/stimuli_timeline.py` is the authority for turning trajectory CSVs and block logs into downstream timing semantics.

@@ -42,6 +42,13 @@ Not public here yet:
 Boundary note:
 - duplicated generator-side helpers such as `generate_circular_trajectory` are still backlog items under `scripts/stimuli/` and are not yet part of the public `src/` timing surface.
 
+### `src/stimulus_visualization.py`
+- `load_stimulus_trajectories` - load plain or multi-dot trajectory CSVs once into angle, dot-size, and visibility samples; uses the shared angle converter.
+- `summarize_stimuli` - one row per stimulus with unique visible angles rounded to 0.1 degree in `[-180, 180)`, angle count, and recorded dot count.
+- `plot_stimulus_traces` - per-stimulus angle/dot-size traces; unwrap angles only for plotting and retain off frames.
+- `plot_stimulus_positions` - per-stimulus equal-marker polar panels using the summary's exact angle lists.
+- `save_stimulus_report` - save two 300-dpi PNGs and a CSV with complete angle lists under the supplied output directory.
+
 ### `src/analysis_tools.py`
 - `build_trial_aligned_traces` - build trial windows keyed by stimulus id.
 - `compute_trial_mean_response_metrics` - build per-stimulus trial-mean traces plus peak, AUC, and average response metrics.

@@ -12,6 +12,15 @@ Use this log for trajectory generation, mapping JSON changes, timing handoff, an
 - Next likely breakpoint:
 - Rerun implications:
 
+## 2026-09-22 - Compact batch stimulus inspection report
+- Slice goal: reduce `plots_stimuli_batch.ipynb` to configuration/reporting and replace the combined final-position polar plot with visible spatial coverage per stimulus.
+- What changed: added the dedicated `src/stimulus_visualization.py` owner; retained time traces; reduced the notebook to 38 code lines; replaced duplicate summaries with four columns; added automatic PNG/CSV export under `2p_derived/<experiment>/stimuli`.
+- Spatial semantics: finite non-origin coordinates with positive radius/size are visible; absent size assumes visibility. Directions are normalized to `[-180, 180)`, rounded to 0.1 degree, and shared by the table and polar panels. Dot count includes every recorded identity. CSV radius/size is dot size, not distance.
+- Validation: seven unittest cases; all notebook code cells executed in a fresh namespace against all 16 Exp_8 files with a temporary destination and then the configured D: destination. Confirmed five-dot flicker (5 directions/5 dots), rocking (2/1), full motion (15/1), exact plotted/exported angle agreement, and repeat export. Inspected both complete rendered figures; increased polar title spacing and used a common zero-based dot-size scale after the first render.
+- Environment note: Windows sandbox denied access to Python TemporaryDirectory folders; unit tests passed outside the sandbox. The configured D: export also required execution outside the writable workspace and completed successfully.
+- What remains broken / remaining in-slice work: none identified.
+- Rerun implications: change `experiment` and verify frame rate/rotation before another dataset; run all cells to replace `stimuli_standard.png`, `stimuli_polar.png`, and `stimuli_summary.csv`. No trajectory generation or timing contracts changed.
+
 ## 2026-04-21 - Initial guidance system seed
 - Slice goal: create the routed guidance docs for stimulus-authoring ownership and handoff.
 - Passes completed in this session: repo inspection, router creation, stage-map creation, output-contract documentation.

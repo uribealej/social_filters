@@ -28,7 +28,7 @@ Use this file when
 | Timing mismatch between generated CSVs and calcium-analysis interpretation | `canonical-outputs.md` | `src/stimuli_timeline.py` before touching notebooks or plotting code |
 | Repeated generator or inspection helpers such as `generate_circular_trajectory` or `get_angles_from_positions` | `duplicate-helper-inventory.md` | Target script or notebook, then decide whether the owner stays in `scripts/stimuli/` or belongs in `src/stimuli_timeline.py` for downstream timing semantics |
 | Projection, PsychoPy playback, or runtime timing-log capture | `stimulus-authoring-stage-map.md` | `scripts/stimuli/try_projection.py` |
-| Stimulus plotting or inspection notebook behavior | `stimulus-authoring-stage-map.md` | `scripts/stimuli/plots_stimuli.ipynb` |
+| Stimulus plotting or inspection notebook behavior | `stimulus-authoring-stage-map.md` | `src/stimulus_visualization.py` before `scripts/stimuli/plots_stimuli_batch.ipynb` |
 
 ## Ownership guidance
 - Stimulus scripts own experiment-specific asset generation and packaging.
@@ -37,5 +37,6 @@ Use this file when
 - Shared geometry helpers that are only used by generator and inspection code may still live in `scripts/stimuli/` until they become downstream timing authority.
 - `try_projection.py` owns display wrapper behavior and timing-log capture only; it should not redefine trajectory semantics.
 - Inspection helpers in `plots_stimuli.ipynb` remain notebook-local unless a later slice explicitly promotes them.
+- Batch inspection helpers belong in the dedicated `src/stimulus_visualization.py`; the batch notebook contains only configuration and report calls. Spatial coverage uses visible directions, while time traces retain all frames.
 - Smallest practical validation surface: regenerate the smallest affected CSV or parameter set, run timing extraction on that output, and verify that downstream assumptions still match the written trajectory.
 - Handoff log: `../references/recent-changes-stimulus-authoring.md`.
