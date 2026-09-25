@@ -11,7 +11,7 @@ Use this file when
 - You need to decide whether a timing bug belongs in the generator scripts or in `src/stimuli_timeline.py`.
 
 ## End-to-end stages
-1. Choose or edit experiment-specific mapping JSONs and package files in `scripts/stimuli/`.
+1. Choose or edit experiment-specific mapping JSONs and package files in `configs/stimuli/`.
 2. Generate per-stimulus trajectory tables in the relevant script, including rocking, flicker, radius, and repetition logic.
 3. Write parameter tables or package metadata alongside generated trajectories.
 4. Inspect generated assets with `plots_stimuli.ipynb` or similar notebook tooling.
@@ -24,12 +24,12 @@ Use this file when
 - Stage 6 can write `stimulus_timing_log.csv` during playback runs.
 
 ## Concept ownership
-- `scripts/stimuli/Trayectory_flicker.py`, `Trayectory_rocking_stimuli.py`, and `trayectory_stimuli.py` own experiment-specific trajectory generation.
+- Scripts under `scripts/stimuli/generation/` own experiment-specific trajectory generation.
 - Mapping and package JSON files own experiment-specific configuration values.
 - `plots_stimuli.ipynb` owns inspection and visualization of generated assets.
-- `src/stimulus_visualization.py` owns reusable batch trajectory loading, visible-direction summaries, inspection figures, and report saving. `scripts/stimuli/plots_stimuli_batch.ipynb` is its configuration/reporting wrapper.
+- `src/stimulus_visualization.py` owns reusable batch trajectory loading, visible-direction summaries, inspection figures, and report saving. `notebooks/stimuli/plots_stimuli_batch.ipynb` is its configuration/reporting wrapper.
 - `src/stimuli_timeline.py` owns reusable timing extraction and log-to-trace semantics consumed by analysis code.
-- `try_projection.py` owns playback wrapper behavior and timing-log capture.
+- `scripts/stimuli/playback/try_projection.py` owns playback wrapper behavior and timing-log capture.
 
 ## Navigation notes
 - Read `canonical-outputs.md` for file naming and folder-layout expectations.

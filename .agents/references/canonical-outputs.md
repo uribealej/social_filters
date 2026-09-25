@@ -25,7 +25,7 @@ Use this file when
   - `{prefix}_dFoF_merged_map.csv`
 - Loader-side authority for discovering merged outputs and compatibility variants:
   - `src/data_loading.py`
-- Preprocessing notebook helpers that search for experiments, planes, or per-plane files are not canonical outputs by themselves; they are wrapper logic and backlog candidates listed in `duplicate-helper-inventory.md`.
+- Preprocessing notebook helpers that search for experiments, planes, or per-plane files are wrapper logic, not canonical output contracts.
 
 ## Calcium analysis caches and plots
 - Canonical plots root:
@@ -38,7 +38,7 @@ Use this file when
 - `src/data_loading.py` is the loader-side authority for how these outputs are discovered and reused.
 
 ## Stimulus authoring outputs
-- Stimulus asset writers live in `scripts/stimuli/`.
+- Stimulus asset writers live in `scripts/stimuli/generation/`; their JSON configuration inputs live in `configs/stimuli/`.
 - Canonical generated assets include:
   - `*_trajectory.csv`
   - `parameters/experiment_parameters.csv`
@@ -46,7 +46,7 @@ Use this file when
   - package or mapping JSON files kept alongside the generating scripts
 - Playback runs can write:
   - `stimulus_timing_log.csv`
-- Inspection figures from `plots_stimuli.ipynb` are notebook outputs, not canonical writer-stage contracts.
+- Inspection figures from `notebooks/stimuli/plots_stimuli_batch.ipynb` are notebook outputs, not canonical writer-stage contracts.
 - The batch inspection report is saved by `src/stimulus_visualization.py` under the configured derived root, `<experiment>/stimuli/`: `stimuli_standard.png`, `stimuli_polar.png` (300 dpi), and `stimuli_summary.csv`. Reruns replace these report files. The CSV contains `stimulus_name`, `unique_angles_deg` (JSON lists), `n_unique_angles`, and `n_dots`; its visible spatial directions are rounded to 0.1 degree, whereas dot count includes all recorded identities. These reports do not alter generated trajectory or timing contracts.
 
 ## Timing ownership

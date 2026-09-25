@@ -8,8 +8,13 @@ and stimulus-timing tools used by these analyses.
 ## Repository structure
 
 - `src/`: reusable loading, analysis, timing, and plotting code.
-- `scripts/calcium_analysis/`: experiment analyses and reporting notebooks.
-- `scripts/stimuli/`: stimulus-generation and inspection workflows.
+- `notebooks/calcium/`: preprocessing, shared, and experiment-specific analyses.
+- `notebooks/stimuli/`: stimulus inspection and reporting notebooks.
+- `scripts/stimuli/generation/`: stimulus-generation programs.
+- `scripts/stimuli/playback/`: stimulus presentation wrappers.
+- `configs/stimuli/`: stimulus and experiment configuration files.
+- `docs/`: reproducibility and project documentation.
+- `archive/notebooks/calcium/`: historical notebooks that are not maintained.
 
 ## Local data
 

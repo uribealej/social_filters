@@ -10,11 +10,12 @@ Use this file when
 - You need to decide whether a notebook cell should call an existing `src/` function.
 - You need the smallest entrypoint into shared repo logic.
 
+The active notebook/script evidence and compatibility classification for these symbols is recorded in `src-api-consumer-inventory.md`. The machine-readable consumer contract is `tests/contracts/src_api_consumers.json`.
+
 ## Trusted implementation patterns
 - Import shared helpers from `src.*` in notebooks and scripts.
 - Keep dFoF and raster arrays in the owner module conventions already used by the repo, usually `(T, N)` until a plotting helper intentionally transposes.
 - Treat notebook-local copies of shared helpers as legacy unless the repo clearly moved authority back into the notebook.
-- Treat helpers listed in `duplicate-helper-inventory.md` as backlog items or notebook/script-local wrappers, not as part of the stable public surface until they are extracted into an owner module.
 
 ## Public surface by module
 
@@ -71,6 +72,8 @@ Boundary note:
 - `zscore_dfof_from_prestim_baseline` - z-score dFoF using pre-stimulus baselines.
 
 ### `src/multifish_analysis.py`
+- `build_bout_flicker_position_analysis` - build pooled bout-referenced flicker-position comparison data.
+- `compute_static_flicker_fish_level_statistics` - compute fish-level static--flicker tests, confidence intervals, and Holm-adjusted p-values.
 - `combine_reps_one_stim` - combine one stimulus' trial-aligned repetitions by concatenating time or averaging repeats.
 - `build_matrix_for_fish` - concatenate selected stimulus blocks into a per-fish matrix with optional kept-neuron indexing.
 - `build_matrix_all_fish` - stack per-fish matrices for dFoF, raster, or z-score trial-aligned traces.
@@ -117,8 +120,16 @@ Boundary note:
 ### `src/significant_traces.py`
 - `compute_noise_model_romano_fast_modular` - build centered dFoF, significance maps, and event rasters from the Romano-style noise model.
 - `clean_binary_raster_columns` - remove non-finite or zero-variance raster columns before correlation-based sorting.
+- `plot_dff_and_raster` - plot centered dFoF and a binary raster with one shared neuron order.
+
+### `src/significant_traces_v2.py`
+- `compute_noise_model_romano_fast_modular` - active V2 detector used by the single-fish notebook; returns the established eight-item detector tuple and optionally appends diagnostics.
+
+Compatibility note:
+- The active single-fish workflow uses V2 detection with V1 cleanup and plotting. Preserve both import paths until the significant-trace characterization and consolidation slices are complete.
 
 ### `src/plotting.py`
+- `add_stimuli_markers` - add stimulus timing markers to an existing axis.
 - `list_stimulus_names` - discover stimulus names from `*_trajectory.*` files by stripping `_trajectory`.
 - `build_stimulus_style_maps` - build reusable stimulus color and linestyle dictionaries from discovered stimulus names.
 - `plot_similarity_heatmaps` - plot Pearson and cosine stimulus-vector similarity heatmaps.
@@ -136,10 +147,12 @@ Boundary note:
 - `plot_allfish_flat_raster` - render flattened multi-fish matrices with stimulus movement markers and optional mean trace panels.
 - `plot_static_flicker_classification_raster` - render independent left and right category-ordered static--flicker significant-raster figures.
 - `plot_static_flicker_category_proportions` - render per-position, per-fish stacked category proportions.
+- `plot_pooled_static_flicker_category_proportions` - render descriptive category proportions after pooling neurons across fish.
 - `plot_shared_static_flicker_auc_summary` - render separate left/right shared-neuron AUC comparisons with per-stimulus distributions of per-fish mean ΔAUC.
 - `plot_recruitment_amplification` - render per-position, per-fish recruitment and amplification components.
+- `plot_bout_flicker_position_cell06_style` - render the active Cell 06-style bout/flicker position comparison figure.
+- `raster_with_stimuli` - render a single-fish raster with stimulus timing annotations.
 
 ## Ownership notes
 - If a notebook calls one of the symbols above, start in the owning module before editing the notebook.
 - If a task changes any public helper signature or return contract, update this file and the relevant stage map in the same change.
-- For repeated helper triage that does not change code yet, use `duplicate-helper-inventory.md` to distinguish public `src/` owners from extract-later notebook or script helpers.

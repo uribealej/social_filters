@@ -1,21 +1,22 @@
-# Recent Changes
+# Active Handoff
 
 Purpose
 
-Route future agents to the correct workflow-specific handoff log and define when a log entry is worth adding.
+Record only unfinished work that a future agent must understand before continuing. Completed plans and logs are preserved under `../history/` and are not part of normal startup.
 
 Use this file when
 
 - You are resuming partially completed work.
-- A change stops mid-slice with remaining breakage.
-- Public behavior, file contracts, or notebook expectations changed and future work needs context.
+- A change stopped mid-slice with remaining breakage or an unresolved user decision.
 
-## Open this workflow log
-- Calcium preprocessing: `recent-changes-calcium-preprocessing.md`
-- Calcium analysis: `recent-changes-calcium-analysis.md`
-- Stimulus authoring: `recent-changes-stimulus-authoring.md`
+## Current handoff
 
-## When to append
-- A meaningful ownership slice stopped before full validation.
-- A public helper, cache contract, or writer-stage behavior changed.
-- The next agent would benefit from knowing what still fails, what was already checked, and what reruns are still needed.
+- The repository-organization changes are not yet committed.
+- `notebooks/calcium/exp_08_accumulation_ev/01_all_fish_raster.ipynb` has an unresolved local-versus-index difference: the staged organization version preserves the complete 17-cell committed notebook, while the local working notebook has 14 cells and retained outputs. Do not overwrite either version until the user decides how to reconcile them.
+- No `src/` refactoring plan is active. Define it with the user before changing analysis modules.
+
+## Maintenance rule
+
+- Add an entry only when work stops incomplete or a user decision remains unresolved.
+- Remove the entry when the issue is resolved.
+- Move durable completed context to `../history/` only when it will help later work.

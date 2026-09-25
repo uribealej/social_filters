@@ -18,7 +18,7 @@ Use this file when
 2. Trace the immediate caller and the first downstream consumer.
 3. Make the owner-layer change before touching notebook orchestration.
 4. Run the smallest practical validation for that slice.
-5. Update the relevant reference doc or recent-changes log if public behavior or handoff status changed.
+5. Update the relevant reference doc if public behavior changed, or `recent-changes.md` if the slice stops incomplete.
 
 ## Keep-going rules
 - Keep going if the remaining work is in the same owner module and validation surface.
@@ -36,8 +36,9 @@ Use this file when
 - A partial rename or output-contract tweak without updating the relevant docs.
 
 ## Handoff requirements
-- If stopping mid-slice, append the workflow-specific recent-changes log with what changed, what remains broken, and the next likely breakpoint.
+- If stopping mid-slice, append `recent-changes.md` with what changed, what remains broken, and the next likely breakpoint.
 - Note rerun implications whenever a cache, file contract, or public helper changed.
+- Remove completed handoffs from the active file; preserve only durable context under `.agents/history/`.
 
 ## Validation expectations
 - Use the smallest rerun or smoke check that exercises the edited owner and its first downstream consumer.
