@@ -44,7 +44,7 @@ This inventory was established on 2026-09-25 during Step 2 of `src-refactor-road
 | Exp 8 all-fish raster | `analysis_tools`, `multifish_analysis`, `plotting`, `reusable_several_fish` | Response selection, response matrices, diagnostics, standard reports |
 | Exp 8 bout/flicker position | `multifish_analysis`, `plotting`, `reusable_several_fish` | Same public bout-position surface as Exp 1 |
 | dFoF batch preprocessing | `dff_extraction` | Per-plane Suite2p-to-dFoF extraction entrypoint |
-| Shared single-fish analysis | `analysis_tools`, `data_loading`, `plotting`, `significant_traces`, `significant_traces_v2` | Load, align, filter, detect significant traces, and plot |
+| Shared single-fish analysis | `analysis_tools`, `data_loading`, `plotting`, `significant_trace_detection` | Load, align, filter, detect significant traces, and plot through the canonical current-mode owner |
 | Shared several-fish analysis | `analysis_tools`, `data_loading`, `multifish_analysis`, `plotting`, `reusable_several_fish` | Reusable pooled matrices, selection, overlap, diagnostics, and figures |
 | Stimulus batch plots | `stimulus_visualization` | Load trajectories, summarize, plot, and save reports |
 
@@ -66,7 +66,7 @@ These symbols are directly referenced by active notebooks.
 - `validate_static_flicker_recruitment_result`
 - `zscore_dfof_from_prestim_baseline`
 
-Classification: active facade candidates. Preserve `src.analysis_tools.<name>` while Step 6 separates their implementations.
+Classification: active compatibility facade. S06 moved implementations to responsibility-specific owners while preserving every `src.analysis_tools.<name>` import and signature. Consumer migration remains a later slice.
 
 ### `src.data_loading`
 
@@ -152,11 +152,11 @@ Classification: active facade candidates. Step 9 may separate workflow, reportin
 
 ### Significant traces
 
-- `src.significant_traces.clean_binary_raster_columns`
-- `src.significant_traces.plot_dff_and_raster`
-- `src.significant_traces_v2.compute_noise_model_romano_fast_modular`
+- `src.significant_trace_detection.clean_binary_raster_columns`
+- `src.significant_trace_detection.compute_noise_model_romano_fast_modular`
+- `src.significant_trace_detection.plot_dff_and_raster`
 
-Classification: active mixed-version contract. The shared single-fish notebook intentionally combines V1 cleanup/plotting with V2 detection. Preserve this until Steps 4-5 characterize and consolidate both implementations.
+Classification: stable canonical surface. The shared single-fish notebook uses the current-mode detector, cleanup, and plotting helpers from one owner. Historical `src.significant_traces` and `src.significant_traces_v2` paths remain compatibility facades but have no active notebook/script consumer.
 
 ### `src.stimulus_visualization`
 
@@ -173,10 +173,10 @@ Classification: stable public stimulus-inspection workflow.
 The following are not necessarily direct notebook calls, but active `src` code depends on them:
 
 - Timing: `get_angles_from_positions`, `get_motion_timing_simple`, `make_stimulus_traces_2`, and `extract_stimulus_chunks`.
-- Analysis primitives: `find_file_with_suffix`, `compute_response_pair_index`, `build_response_index_keep_mask`, `compute_zscore_response_auc`, `compute_trial_auc_by_neuron`, `compute_static_flicker_trial_metrics`, `compute_stimulus_selectivity_metrics`, `classify_stimulus_specificity_neuron`, and `build_active_neuron_matrix_from_trial_raster`.
+- Analysis primitives retain their `analysis_tools` facade paths but are implemented by `analysis_io`, `response_selectivity`, `response_metrics`, and `response_classification`. Internal owner-to-owner dependencies now use the narrow modules rather than the facade.
 - Multifish composition: `combine_reps_one_stim`, `build_matrix_for_fish`, `build_neuron_stimulus_summary_table`, `add_selectivity_metrics_to_summary_table`, `resolve_segment_labels`, `compute_active_neuron_jaccard_overlap`, and `build_active_neuron_overlap_matrices_all_fish`.
 - Several-fish reporting: `export_notebook_report` and `resolve_response_control_columns`.
-- V1 comparison path: `significant_traces_v2.compare_significant_trace_versions` imports the V1 `compute_noise_model_romano_fast_modular` implementation.
+- Significant-trace comparison: `significant_trace_detection.compare_significant_trace_versions` calls the canonical detector in explicit legacy and current modes; the V2 facade delegates to that comparison helper.
 
 Internal-active helpers can move only with their immediate callers and focused tests.
 
@@ -192,17 +192,17 @@ These are listed in `symbol-index.md` but have no active notebook/script call an
 - `multifish_analysis.build_segment_selectivity_permutation_summary`
 - `plotting.plot_stimulus_specificity_summary`
 - `plotting.plot_static_flicker_category_proportions`
-- `stimuli_timeline.transform_stimuli_duration` as a direct caller surface; its duplicate in `data_loading` is currently used instead and is scheduled for Step 3 consolidation.
+- `stimuli_timeline.transform_stimuli_duration` as a direct notebook/script caller surface; it is now the canonical implementation used internally by `data_loading`.
 - `auxtrigger_extraction.extract_aux_trigger_frames`; this remains an intentional documented preprocessing API despite having no active repository caller.
 
 This classification does not authorize deletion. Step 11 requires stronger evidence and explicit compatibility review.
 
 ## Deprecation and boundary review candidates
 
-- `data_loading.transform_stimuli_duration` duplicates the documented timing owner and is scheduled for Step 3 compatibility delegation.
+- `data_loading.transform_stimuli_duration` is a compatibility wrapper that delegates to the canonical timing owner; it contains no normalization logic.
 - `multifish_analysis.compute_stimulus_selectivity_metrics` is an accidental re-export created by importing the function from `analysis_tools`; `reusable_several_fish.py` currently accesses it through `mfa`. That hidden coupling must be corrected deliberately, with tests, rather than disappearing during an import cleanup.
 - `analysis_tools.inspect_obj`, `analysis_tools.plot_venn_3stim`, and other public-looking but undocumented helpers remain Step 11 review candidates.
-- V1/V2 significant-trace names are not deprecation candidates until Step 4 establishes their behavioral differences.
+- `src.significant_traces` and `src.significant_traces_v2` are thin compatibility facades after S05. Their removal remains a later compatibility/deprecation decision; neither contains scientific array logic.
 - No `__all__` declarations were added in Step 2 because the current modules contain accidental and transitional exports. Public export lists should be introduced only after the facade boundaries are agreed.
 
 ## High-value compatibility contracts
@@ -261,7 +261,7 @@ Its scientific thresholds remain explicit parameters. Output filenames are owned
 
 ### Significant-trace detector
 
-The active V2 detector accepts `(T, N)` dFoF and returns an eight-item tuple:
+The canonical current-mode detector accepts `(T, N)` dFoF and returns an eight-item tuple:
 
 1. significance map;
 2. centered dFoF;

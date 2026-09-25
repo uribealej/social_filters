@@ -1,7 +1,8 @@
+"""Derive stimulus timing and aligned traces from trajectories and logs."""
+
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from scipy.stats import mode
 
 
 def get_angles_from_positions(df_x, df_y, rotation_angle):
@@ -125,10 +126,6 @@ def transform_stimuli_duration(stimuli_durations):
 
 
 def get_radius_timing(trajectory_file, framerate=60):
-    from pathlib import Path
-    import pandas as pd
-    import numpy as np
-
     df = pd.read_csv(Path(trajectory_file))
     n_frames = len(df)
     if n_frames <= 0:
@@ -185,56 +182,6 @@ def get_radius_timing(trajectory_file, framerate=60):
         "start_frame":        int(motion_start),
         "end_frame":          int(motion_end),
     }
-
-#
-# def get_radius_timing(trajectory_file, framerate=60):
-#     from pathlib import Path
-#     import pandas as pd
-#     import numpy as np
-#
-#     trajectory_file = Path(trajectory_file)
-#     df = pd.read_csv(trajectory_file)
-#     n_frames = len(df)
-#
-#     radius_cols = [col for col in df.columns if col.endswith('_radius')]
-#     dot_ids = [col.rsplit('_', 1)[0] for col in radius_cols]
-#
-#     start_frames = []
-#     end_frames = []
-#
-#     for dot in dot_ids:
-#         r_col = f"{dot}_radius"
-#         radius_series = df[r_col]
-#
-#         # List all unique values to check if any change happened
-#         unique_values = radius_series.unique()
-#         #print(f"{dot} unique radius values: {unique_values}")
-#
-#         if len(unique_values) > 1:
-#             # Detect frames where radius value changes
-#             change_indices = radius_series[radius_series != radius_series.iloc[0]].index
-#             start_frame = change_indices.min()
-#             end_frame = change_indices.max()
-#             print(f"  Change detected: Start at {start_frame}, End at {end_frame}")
-#             start_frames.append(start_frame)
-#             end_frames.append(end_frame)
-#         else:
-#             print(f"{dot}: No detectable change")
-#
-#     if not start_frames or not end_frames:
-#         raise ValueError("No dot shows detectable radius change.")
-#
-#     start_frame = min(start_frames)
-#     end_frame = max(end_frames)
-#
-#     return {
-#         'static_before_sec': np.round(start_frame / framerate, 0),
-#         'motion_sec': np.round((end_frame - start_frame + 1) / framerate, 0),
-#         'static_after_sec': np.round((n_frames - end_frame - 1) / framerate, 0),
-#         'start_frame': int(start_frame),
-#         'end_frame': int(end_frame),
-#     }
-
 
 def get_stimulus_timing(trajectory_file, framerate=60):
     """

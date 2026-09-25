@@ -1,4 +1,5 @@
-from prompt_toolkit.contrib.telnet import TelnetServer
+"""Reusable figures and plotting helpers for calcium-imaging analyses."""
+
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 from scipy.cluster.hierarchy import linkage, fcluster, leaves_list
@@ -13,6 +14,7 @@ import src.stimuli_timeline as st
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 import pandas as pd
+from matplotlib_venn import venn3
 
 
 def _natural_sort_key(value):
@@ -1552,38 +1554,6 @@ def plot_bout_flicker_position_cell06_style(
         "markers": markers,
         "onset_coincidence_rows": onset_rows,
     }
-# def add_stimuli_markers(ax, exp_log, stimuli_durations, stimuli_colors, time_offset=0, trace='movement'):
-#     """
-#     Add vertical lines for stimulus movement starts and return legend handles.
-#
-#     Parameters:
-#     - ax: matplotlib Axes object
-#     - exp_log: DataFrame with stimulus events and timestamps
-#     - stimuli_durations: dict with durations, e.g., {'forward': {...}}
-#     - stimuli_colors: dict mapping stimulus names to colors
-#     - time_offset: optional offset (e.g., start time) to align timestamps (default=0)
-#
-#     Returns:
-#     - legend_handles: list of matplotlib Line2D objects for legend
-#     """
-#     for _, row in exp_log.iterrows():
-#         if 'stim' in row['event']:
-#             stim_name = row['event'].split('_')[-1]
-#             stim_start = row['timestamp'] - exp_log['timestamp'].min() - time_offset
-#             if stim_name in stimuli_durations:
-#                 if trace == 'movement':
-#                     dur = stimuli_durations[stim_name]
-#                     move_start = stim_start + dur['static_before_sec']
-#                     color = stimuli_colors.get(stim_name, 'black')
-#                     ax.axvline(move_start, color=color, alpha=0.8, linewidth=1.5)
-#
-#     # Legend with dummy lines
-#     legend_handles = []
-#     for stim_name, color in stimuli_colors.items():
-#         line, = ax.plot([], [], color=color, label=stim_name, linewidth=4)
-#         legend_handles.append(line)
-#
-#     return legend_handles
 def add_stimuli_markers(ax, exp_log, stimuli_durations, stimuli_colors, time_offset=0, trace='movement',
                         stimuli_linestyles=None):
     if stimuli_linestyles is None:
@@ -1608,49 +1578,6 @@ def add_stimuli_markers(ax, exp_log, stimuli_durations, stimuli_colors, time_off
         (line,) = ax.plot([], [], color=color, linestyle=ls, label=stim_name, linewidth=4)
         legend_handles.append(line)
     return legend_handles
-
-
-# def raster_with_stimuli(
-#     ax, data, fps, fish_id, neuron_order=None, title_suffix='', min=0, max=0.4):
-#     """
-#     Plot raster of ΔF/F traces sorted by neuron_order, with stimulus markers and legend.
-#
-#     Parameters:
-#     - ax: matplotlib Axes object
-#     - deltaF_F: (frames x neurons) ΔF/F matrix
-#     - fps: frames per second (for time axis)
-#     - plane_name: string for labeling plot
-#     - fish_id: string for labeling plot
-#     - neuron_order: 1D array of neuron indices for sorting (length = neurons)
-#     - title_suffix: optional extra string for plot title (e.g., clustering method)
-#     """
-#     deltaF_F=data
-#     # If no neuron_order, keep original order
-#     if neuron_order is None:
-#         neuron_order = np.arange(deltaF_F.shape[1])
-#
-#     # Sort data by neuron_order
-#     sorted_data = deltaF_F[:, neuron_order].T  # (neurons, time)
-#     time_axis = np.arange(sorted_data.shape[1]) / fps
-#
-#     im = ax.imshow(
-#         sorted_data,
-#         aspect='auto',
-#         cmap='gray_r',
-#         vmin=min,
-#         vmax=max,
-#         extent=[time_axis[0], time_axis[-1], sorted_data.shape[0], 0]
-#     )
-#
-#     ax.set_ylabel("# Neuron")
-#     ax.set_title(f"{fish_id}  DF/F - {title_suffix}")
-#     ax.spines['top'].set_visible(False)
-#     ax.spines['right'].set_visible(False)
-#
-#
-#     return im
-
-
 def raster_with_stimuli(
     ax,
     data,                 # (frames x neurons) matrix: either ΔF/F or 0/1 significant
@@ -2194,37 +2121,6 @@ def plot_sorted_chunks_single_mode(
     fig.tight_layout()
     return fig, ax, neuron_order
 
-    # # 5) Legend that matches color + linestyle
-    # legend_handles = []
-    # for stim_name, color in stimuli_colors.items():
-    #     ls = stimuli_linestyles.get(stim_name, "-")
-    #     (line,) = ax.plot([], [], color=color, linestyle=ls, label=stim_name, linewidth=2)
-    #     legend_handles.append(line)
-    #
-    # ax.legend(
-    #     handles=legend_handles,
-    #     title="Movement onset\nacross stimuli",
-    #     bbox_to_anchor=(1.15, 1),
-    #     loc="upper left",
-    #     borderaxespad=0,
-    #     frameon=False,
-    # )
-    #
-    # # 6) Colorbar + layout
-    # if not is_binary:
-    #     fig.colorbar(im, ax=ax, label=r"$\Delta F/F$")
-    #     fig.tight_layout()
-    # else:
-    #
-    #     # Binary significance → legend instead of colorbar
-    #     legend_elements = [
-    #         Patch(facecolor='black', edgecolor='black', label='Significant (1)'),
-    #         Patch(facecolor='white', edgecolor='black', label='Not significant (0)'),
-    #     ]
-    #     ax.legend(handles=legend_elements, title='Activity', loc='upper right')
-    # return fig, ax, neuron_order
-
-
 # this function plot Df/F as a function of time per stimuli...
 
 def plot_stimulus_means(
@@ -2340,28 +2236,6 @@ def plot_stimulus_means(
 
     return fig, ax, color_by_stim, out_png
 
-## USAGE EXAMPLE:
-# fig, ax, used_colors, out_path = plot_stimulus_means(
-#     mean_traces=mean_traces,
-#     stimuli_ids=stimuli_ids,
-#     stimuli_names=stimuli_names,
-#     title_prefix="",
-#     fps_2p=fps_2p,
-#     t_post_s=t_post_s,
-#     t_pre_s=t_pre_s,
-#     stimuli_durations= stimuli_durations,
-#     plots_path=paths["plots_path"],       # Path object or str
-#     prefix=paths['prefix'],               # e.g., "exp12_mouseA"
-#     dpi=600,
-#     save=False,
-#     stimuli_colors=stimuli_colors,            # <— pass styles here
-#     stimuli_linestyles=stimuli_linestyles,
-#     close_after=False,
-#     kept_cells = None,  # optional: indices of cells to include
-#     comment="jhghjg" # for saving
-# )
-#
-
 def summarize_durations(stimuli_durations):
     '''''
     Given a dict of stimuli durations, summarize common durations.
@@ -2387,187 +2261,6 @@ def summarize_durations(stimuli_durations):
             summary[field] = float(np.mean(vals))
 
     return summary
-# Example usage:
-# summary = summarize_durations(stimuli_durations)
-# print(summary)
-# # {'static_before_sec': 8.0, 'motion_sec': 8.4, 'total_sec': 16.4}
-
-#
-# def plot_allfish_flat_raster(
-#     data,
-#     trial_aligned_traces,
-#     stim_order,
-#     stimuli_id_map,
-#     stimuli_durations,
-#     stimuli_colors,
-#     stimuli_linestyles,
-#     fps_2p,
-#     t_pre_s,
-#     combine_mode="concat",
-#     *,
-#     sort_mode="kmeans",
-#     n_clusters=8,
-#     random_state=0,
-#     neuron_order=None,
-#     sort_label=None,
-#     is_binary=False,
-#     figsize=(8, 6),
-#     fish_id="all_fish",
-# ):
-#     """
-#     Plot flattened matrix for all fish with movement onsets and optional sorting.
-#
-#     Parameters
-#     ----------
-#     data : array, shape (n_neurons, n_time)
-#         Flattened matrix you want to plot.
-#     trial_aligned_traces : dict or whatever your compute_move_lines_for_flat_matrix expects
-#     stim_order, stimuli_id_map, stimuli_durations, stimuli_colors, stimuli_linestyles :
-#         Metadata needed for movement onset lines and legend.
-#     fps_2p : float
-#         Imaging frame rate (Hz).
-#     t_pre_s : float
-#         Pre-stimulus window in seconds (used inside compute_move_lines_for_flat_matrix).
-#     combine_mode : str
-#         How trials were combined when building `data` ("concat", etc.).
-#     sort_mode : str
-#         Sorting mode for compute_single_sort_order (e.g. "kmeans", "pca", ...).
-#     n_clusters : int
-#         Number of clusters for kmeans mode.
-#     random_state : int
-#         Random state for kmeans.
-#     neuron_order : 1D array or None
-#         If provided, use this neuron order instead of computing a new one.
-#     sort_label : str or None
-#         Label to show in the plot title. If None, use sort_mode or "custom".
-#     is_binary : bool
-#         If True, threshold `data` at 0.5 and show as 0/1.
-#     figsize : tuple
-#         Figure size in inches.
-#     fish_id : str
-#         Just passed to plott.raster_with_stimuli (for title / annotation).
-#
-#     Returns
-#     -------
-#     fig, ax, im, neuron_order
-#     """
-#     # --- 1) Prepare data for sorting & plotting ---
-#     data = np.asarray(data)
-#     assert data.ndim == 2, "data must be (n_neurons, n_time)"
-#
-#     # data_for_sort is (time, neurons) for the raster function
-#     data_for_sort = data.T.copy()  # (time, neurons)
-#
-#     if is_binary:
-#         data_for_sort[data_for_sort < 0.5] = 0
-#         data_for_sort[data_for_sort >= 0.5] = 1
-#
-#     n_time, n_neurons = data_for_sort.shape
-#
-#     # --- 2) Decide which neuron_order to use ---
-#     if neuron_order is not None:
-#         neuron_order = np.asarray(neuron_order)
-#         if neuron_order.ndim != 1 or neuron_order.shape[0] != n_neurons:
-#             raise ValueError(
-#                 f"Custom neuron_order has shape {neuron_order.shape}, "
-#                 f"expected ({n_neurons},)."
-#             )
-#         label = sort_label or "custom"
-#     else:
-#         # Compute only the requested sort order
-#         neuron_order = compute_single_sort_order(
-#             data_for_sort,
-#             sort_mode=sort_mode,
-#             n_clusters=n_clusters,
-#             random_state=random_state,
-#         )
-#         label = sort_label or sort_mode
-#
-#     # --- 3) Plot the raster ---
-#     fig, ax = plt.subplots(figsize=figsize)
-#     im = raster_with_stimuli(
-#         ax=ax,
-#         data=data_for_sort,       # (time, neurons)
-#         fps=fps_2p,
-#         fish_id=fish_id,
-#         neuron_order=neuron_order,
-#         is_binary=is_binary,
-#         title_suffix=f"ordered by stimulus type | sort={label}",
-#     )
-#
-#     # --- 4) Movement onset lines ---
-#     move_starts_s, move_colors, stim_labels = compute_move_lines_for_flat_matrix(
-#         trial_aligned_traces=trial_aligned_traces,
-#         stim_order=stim_order,
-#         stimuli_id_map=stimuli_id_map,
-#         stimuli_durations=stimuli_durations,
-#         stimuli_colors=stimuli_colors,
-#         fps_2p=fps_2p,
-#         t_pre_s=t_pre_s,
-#         combine_mode=combine_mode,
-#     )
-#
-#     move_styles = [stimuli_linestyles.get(name, "-") for name in stim_labels]
-#
-#     for pos_s, color, ls in zip(move_starts_s, move_colors, move_styles):
-#         # NOTE: if move_starts_s are in frames, pos_s / fps_2p converts to seconds
-#         ax.axvline(pos_s / fps_2p, color=color, linestyle=ls,
-#                    alpha=0.9, linewidth=1.0)
-#
-#     # ax.set_xlabel("Time (s)")
-#
-#     # --- 5) Movement legend: only what appears, in order of first appearance ---
-#     seen = set()
-#     handles = []
-#     labels = []
-#
-#     for name in stim_labels:          # this follows actual plotted order
-#         if name in seen:
-#             continue
-#         seen.add(name)
-#
-#         color = stimuli_colors[name]
-#         ls = stimuli_linestyles.get(name, "-")
-#
-#         (line,) = ax.plot([], [], color=color, linestyle=ls,
-#                           label=name, linewidth=2)
-#         handles.append(line)
-#         labels.append(name)
-#
-#     mov_legend = ax.legend(
-#         handles=handles,
-#         labels=labels,
-#         title="Movement onset",
-#         bbox_to_anchor=(1.2, 1),
-#         loc="upper left",
-#         borderaxespad=0,
-#         frameon=False,
-#         fontsize=12,  # legend entry text size
-#         title_fontsize=14,  # legend title size
-#     )
-#
-#     # --- 6) Colorbar ---
-#     if not is_binary:
-#         cbar=fig.colorbar(
-#             im, ax=ax,
-#             label=r"$\Delta F/F$",
-#             fraction=0.17,
-#
-#         )
-#         cbar.set_label(r"$\Delta F/F$", fontsize=14)
-#         cbar.ax.tick_params(labelsize=12)  # tick labels size
-#     else:
-#         cbar=fig.colorbar(
-#             im, ax=ax,
-#             label=r"Significant activity (0/1)",
-#             fraction=0.17,
-#             pad=0.01,
-#         )
-#         cbar.set_label(r"Significant activity (0/1)", fontsize=14)
-#         cbar.ax.tick_params(labelsize=12)  # tick labels size
-#     return fig, ax, im, neuron_order
-#
-#
 def compute_move_lines_for_flat_matrix(
     trial_aligned_traces,
     stim_order,
@@ -2634,238 +2327,6 @@ def compute_move_lines_for_flat_matrix(
             raise ValueError("combine_mode must be 'concat' or 'mean'")
 
     return move_starts_s, move_colors, stim_labels
-#
-#
-# def plot_allfish_flat_raster(
-#     data,
-#     trial_aligned_traces,
-#     stim_order,
-#     stimuli_id_map,
-#     stimuli_durations,
-#     stimuli_colors,
-#     stimuli_linestyles,
-#     fps_2p,
-#     t_pre_s,
-#     combine_mode="concat",
-#     *,
-#     sort_mode="kmeans",
-#     n_clusters=8,
-#     random_state=0,
-#     neuron_order=None,
-#     sort_label=None,
-#     is_binary=False,
-#     figsize=(8, 6),
-#     fish_id="all_fish",
-#     show_mean_trace=False,
-#     mean_height_ratio=1.2,
-#     mean_linewidth=1.5,
-#     mean_color="black",
-#     mean_ylabel="Mean activity",
-# ):
-#     """
-#     Plot flattened matrix for all fish with movement onsets and optional sorting.
-#
-#     Parameters
-#     ----------
-#     data : array, shape (n_neurons, n_time)
-#         Flattened matrix you want to plot.
-#     trial_aligned_traces : dict or whatever your compute_move_lines_for_flat_matrix expects
-#     stim_order, stimuli_id_map, stimuli_durations, stimuli_colors, stimuli_linestyles :
-#         Metadata needed for movement onset lines and legend.
-#     fps_2p : float
-#         Imaging frame rate (Hz).
-#     t_pre_s : float
-#         Pre-stimulus window in seconds (used inside compute_move_lines_for_flat_matrix).
-#     combine_mode : str
-#         How trials were combined when building `data` ("concat", etc.).
-#     sort_mode : str
-#         Sorting mode for compute_single_sort_order (e.g. "kmeans", "pca", ...).
-#     n_clusters : int
-#         Number of clusters for kmeans mode.
-#     random_state : int
-#         Random state for kmeans.
-#     neuron_order : 1D array or None
-#         If provided, use this neuron order instead of computing a new one.
-#     sort_label : str or None
-#         Label to show in the plot title. If None, use sort_mode or "custom".
-#     is_binary : bool
-#         If True, threshold `data` at 0.5 and show as 0/1.
-#     figsize : tuple
-#         Figure size in inches.
-#     fish_id : str
-#         Passed to raster_with_stimuli (for title / annotation).
-#     show_mean_trace : bool
-#         If True, add a panel below the raster showing the mean across neurons.
-#     mean_height_ratio : float
-#         Relative height of the lower mean-trace panel.
-#     mean_linewidth : float
-#         Line width of the mean trace.
-#     mean_color : str
-#         Color of the mean trace.
-#     mean_ylabel : str
-#         Y label for the mean trace axis.
-#
-#     Returns
-#     -------
-#     fig, ax, im, neuron_order
-#         `ax` is the raster axis, for backward compatibility.
-#     """
-#     # --- 1) Prepare data for sorting & plotting ---
-#     data = np.asarray(data)
-#     assert data.ndim == 2, "data must be (n_neurons, n_time)"
-#
-#     # data_for_sort is (time, neurons) for the raster function
-#     data_for_sort = data.T.copy()  # (time, neurons)
-#
-#     if is_binary:
-#         data_for_sort[data_for_sort < 0.5] = 0
-#         data_for_sort[data_for_sort >= 0.5] = 1
-#
-#     n_time, n_neurons = data_for_sort.shape
-#
-#     # --- 2) Decide which neuron_order to use ---
-#     if neuron_order is not None:
-#         neuron_order = np.asarray(neuron_order)
-#         if neuron_order.ndim != 1 or neuron_order.shape[0] != n_neurons:
-#             raise ValueError(
-#                 f"Custom neuron_order has shape {neuron_order.shape}, "
-#                 f"expected ({n_neurons},)."
-#             )
-#         label = sort_label or "custom"
-#     else:
-#         neuron_order = compute_single_sort_order(
-#             data_for_sort,
-#             sort_mode=sort_mode,
-#             n_clusters=n_clusters,
-#             random_state=random_state,
-#         )
-#         label = sort_label or sort_mode
-#
-#     # --- 3) Create figure/axes ---
-#     if show_mean_trace:
-#         fig, (ax, ax_mean) = plt.subplots(
-#             2, 1,
-#             figsize=figsize,
-#             sharex=True,
-#             gridspec_kw={"height_ratios": [6, mean_height_ratio], "hspace": 0.05}
-#         )
-#     else:
-#         fig, ax = plt.subplots(figsize=figsize)
-#         ax_mean = None
-#
-#     # --- 4) Plot the raster ---
-#     im = raster_with_stimuli(
-#         ax=ax,
-#         data=data_for_sort,       # (time, neurons)
-#         fps=fps_2p,
-#         fish_id=fish_id,
-#         neuron_order=neuron_order,
-#         is_binary=is_binary,
-#         title_suffix=f"ordered by stimulus type | sort={label}",
-#     )
-#
-#     # --- 5) Movement onset lines ---
-#     move_starts_s, move_colors, stim_labels = compute_move_lines_for_flat_matrix(
-#         trial_aligned_traces=trial_aligned_traces,
-#         stim_order=stim_order,
-#         stimuli_id_map=stimuli_id_map,
-#         stimuli_durations=stimuli_durations,
-#         stimuli_colors=stimuli_colors,
-#         fps_2p=fps_2p,
-#         t_pre_s=t_pre_s,
-#         combine_mode=combine_mode,
-#     )
-#
-#     move_styles = [stimuli_linestyles.get(name, "-") for name in stim_labels]
-#
-#     for pos_s, color, ls in zip(move_starts_s, move_colors, move_styles):
-#         ax.axvline(
-#             pos_s / fps_2p,
-#             color=color,
-#             linestyle=ls,
-#             alpha=0.9,
-#             linewidth=1.0,
-#         )
-#
-#     # --- 6) Optional mean trace panel ---
-#     if show_mean_trace:
-#         mean_trace = np.nanmean(data, axis=0)   # (n_time,)
-#         time_s = np.arange(mean_trace.size) / fps_2p
-#
-#         ax_mean.plot(
-#             time_s,
-#             mean_trace,
-#             color=mean_color,
-#             linewidth=mean_linewidth,
-#         )
-#
-#         for pos_s, color, ls in zip(move_starts_s, move_colors, move_styles):
-#             ax_mean.axvline(
-#                 pos_s / fps_2p,
-#                 color=color,
-#                 linestyle=ls,
-#                 alpha=0.9,
-#                 linewidth=1.0,
-#             )
-#
-#         ax_mean.set_ylabel(mean_ylabel, fontsize=12)
-#         ax_mean.set_xlabel("Time (s)", fontsize=12)
-#         ax_mean.tick_params(labelsize=10)
-#         ax_mean.spines["top"].set_visible(False)
-#
-#     # --- 7) Movement legend: only what appears, in order of first appearance ---
-#     seen = set()
-#     handles = []
-#     labels = []
-#
-#     for name in stim_labels:
-#         if name in seen:
-#             continue
-#         seen.add(name)
-#
-#         color = stimuli_colors[name]
-#         ls = stimuli_linestyles.get(name, "-")
-#
-#         (line,) = ax.plot([], [], color=color, linestyle=ls, label=name, linewidth=2)
-#         handles.append(line)
-#         labels.append(name)
-#
-#     mov_legend = ax.legend(
-#         handles=handles,
-#         labels=labels,
-#         title="Movement onset",
-#         bbox_to_anchor=(1.2, 1),
-#         loc="upper left",
-#         borderaxespad=0,
-#         frameon=False,
-#         fontsize=12,
-#         title_fontsize=14,
-#     )
-#
-#     # --- 8) Colorbar ---
-#     if not is_binary:
-#         cbar = fig.colorbar(
-#             im,
-#             ax=ax,
-#             label=r"$\Delta F/F$",
-#             fraction=0.17,
-#         )
-#         cbar.set_label(r"$\Delta F/F$", fontsize=14)
-#         cbar.ax.tick_params(labelsize=12)
-#     else:
-#         cbar = fig.colorbar(
-#             im,
-#             ax=ax,
-#             label=r"Significant activity (0/1)",
-#             fraction=0.17,
-#             pad=0.01,
-#         )
-#         cbar.set_label(r"Significant activity (0/1)", fontsize=14)
-#         cbar.ax.tick_params(labelsize=12)
-#
-#     return fig, ax, im, neuron_order
-
-from matplotlib import gridspec
 
 def plot_allfish_flat_raster(
     data,
@@ -3036,3 +2497,206 @@ def plot_allfish_flat_raster(
         cbar.ax.tick_params(labelsize=12)
 
     return fig, ax, im, neuron_order
+
+
+# Reliability and response-classification diagnostics
+def plot_accepted_rejected_rasters(
+    dfof: np.ndarray,             # (n_neurons, n_frames)
+    t=None,                       # (n_frames,) OR None OR scalar dt
+    kept_mask: np.ndarray=None,   # (n_neurons,), boolean
+    vmax: float = None,
+    vmin: float = 0.0,
+    perc_for_vmax: float = 99.0,
+    sort_by_peak_time: bool = False,
+    share_color_scale: bool = True,
+):
+    assert dfof.ndim == 2, "dfof must be (n_neurons, n_frames)"
+    n_neurons, n_frames = dfof.shape
+
+    # --- Build time axis / extent ---
+    if t is None:
+        x0, x1 = 0.0, float(n_frames - 1)
+        x_label = "Frame"
+    elif np.isscalar(t):  # t is a sampling interval (dt in seconds)
+        dt = float(t)
+        x0, x1 = 0.0, dt * (n_frames - 1)
+        x_label = "Time (s)"
+    else:
+        t = np.asarray(t)
+        assert t.ndim == 1 and t.size == n_frames, "t must be 1-D with length n_frames"
+        x0, x1 = float(t[0]), float(t[-1])
+        x_label = "Time"
+
+    if kept_mask is None:
+        kept_mask = np.ones(n_neurons, dtype=bool)
+    else:
+        kept_mask = np.asarray(kept_mask, dtype=bool)
+        assert kept_mask.shape[0] == n_neurons, "kept_mask length must match n_neurons"
+
+    kept_idx = np.flatnonzero(kept_mask)
+    rej_idx  = np.setdiff1d(np.arange(n_neurons), kept_idx)
+
+    # --- Color scaling ---
+    if vmax is None:
+        finite_vals = dfof[np.isfinite(dfof)]
+        vmax = np.percentile(finite_vals, perc_for_vmax) if finite_vals.size else 1.0
+        if not np.isfinite(vmax) or vmax <= 0:
+            vmax = np.nanmax(dfof) if np.isfinite(np.nanmax(dfof)) else 1.0
+
+    vmax_kept = vmax
+    vmax_rej  = vmax
+    if not share_color_scale:
+        if kept_idx.size:
+            tmp = np.percentile(dfof[kept_idx], perc_for_vmax)
+            vmax_kept = tmp if np.isfinite(tmp) and tmp > 0 else vmax
+        if rej_idx.size:
+            tmp = np.percentile(dfof[rej_idx], perc_for_vmax)
+            vmax_rej  = tmp if np.isfinite(tmp) and tmp > 0 else vmax
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 6), constrained_layout=True)
+
+    def mat_for(idx):
+        M = dfof[idx] if idx.size else np.zeros((1, n_frames))
+        if sort_by_peak_time and idx.size > 1:
+            order = np.argsort(np.argmax(M, axis=1))
+            M = M[order]
+        return M
+
+    for (title, idx, vmax_here, ax) in [
+        ("Accepted", kept_idx, vmax_kept, axes[0]),
+        ("Rejected", rej_idx,  vmax_rej,  axes[1]),
+    ]:
+        M = mat_for(idx)
+        im = ax.imshow(
+            M,
+            aspect='auto',
+            interpolation='nearest',
+            origin='lower',
+            extent=[x0, x1, 0, M.shape[0]],
+            vmin=vmin,
+            vmax=vmax_here,
+            cmap='gray_r',       # high = dark
+        )
+        ax.set_title(f"{title} (n={idx.size})")
+        ax.set_xlabel(x_label)
+        ax.set_ylabel("Neuron #")
+        cbar = fig.colorbar(im, ax=ax)
+        cbar.set_label("ΔF/F")
+
+    if share_color_scale:
+        fig.suptitle(f"ΔF/F rasters (shared vmin={vmin:.3g}, vmax={vmax:.3g})", y=1.02)
+    else:
+        fig.suptitle(
+            f"ΔF/F rasters (vmin={vmin:.3g}, kept vmax={vmax_kept:.3g}, rejected vmax={vmax_rej:.3g})",
+            y=1.02
+        )
+    return fig, axes
+
+def plot_venn_3stim(
+    response_type_by_id,
+    stim_ids=(5, 6, 7),
+    stim_labels=None,          # NEW: optional list of names, one per stim_id
+    title=None,                # NEW: optional custom title
+):
+    # 1) Boolean masks: neuron is responsive (1 or 2) to each stim
+    resp = {sid: (response_type_by_id[sid] != 0) for sid in stim_ids}
+
+    # 2) Convert to sets of neuron indices
+    sets = [set(np.where(resp[sid])[0]) for sid in stim_ids]
+    A, B, C = sets
+    s1, s2, s3 = stim_ids
+
+    # 3) Print counts per region
+    only_A = A - B - C
+    only_B = B - A - C
+    only_C = C - A - B
+    AB_only = (A & B) - C
+    AC_only = (A & C) - B
+    BC_only = (B & C) - A
+    ABC     = A & B & C
+
+    print(f"Only {s1}: {len(only_A)}")
+    print(f"Only {s2}: {len(only_B)}")
+    print(f"Only {s3}: {len(only_C)}")
+    print(f"{s1} & {s2} only: {len(AB_only)}")
+    print(f"{s1} & {s3} only: {len(AC_only)}")
+    print(f"{s2} & {s3} only: {len(BC_only)}")
+    print(f"{s1} & {s2} & {s3}: {len(ABC)}")
+
+    # --- NEW: build labels from stim_labels if provided ---
+    if stim_labels is None:  # fallback: just use the IDs
+        stim_labels = [f"stim {s1}", f"stim {s2}", f"stim {s3}"]
+    else:
+        assert len(stim_labels) == 3, "stim_labels must have length 3"
+
+    # --- Plot Venn diagram ---
+    plt.figure(figsize=(5, 5))
+    venn3(sets, set_labels=stim_labels)
+
+    if title is None:  # NEW: nicer default title using names
+        title = "Responsive neurons to: " + ", ".join(stim_labels)
+    plt.title(title)
+
+    plt.show()  # CHANGED: added parentheses!
+
+
+def plot_reliability_diagnostics(
+    dfof,
+    nanfiltered_max,
+    otsu_threshold,
+    kept_mask,
+    kept_neuron_indices,
+    fps_2p,
+    hist_bins=70,
+):
+    """Render the three diagnostics used by reliability filtering."""
+    n_neurons = dfof.shape[1]
+    kept_pct = (100.0 * kept_neuron_indices.size / n_neurons) if n_neurons else 0.0
+
+    histogram_figure, histogram_axis = plt.subplots(figsize=(6, 4))
+    histogram_axis.hist(nanfiltered_max, bins=hist_bins)
+    histogram_axis.axvline(otsu_threshold, linestyle="--", color="k")
+    histogram_axis.set(
+        title=(
+            "Reliability of response across stimuli\n"
+            f"Otsu {otsu_threshold:.2f} — kept {kept_pct:.1f}% "
+            f"({kept_neuron_indices.size} ROIs)"
+        ),
+        xlabel="max avg intertrial correlation",
+        ylabel="neuron count",
+    )
+    histogram_axis.spines["top"].set_visible(False)
+    histogram_axis.spines["right"].set_visible(False)
+    histogram_figure.tight_layout()
+    plt.show()
+
+    low = max(0.0, float(np.nanmin(nanfiltered_max)))
+    high = min(1.0, max(float(np.nanmax(nanfiltered_max)), low + 1e-6))
+    threshold_grid = np.linspace(low, high, 51)
+    counts = [np.sum(nanfiltered_max >= threshold) for threshold in threshold_grid]
+
+    curve_figure, curve_axis = plt.subplots(figsize=(6, 4))
+    curve_axis.plot(threshold_grid, counts, marker="o", linewidth=1)
+    curve_axis.set(
+        title="ROIs kept vs threshold",
+        xlabel="Threshold",
+        ylabel="# ROIs kept",
+    )
+    curve_axis.spines["top"].set_visible(False)
+    curve_axis.spines["right"].set_visible(False)
+    curve_figure.tight_layout()
+    plt.show()
+
+    raster_figure, raster_axes = plot_accepted_rejected_rasters(
+        dfof=dfof.T,
+        t=1.0 / float(fps_2p),
+        kept_mask=kept_mask,
+        sort_by_peak_time=True,
+        share_color_scale=True,
+    )
+    plt.show()
+    return {
+        "histogram": (histogram_figure, histogram_axis),
+        "threshold_curve": (curve_figure, curve_axis),
+        "rasters": (raster_figure, raster_axes),
+    }

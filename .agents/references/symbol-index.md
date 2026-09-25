@@ -29,13 +29,16 @@ The active notebook/script evidence and compatibility classification for these s
 - `load_2p_experiment` - high-level experiment bundle loader that assembles dFoF, cache lookups, paths, stimulus traces, and plane metadata.
 - `load_and_align_2p_experiment` - load one fish and build aligned dFoF, raster, normalized, and z-score traces for several-fish notebooks.
 
+Compatibility entrypoint:
+- `transform_stimuli_duration` - preserves the historical data-loading import path while delegating all normalization logic to `src.stimuli_timeline.transform_stimuli_duration`.
+
 Not public here yet:
 - preprocessing notebook helpers such as `ensure_dir`, `find_experiments`, `plane_dir` / `plane_dirs`, and `experiment_prefix` are still duplicated outside `src/` and should not be treated as stable callable API.
 - per-plane lookup helpers such as `load_dfof_for_plane` and `load_filtered_indices_for_plane` are still notebook-local duplication backlog until a later extraction slice moves them into an owner module.
 
 ### `src/stimuli_timeline.py`
 - `get_motion_timing_simple` - derive timing from trajectory CSVs using x, y, and radius changes.
-- `transform_stimuli_duration` - normalize extracted timing dictionaries into the downstream-facing timing contract.
+- `transform_stimuli_duration` - canonical owner for normalizing extracted timing dictionaries into the downstream-facing timing contract.
 - `get_angles_from_positions` - reverse rotated trajectory x/y coordinates into angle values for shared stimulus interpretation.
 - `make_stimulus_traces_2` - convert experiment logs plus stimulus durations into the numeric stimulus trace and table used downstream.
 - `extract_stimulus_chunks` - extract aligned chunks for sorted raster-style plots.
@@ -51,6 +54,8 @@ Boundary note:
 - `save_stimulus_report` - save two 300-dpi PNGs and a CSV with complete angle lists under the supplied output directory.
 
 ### `src/analysis_tools.py`
+Compatibility facade: existing notebook and module imports remain stable, while S06 moved implementations to the narrow owners listed below.
+
 - `build_trial_aligned_traces` - build trial windows keyed by stimulus id.
 - `compute_trial_mean_response_metrics` - build per-stimulus trial-mean traces plus peak, AUC, and average response metrics.
 - `resolve_selected_stimuli` - normalize ordered stimulus selections from names or IDs.
@@ -70,6 +75,20 @@ Boundary note:
 - `compute_motion_delta_peaks` - build tidy per-neuron/per-trial motion-minus-fixed peak metrics for selected stimuli.
 - `build_neuron_order_groupwise_onset` - derive onset-based neuron ordering across response groups.
 - `zscore_dfof_from_prestim_baseline` - z-score dFoF using pre-stimulus baselines.
+
+Canonical implementation owners after S06:
+
+| Owner module | Responsibility |
+| --- | --- |
+| `src.trial_alignment` | Trial alignment, stimulus selection, timing lookup, and response-window frames |
+| `src.response_metrics` | Trial means, AUCs, static--flicker trial metrics, and validation |
+| `src.motion_metrics` | Motion-minus-fixed integral and peak metrics |
+| `src.reliability` | Trial-to-trial reliability calculation, selection, and optional index saving |
+| `src.response_classification` | Active-neuron matrices, raster response classes, left/right indices, and onset ordering |
+| `src.response_selectivity` | Paired response indices and stimulus-selectivity metrics/classes |
+| `src.response_normalization` | Pre-stimulus baseline z-scoring |
+| `src.analysis_io` | File discovery and interactive object inspection |
+| `src.plotting` | Reliability raster diagnostics and three-stimulus Venn figures |
 
 ### `src/multifish_analysis.py`
 - `build_bout_flicker_position_analysis` - build pooled bout-referenced flicker-position comparison data.
@@ -117,16 +136,16 @@ Boundary note:
 - `fit_lme_models` - fit an editable dict/list of statsmodels mixed-effects model specs while reporting failures and continuing remaining fits.
 - `summarize_lme_model_results` - extract fixed effects, random-effect variances, fit statistics, and model metadata into tidy result tables.
 
-### `src/significant_traces.py`
-- `compute_noise_model_romano_fast_modular` - build centered dFoF, significance maps, and event rasters from the Romano-style noise model.
+### `src/significant_trace_detection.py`
+- `compute_noise_model_romano_fast_modular` - canonical Romano-style detector; current behavior is the default, while `mode="legacy"` reproduces V1 behavior through the same implementation.
 - `clean_binary_raster_columns` - remove non-finite or zero-variance raster columns before correlation-based sorting.
 - `plot_dff_and_raster` - plot centered dFoF and a binary raster with one shared neuron order.
+- `compare_significant_trace_versions` - diagnostic comparison of canonical legacy and current modes.
 
-### `src/significant_traces_v2.py`
-- `compute_noise_model_romano_fast_modular` - active V2 detector used by the single-fish notebook; returns the established eight-item detector tuple and optionally appends diagnostics.
-
-Compatibility note:
-- The active single-fish workflow uses V2 detection with V1 cleanup and plotting. Preserve both import paths until the significant-trace characterization and consolidation slices are complete.
+Compatibility facades:
+- `src.significant_traces` preserves historical V1 signatures and delegates differing stages to canonical `mode="legacy"`.
+- `src.significant_traces_v2` preserves historical V2 signatures and delegates to canonical current mode.
+- New analysis must import `src.significant_trace_detection`; the shared single-fish notebook has migrated to this owner.
 
 ### `src/plotting.py`
 - `add_stimuli_markers` - add stimulus timing markers to an existing axis.

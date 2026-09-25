@@ -15,8 +15,8 @@ Use this file when
 - Plot construction and reusable raster or mean-trace helpers belong in `src/plotting.py`.
 - Timing extraction and log-to-trace semantics belong in `src/stimuli_timeline.py`.
 - Experiment bundle assembly and cache discovery belong in `src/data_loading.py`.
-- Response filtering, classification, and derived metrics belong in `src/analysis_tools.py`.
-- The significant-trace and rasterization model belongs in `src/significant_traces.py`.
+- Response filtering, classification, and derived metrics belong in the narrow S06 owner (`trial_alignment`, `response_metrics`, `motion_metrics`, `reliability`, `response_classification`, `response_selectivity`, or `response_normalization`); `analysis_tools.py` is compatibility-only.
+- The significant-trace and rasterization model belongs in `src/significant_trace_detection.py`; keep versioned modules free of scientific implementation logic.
 
 ## Notebook and script rules
 - Analysis notebooks remain orchestration, exploration, and reporting layers.

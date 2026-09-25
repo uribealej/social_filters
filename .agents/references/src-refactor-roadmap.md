@@ -30,11 +30,11 @@ Allowed status values are `not started`, `in progress`, `blocked`, and `complete
 | --- | --- | --- | --- |
 | S00 | Step 1 - Freeze contracts and create the test foundation | complete | None |
 | S01 | Step 2 - Record public API and notebook consumer contracts | complete | S00 |
-| S02 | Remove indisputable import/comment debris | not started | S00 |
-| S03 | Consolidate timing-duration normalization | not started | S00-S01 |
-| S04 | Characterize significant-trace V1 versus V2 | not started | S00-S01 |
-| S05 | Consolidate significant-trace implementations behind compatibility modes | not started | S04 |
-| S06 | Split `analysis_tools` by scientific responsibility | not started | S00-S01 |
+| S02 | Remove indisputable import/comment debris | complete | S00 |
+| S03 | Consolidate timing-duration normalization | complete | S00-S01 |
+| S04 | Characterize significant-trace V1 versus V2 | complete | S00-S01 |
+| S05 | Consolidate significant-trace implementations behind compatibility modes | complete | S04 |
+| S06 | Split `analysis_tools` by scientific responsibility | complete | S00-S01 |
 | S07 | Split `multifish_analysis` by scientific domain | not started | S06 |
 | S08 | Split plotting by figure family | not started | S00-S01, S06-S07 as applicable |
 | S09 | Separate several-fish workflow, reporting, and pure transforms | not started | S06-S08 |
@@ -98,7 +98,7 @@ Completion record - 2026-09-24
 - Added a repository-local ignored Matplotlib cache for reproducible test execution.
 - Validation command: `python -m unittest discover -s tests -t . -v`.
 - Validation result: 9 tests passed as a suite, with 1 explicit environment skip.
-- Remaining environment limitation: Matplotlib Agg rendering exits with native Windows exception `0xc06d007f` in `social_filters_user`. The probe is isolated in a subprocess so it cannot crash the test runner. Figure-changing slices still require screenshot validation in a repaired rendering environment.
+- Environment follow-up - 2026-09-25: the `0xc06d007f` Matplotlib failure was traced to threaded MKL hanging in basic BLAS calls. A cloned OpenBLAS environment passed NumPy, SciPy BLAS, PNG rendering, and the full suite; `environment.yml` now pins OpenBLAS and the suite treats BLAS/render hangs as failures.
 
 ## S01 - Record public API and notebook consumer contracts
 
@@ -167,6 +167,15 @@ Exit criteria
 
 - Files are quieter and easier to split, with no API change.
 
+Completion record - 2026-09-25
+
+- Removed four imports proven unused (`TelnetServer`, `PCA`, `Path`, and `scipy.stats.mode`) and repeated imports in `analysis_tools.py`, `plotting.py`, and `stimuli_timeline.py`.
+- Removed commented predecessor implementations only where an active replacement was adjacent; commit `23a461a` preserves every removed block, and no scientific rationale or active code was removed.
+- Added short module docstrings to the package and the six active modules that lacked them.
+- Preserved all function names, signatures, module locations, numerical behavior, and figure behavior.
+- Validation command: `python -m unittest discover -s tests -t . -v` using the `social_filters_user` interpreter.
+- Validation result before the environment repair: 12 tests passed, with the Matplotlib native-render probe skipped after its documented timeout. After switching the cloned environment to OpenBLAS, all 13 tests passed with no skips, including the new BLAS runtime probe and Matplotlib render probe.
+
 ## S03 - Consolidate timing-duration normalization
 
 Objective
@@ -194,6 +203,16 @@ Exit criteria
 
 - Only one implementation contains normalization logic.
 
+Completion record - 2026-09-25
+
+- Kept `src.stimuli_timeline.transform_stimuli_duration` as the sole normalization implementation.
+- Preserved `src.data_loading.transform_stimuli_duration` as a compatibility wrapper and updated `load_2p_experiment` to call the canonical timing owner directly.
+- Added characterization coverage for missing keys, frame aliases, three-decimal rounding, input immutability, output structure, wrapper equivalence, loader output, and the first alignment consumer.
+- Updated `symbol-index.md` and `src-api-consumer-inventory.md` to record the canonical owner and compatibility entrypoint.
+- Focused validation command: `python -m unittest tests.timing.test_stimuli_timeline -v`.
+- Full validation command: `python -m unittest discover -s tests -t . -v` using the validated `social_filters_openblas` environment.
+- Validation result: 20 tests passed with no skips; no numerical timing result, loader return key, or alignment shape changed.
+
 ## S04 - Characterize significant-trace V1 versus V2
 
 Objective
@@ -216,6 +235,19 @@ Validation
 Exit criteria
 
 - S05 can consolidate implementations without guessing about scientific intent.
+
+Completion record - 2026-09-25
+
+- Added deterministic finite, constant, NaN-containing, low-sample, and visible-transient fixtures under `tests/significant_traces/`.
+- Characterized all 13 public stages duplicated by `significant_traces.py` and `significant_traces_v2.py`, including shapes, dtypes, tuple ordering, warnings, exceptions, reproducibility, shared numerical results, and intentional rasterization differences.
+- Confirmed that ordinary finite inputs share the early noise-fit, centering, normalization, transition, grid, histogram, and default significance contracts.
+- Confirmed that V2 adds controlled random state, diagnostics, finite fallbacks for constant and low-sample traces, NaN-tolerant fitting, safe invalid-sigma handling, bounded neighbor counts, and explicit compatibility/strict modes. V1 raises on several of those inputs and relies on global NumPy random state.
+- Selected V2 as the authoritative implementation for new analysis and the S05 consolidation target. Preserve V1 behavior only as an explicit legacy compatibility mode during consolidation; do not maintain two independent detectors.
+- Preserved the active single-fish workflow contract: V2 detection followed by V1 `clean_binary_raster_columns` and `plot_dff_and_raster` remains executable until S05 migrates those helpers.
+- A warmed seven-repeat synthetic microbenchmark measured median runtimes of 6.3 ms for V1 and 9.6 ms for V2. This small absolute difference does not outweigh V2's reproducibility and robustness, and the synthetic fixtures do not establish biological sensitivity or specificity.
+- Focused validation command: `python -m unittest tests.significant_traces.test_v1_v2_characterization -v`.
+- Full validation command: `python -m unittest discover -s tests -t . -v` using the validated `social_filters_openblas` environment.
+- Validation result: all 8 focused characterization tests and all 28 full-suite tests passed with no skips. The existing mixed-workflow figure rendered successfully; S04 did not change figure construction.
 
 ## S05 - Consolidate significant-trace implementations
 
@@ -243,6 +275,20 @@ Exit criteria
 
 - Shared implementation is no longer duplicated.
 - Legacy and current behavior are explicitly selectable and documented.
+
+Completion record - 2026-09-25
+
+- Added `src/significant_trace_detection.py` as the single unversioned owner for Romano-style noise fitting, transition densities, rasterization, raster cleanup, and detector diagnostics.
+- Made robust V2 behavior the default `mode="current"` and encoded only the scientifically distinct V1 stages behind explicit `mode="legacy"`; no version-suffixed replacement module was created.
+- Reduced `src.significant_traces` and `src.significant_traces_v2` to thin compatibility facades with their historical signatures and no NumPy, SciPy, scikit-image, scikit-learn, or Matplotlib implementation logic.
+- Migrated the shared single-fish notebook to import detection, cleanup, and plotting from the canonical owner, and updated the machine-readable consumer contract and routed API documentation.
+- Compared both canonical modes against the pre-consolidation sources on the deterministic transient fixture. All eight returned arrays for both current/V2 and legacy/V1 were exactly equal, including dtypes, shapes, tuple order, densities, rasters, and constrained maps.
+- Added consolidation tests requiring facade-to-mode equivalence, explicit mode validation, and facade-only dependency boundaries. The S04 characterization suite remains active for finite, constant, NaN, low-sample, random, and intentional-difference behavior.
+- Runtime/memory smoke check on the 180-by-4 fixture with 24 bins measured current mode at 0.060 s and 0.20 MiB peak versus legacy mode at 0.078 s and 1.07 MiB peak under `tracemalloc`; both returned the established eight-item tuple.
+- Rendered and inspected the canonical legacy/current comparison figure. Titles, labels, axes, and colorbars were readable with no clipping or overlap; blank raster panels correctly reflected zero detected events in the small synthetic fixture.
+- Focused validation command: `python -m unittest tests.significant_traces.test_v1_v2_characterization tests.significant_traces.test_consolidation -v`.
+- Full validation command: `python -m unittest discover -s tests -t . -v` using `social_filters_openblas`.
+- Validation result: all 12 focused tests and all 32 full-suite tests passed with no skips. All active notebook cells retained their registered compilation status.
 
 ## S06 - Split `analysis_tools` by scientific responsibility
 
@@ -276,6 +322,19 @@ Validation
 Exit criteria
 
 - `analysis_tools.py` is a small compatibility facade rather than a mixed implementation module.
+
+Completion record - 2026-09-25
+
+- Replaced the 2,300-line mixed `analysis_tools.py` implementation with a compatibility-only facade that directly re-exports all 24 historical public functions and preserves their signatures.
+- Added narrow owners: `trial_alignment.py`, `response_metrics.py`, `motion_metrics.py`, `reliability.py`, `response_classification.py`, `response_selectivity.py`, `response_normalization.py`, and `analysis_io.py`.
+- Moved trial alignment/stimulus selection, response windows/AUCs, motion deltas, reliability filtering, active-response classification, selectivity, baseline z-scoring, and file/debug utilities without changing array axes, NaN behavior, thresholds, return structures, DataFrame schemas, or save paths.
+- Moved accepted/rejected reliability rasters and the three-stimulus Venn diagnostic to `plotting.py`; reliability computation now delegates its optional figure construction to that owner.
+- Added eight S06 tests covering facade ownership, deterministic alignment, response metrics, motion metrics, reliability selection, active-neuron classification, selectivity, normalization, moved figure rendering, and the first loader/multifish consumers.
+- Compared the pre-split and post-split implementations directly on representative inputs. Alignment, response metrics, motion metrics, reliability, classification, selectivity, and normalization results matched exactly.
+- Rendered and inspected the reliability histogram, threshold curve, accepted/rejected rasters, and three-stimulus Venn figure. Titles, labels, ticks, axes, annotations, and colorbars were clear with no overlap or clipping.
+- Focused validation command: `python -m unittest tests.analysis.test_analysis_tools_split -v`.
+- Full validation command: `python -m unittest discover -s tests -t . -v` using `social_filters_openblas`.
+- Validation result: all 8 focused tests and all 40 full-suite tests passed with no skips; active notebook consumer contracts and source/notebook compilation remained intact.
 
 ## S07 - Split `multifish_analysis` by scientific domain
 
@@ -514,4 +573,4 @@ Exit criteria
 
 ## Recommended next action
 
-Proceed to S02 only (Step 3): remove indisputable import and commented-code debris without renaming functions, moving modules, or changing scientific behavior.
+S07 is next: split `multifish_analysis` by scientific domain while preserving its public facade. S07 has not started.

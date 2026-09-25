@@ -39,6 +39,31 @@ from tests.support.fixtures import (
 class SupportContractTests(unittest.TestCase):
     """Verify that the shared S00 testing foundation is usable."""
 
+    def test_numpy_blas_runtime_environment(self) -> None:
+        """Require the configured BLAS runtime to complete a tiny dot product."""
+
+        code = (
+            "import numpy as np; "
+            "result = np.dot(np.eye(3), np.eye(3)); "
+            "np.testing.assert_array_equal(result, np.eye(3))"
+        )
+        try:
+            result = subprocess.run(
+                [sys.executable, "-c", code],
+                cwd=REPOSITORY_ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=10,
+            )
+        except subprocess.TimeoutExpired:
+            self.fail(
+                "NumPy BLAS runtime did not complete a 3x3 dot product within "
+                "10 seconds; check the environment's BLAS/OpenMP installation"
+            )
+        detail = result.stderr.strip() or result.stdout.strip()
+        self.assertEqual(0, result.returncode, detail)
+
     def test_fixture_dimension_conventions(self) -> None:
         """Keep fixture axes explicit and stable for later characterization."""
 
@@ -117,16 +142,17 @@ class SupportContractTests(unittest.TestCase):
                 timeout=15,
             )
         except subprocess.TimeoutExpired:
-            self.skipTest(
+            self.fail(
                 "Active environment did not complete a minimal Matplotlib "
-                "render within 15 seconds"
+                "render within 15 seconds; run the BLAS runtime probe and "
+                "check the configured Matplotlib backend"
             )
         if result.returncode == 0:
             return
 
         detail = result.stderr.strip() or result.stdout.strip()
         if "Windows fatal exception" in detail and "0xc06d007f" in detail:
-            self.skipTest(
+            self.fail(
                 "Active environment cannot render Matplotlib figures: "
                 "native Windows exception 0xc06d007f"
             )

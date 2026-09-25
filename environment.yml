@@ -9,6 +9,7 @@ dependencies:
   - pip
 
   # Core numerical analysis and plotting
+  - "libblas=*=*_openblas"
   - numpy
   - pandas
   - scipy

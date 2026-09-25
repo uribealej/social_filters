@@ -1,3 +1,5 @@
+"""Extract auxiliary-trigger events from ScanImage TIFF metadata."""
+
 import re
 import numpy as np
 from ScanImageTiffReader import ScanImageTiffReader

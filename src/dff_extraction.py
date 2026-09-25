@@ -1,3 +1,5 @@
+"""Extract and filter dFoF traces from Suite2p fluorescence outputs."""
+
 import json
 import time
 from pathlib import Path

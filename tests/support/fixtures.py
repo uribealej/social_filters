@@ -19,6 +19,28 @@ def continuous_traces() -> np.ndarray:
     )
 
 
+def significant_trace_cases() -> dict[str, np.ndarray]:
+    """Return deterministic `(time, neurons)` detector characterization cases."""
+
+    rng = np.random.default_rng(1729)
+    finite = rng.normal(0.0, 0.08, size=(180, 4))
+    transient = np.array([0.0, 0.7, 1.5, 1.1, 0.8, 0.5, 0.3, 0.15])
+    finite[55:63, 0] += transient
+    finite[110:118, 1] += 0.7 * transient
+    finite[25:33, 2] += 1.2 * transient
+
+    with_nan = finite.copy()
+    with_nan[[5, 50, 120], 0] = np.nan
+    with_nan[:, 3] = np.nan
+
+    return {
+        "finite_with_transients": finite,
+        "constant": np.ones((12, 2), dtype=float),
+        "with_nan": with_nan,
+        "low_sample": np.array([[0.0, 1.0]], dtype=float),
+    }
+
+
 def trial_aligned_traces() -> np.ndarray:
     """Return aligned traces with shape `(neurons=3, time=6, trials=2)`."""
 

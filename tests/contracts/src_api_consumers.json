@@ -154,9 +154,9 @@
       "src.analysis_tools",
       "src.data_loading",
       "src.plotting",
-      "src.significant_traces.clean_binary_raster_columns",
-      "src.significant_traces.plot_dff_and_raster",
-      "src.significant_traces_v2.compute_noise_model_romano_fast_modular"
+      "src.significant_trace_detection.clean_binary_raster_columns",
+      "src.significant_trace_detection.compute_noise_model_romano_fast_modular",
+      "src.significant_trace_detection.plot_dff_and_raster"
     ],
     "symbols": [
       "src.analysis_tools.build_trial_aligned_traces",
@@ -171,9 +171,9 @@
       "src.plotting.plot_sorted_chunks_single_mode",
       "src.plotting.plot_stimulus_means",
       "src.plotting.raster_with_stimuli",
-      "src.significant_traces.clean_binary_raster_columns",
-      "src.significant_traces.plot_dff_and_raster",
-      "src.significant_traces_v2.compute_noise_model_romano_fast_modular"
+      "src.significant_trace_detection.clean_binary_raster_columns",
+      "src.significant_trace_detection.compute_noise_model_romano_fast_modular",
+      "src.significant_trace_detection.plot_dff_and_raster"
     ],
     "syntax_failure_raw_cells": []
   },

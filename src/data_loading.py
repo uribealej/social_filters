@@ -1,3 +1,5 @@
+"""Load calcium-imaging experiments and assemble downstream analysis inputs."""
+
 from pathlib import Path
 from typing import Any, Dict
 
@@ -9,28 +11,9 @@ from src.analysis_tools import build_trial_aligned_traces, find_file_with_suffix
 
 
 def transform_stimuli_duration(stimuli_durations: Dict[str, dict]) -> Dict[str, dict]:
-    """
-    Normalize per-stimulus timing dictionaries:
-      - add 'motion_sec' (total_sec - static_before_sec)
-      - set 'static_after_sec' = 0
-      - ensure 'motion_end_frame' and 'end_frame' use 'total_frames' if present
-    """
-    out = {}
-    for k, v in stimuli_durations.items():
-        total_sec = v.get("total_sec", 0)
-        static_before = v.get("static_before_sec", 0)
-        total_frames = v.get("total_frames", v.get("motion_end_frame"))
+    """Delegate to the shared timing owner while preserving this import path."""
 
-        new_v = v.copy()
-        new_v["motion_sec"] = round(total_sec - static_before, 3)
-        new_v["static_after_sec"] = 0
-
-        if total_frames is not None:
-            new_v["motion_end_frame"] = total_frames
-            new_v["end_frame"] = total_frames
-
-        out[k] = new_v
-    return out
+    return st.transform_stimuli_duration(stimuli_durations)
 
 
 def _pick_latest_file(candidates):
@@ -274,7 +257,7 @@ def load_2p_experiment(
             include_radius=True,
         )
 
-    stimuli_durations = transform_stimuli_duration(stimuli_durations)
+    stimuli_durations = st.transform_stimuli_duration(stimuli_durations)
 
     if not stimuli_durations:
         raise FileNotFoundError(
