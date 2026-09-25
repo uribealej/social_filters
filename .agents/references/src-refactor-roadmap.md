@@ -35,7 +35,7 @@ Allowed status values are `not started`, `in progress`, `blocked`, and `complete
 | S04 | Characterize significant-trace V1 versus V2 | complete | S00-S01 |
 | S05 | Consolidate significant-trace implementations behind compatibility modes | complete | S04 |
 | S06 | Split `analysis_tools` by scientific responsibility | complete | S00-S01 |
-| S07 | Split `multifish_analysis` by scientific domain | not started | S06 |
+| S07 | Split `multifish_analysis` by scientific domain | complete | S06 |
 | S08 | Split plotting by figure family | not started | S00-S01, S06-S07 as applicable |
 | S09 | Separate several-fish workflow, reporting, and pure transforms | not started | S06-S08 |
 | S10 | Review loaders, extraction modules, and optional dependencies | not started | S00-S03 |
@@ -367,6 +367,20 @@ Validation
 Exit criteria
 
 - Each scientific family has one clear owner and can be tested independently.
+
+Completion record - 2026-09-25
+
+- Extracted all 46 functions into six scientific owners, in the specified family order: `multifish_matrices.py`, `static_flicker_analysis.py`, `bout_flicker_analysis.py`, `stimulus_specificity.py`, `stimulus_similarity.py`, and `active_neuron_analysis.py`.
+- Kept `src.multifish_analysis` as an import-only compatibility facade, including every historical public/private function, imported helper, dependency alias, and the `compute_stimulus_selectivity_metrics` re-export used by `reusable_several_fish.py`. Signatures and defaults are unchanged.
+- Core matrix primitives depend only on narrow S06 owners; similarity and active-neuron calculations depend on those primitives, and bout-position analysis uses the active-neuron owner. All six owners import independently without loading `analysis_tools`, `plotting`, or Matplotlib.
+- Captured 32 deterministic output cases before extraction in `tests/contracts/multifish_s07.json`; the extracted implementations match exactly, including arrays, nested return types, DataFrame axes/dtypes/column order, fish and neuron ordering, categorical-input summaries, NaNs, seeded bootstrap statistics, and seeded segment permutations.
+- Added nine focused regression tests in `tests/analysis/test_multifish_split.py`, with reusable fixtures in `tests/analysis/multifish_cases.py`. Tests also cover known category labels, representative exception types/messages, empty inputs, import ownership, and historical signatures/exports.
+- Verified all 46 extracted function ASTs against `c7118d9`; no calculation, validation, default, exception, return, or file-reading logic changed.
+- Executed the first Exp 1 bout-position/static-recruitment and Exp 5 LME analysis cells with deterministic cohorts and temporary trajectory CSVs, the several-fish summary/overlap preparation wrappers, and the shared specificity/similarity notebook figure cell. Segment permutations remain documented but have no active notebook caller.
+- No notebook, plotting implementation, canonical filename, schema, or figure construction changed. Existing shared specificity/similarity figures rendered with Agg; no materially changed figure required screenshot review.
+- Focused validation: `python -m unittest tests.analysis.test_multifish_split -v` using `social_filters_openblas`: all 9 tests passed.
+- Full validation: `python -m unittest discover -s tests -t . -v` using `social_filters_openblas`: all 49 tests passed with no skips, including source/notebook compilation and active consumer contracts.
+- Validation is synthetic and CSV-backed; no experimental calcium dataset was rerun. S07 is complete; S08 was not started, and `archive/` was untouched.
 
 ## S08 - Split plotting by figure family
 
