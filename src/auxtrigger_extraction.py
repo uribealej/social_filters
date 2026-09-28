@@ -37,12 +37,13 @@ def extract_aux_trigger_frames(tiff_path: Path, n_channels: int = 2):
     return trigger_frames
 
 
-# --- Example Usage ---
-tiff_file = Path(r'E:/Matilde/2p_data/f30/00_raw/f30_00002.tif')
-trigger_data = extract_aux_trigger_frames(tiff_file)
+if __name__ == "__main__":
+    # --- Example Usage ---
+    tiff_file = Path(r'E:/Matilde/2p_data/f30/00_raw/f30_00002.tif')
+    trigger_data = extract_aux_trigger_frames(tiff_file)
 
-# Print results
-for key, events in trigger_data.items():
-    print(f"\n{key} triggered in {len(events)} frames:")
-    for frame_idx, values in events:
-        print(f"  Frame {frame_idx}: {values}")
+    # Print results
+    for key, events in trigger_data.items():
+        print(f"\n{key} triggered in {len(events)} frames:")
+        for frame_idx, values in events:
+            print(f"  Frame {frame_idx}: {values}")

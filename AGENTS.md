@@ -23,6 +23,8 @@ This repository uses a routed instruction system under `.agents/` so future agen
 - For every new or materially changed figure, render a screenshot during validation and inspect it for overlapping labels, legends, ticks, annotations, clipped content, or unreadable layout. Iterate on the figure until the screenshot is clear; record any environment limitation that prevents this check.
 
 ## Reference files
+
+This is a lookup list, not a required reading list. Read only the references needed for the current task.
 - `.agents/workflows/social-filters-router.md` - top-level dispatcher for all repo work.
 - `.agents/workflows/calcium-preprocessing-router.md` - dFoF extraction, sweeps, merge outputs, and file-ops utilities.
 - `.agents/workflows/calcium-analysis-router.md` - experiment loading, alignment, response analysis, and plotting.

@@ -503,3 +503,98 @@ def extract_stimulus_chunks(
     chunked_data = np.hstack(stim_chunks) if stim_chunks else None
 
     return chunked_data, trial_start_positions, movement_start_positions, movement_colors, stim_labels
+
+
+def summarize_durations(stimuli_durations):
+    '''''
+    Given a dict of stimuli durations, summarize common durations.
+    If all stimuli have the same value for a field (within tolerance), keep that value.
+    Otherwise, compute the mean across stimuli.
+    Returns a dict with summarized durations.
+    '''''
+    fields = ["static_before_sec", "motion_sec", "total_sec"]
+    summary = {}
+
+    for field in fields:
+        # collect values for this field across all stimuli
+        vals = [d[field] for d in stimuli_durations.values() if field in d]
+
+        if not vals:
+            continue
+
+        # if all equal (within floating point tolerance), keep that value
+        if np.allclose(vals, vals[0]):
+            summary[field] = vals[0]
+        else:
+            # otherwise use the mean
+            summary[field] = float(np.mean(vals))
+
+    return summary
+
+
+def compute_move_lines_for_flat_matrix(
+    trial_aligned_traces,
+    stim_order,
+    stimuli_id_map,
+    stimuli_durations,
+    stimuli_colors,
+    fps_2p,
+    t_pre_s,
+    combine_mode="concat",
+):
+    """
+    trial_aligned_traces[stim_id] -> (n_neurons, n_time, n_reps)
+
+    Returns
+    -------
+    move_starts_s : list of floats
+        X positions in SECONDS where motion starts (for ax.axvline).
+    move_colors   : list of colors
+    stim_labels   : list of stimulus names (e.g. 'FL1', 'FR2', ...)
+    """
+    # invert map: id -> name
+    id_to_name = {v: k for k, v in stimuli_id_map.items()}
+
+    move_starts_s = []
+    move_colors   = []
+    stim_labels   = []
+
+    frame_offset = 0  # global frame index along the flattened time axis
+
+    for stim_id in stim_order:
+        stim_name = id_to_name[stim_id]
+
+        # data for this stimulus
+        arr = trial_aligned_traces[stim_id]       # (neurons, time, reps)
+        _, n_time, n_reps = arr.shape
+
+        # movement onset INSIDE ONE TRIAL (in frames)
+        static_before_sec = stimuli_durations[stim_name]["static_before_sec"]
+        move_start_time_s = t_pre_s + static_before_sec
+        move_start_in_trial = int(round(move_start_time_s * fps_2p))
+        move_start_in_trial = np.clip(move_start_in_trial, 0, n_time - 1)
+
+        if combine_mode == "concat":
+            # one vertical line per repetition
+            for rep in range(n_reps):
+                global_frame = frame_offset + rep * n_time + move_start_in_trial
+                move_starts_s.append(global_frame )
+                move_colors.append(stimuli_colors[stim_name])
+                stim_labels.append(stim_name)
+
+            # this block length in frames
+            frame_offset += n_time * n_reps
+
+        elif combine_mode == "mean":
+            # we averaged across reps, so only ONE trace per stimulus
+            global_frame = frame_offset + move_start_in_trial
+            move_starts_s.append(global_frame)
+            move_colors.append(stimuli_colors[stim_name])
+            stim_labels.append(stim_name)
+
+            frame_offset += n_time
+
+        else:
+            raise ValueError("combine_mode must be 'concat' or 'mean'")
+
+    return move_starts_s, move_colors, stim_labels
