@@ -1,0 +1,2884 @@
+{
+  "source_commit": "093bbfa",
+  "signatures": {
+    "_natural_sort_key": "(value)",
+    "plot_bout_flicker_position_figure": "(side_result, figsize=(15, 11))",
+    "_add_bout_position_markers": "(axis, matches, marker_colors)",
+    "_vertical_reference_line": "(axis, x, **style)",
+    "_horizontal_reference_line": "(axis, y, **style)",
+    "_plot_bout_flicker_position_summary": "(axes, summary_table)",
+    "_first_post_onset_raster_time": "(raster_trace, time_s)",
+    "plot_static_flicker_classification_raster": "(classification_raster_data, static_label='Static', comparison_label='Flicker')",
+    "plot_static_flicker_category_proportions": "(fish_side_summary, figsize=(12, 5))",
+    "plot_pooled_static_flicker_category_proportions": "(pooled_category_summary)",
+    "plot_shared_static_flicker_auc_summary": "(shared_neuron_metrics, fish_median_delta_auc, fish_level_statistics, figsize=(12, 5))",
+    "plot_recruitment_amplification": "(recruitment_amplification, figsize=(12, 8))",
+    "list_stimulus_names": "(stimuli_path, pattern='*trajectory.*')",
+    "_stimulus_style_key": "(name)",
+    "_is_right_side_stimulus": "(name)",
+    "build_stimulus_style_maps": "(stimuli_path=None, stimuli_names=None, palette='tab20', color_overrides=None, linestyle_overrides=None)",
+    "plot_similarity_heatmaps": "(pearson_similarity_matrix, cosine_similarity_matrix, figsize=(10, 4), cmap='vlag')",
+    "plot_similarity_by_distance": "(pair_similarity, similarity_column='pearson_similarity', ax=None, title=None)",
+    "_resolve_analysis_label": "(summary_table, analysis_label=None)",
+    "_preferred_stimulus_colors": "(labels, palette='tab10')",
+    "plot_stimulus_specificity_sparseness": "(summary_table, selected_stimulus_labels=None, analysis_label=None, ax=None, palette='tab10', alpha=0.75, s=18)",
+    "plot_stimulus_specificity_selectivity_index": "(summary_table, selected_stimulus_labels=None, analysis_label=None, ax=None, palette='tab10', alpha=0.75, s=18)",
+    "plot_active_stimuli_histogram": "(summary_table, selected_stimulus_labels=None, analysis_label=None, ax=None, color='0.35')",
+    "plot_preferred_stimulus_distribution": "(summary_table, selected_stimulus_labels, analysis_label=None, ax=None, palette='tab10')",
+    "plot_stimulus_specificity_summary": "(summary_table, selected_stimulus_labels, analysis_label=None, figsize=(15, 4), palette='tab10')",
+    "_plot_lme_fixed_effects": "(fixed_effects, include_intercept=False, figsize=None)",
+    "_plot_lme_model_comparison": "(model_comparison, figsize=(7, 4))",
+    "_plot_lme_observed_vs_fitted": "(fit_results, response_table, figsize=None)",
+    "_plot_lme_response_distribution": "(response_table, figsize=(10, 4))",
+    "plot_lme_model_outputs": "(results, response_table=None, include_intercept=False)",
+    "plot_motion_delta_distribution": "(delta_df, value_col='delta_integral', segment_col='stimulus', side_col='side', stimuli=None, segments=None, side='all', sides=None, figsize=(10, 4), point_alpha=0.25, point_size=12, show_points=True, title=None, ax=None)",
+    "_diagnostic_sort_order": "(trace_matrix, decision_matrix, sort_mode)",
+    "plot_active_trace_decision_diagnostic": "(diagnostic, fps_2p=2.0, t_pre_s=5.0, stimuli_durations=None, sort_mode='decision_then_mean', neuron_order=None, figsize=(12, 7), trace_cmap='Greys', decision_cmap='Greys', motion_onset_key='static_before_sec', motion_line_color='tab:red', motion_line_style='--', show_active_count_trace=False, active_count_threshold=0.5, active_count_color='tab:blue', active_count_ylabel='# Active neurons', active_count_height_ratio=1.2, event_markers=None, row_separator=None, trace_title=None, event_marker_label_y=0.98, event_marker_label_va='top')",
+    "plot_bout_flicker_position_cell06_style": "(side_result, fps_2p=2.0, t_pre_s=5.0, onset_match_tolerance_s=None, figsize=(12, 7))",
+    "add_stimuli_markers": "(ax, exp_log, stimuli_durations, stimuli_colors, time_offset=0, trace='movement', stimuli_linestyles=None)",
+    "raster_with_stimuli": "(ax, data, fps, fish_id, neuron_order=None, title_suffix='', vmin=None, vmax=None, perc_for_vmax=99.0, is_binary=None)",
+    "compute_sort_orders": "(data, n_clusters=3, random_state=42)",
+    "compute_single_sort_order": "(data, sort_mode, n_clusters=3, random_state=42)",
+    "save_sorted_rasters_for_all_modes": "(dfof, exp_log, stimuli_durations, stimuli_colors, stimuli_linestyles, stimuli_ordered, fps_2p, window_pre, window_post, plots_path: pathlib.Path, prefix: str, n_clusters: int = 5, random_state: int = 42, average_across_repeats: bool = False, folder_name: str | None = None, is_binary=False)",
+    "plot_sorted_chunks_single_mode": "(dfof, exp_log, stimuli_durations, stimuli_colors, stimuli_linestyles, stimuli_ordered, fps_2p, window_pre, window_post, sort_mode='kmeans', n_clusters=3, random_state=42, average_across_repeats=False, figsize=(12, 6), fish_id='', neuron_order=None, sort_label=None, is_binary=False, vmin=None, vmax=None)",
+    "plot_stimulus_means": "(mean_traces, stimuli_ids, stimuli_names, fps_2p, t_post_s, t_pre_s, stimuli_durations, title_prefix='neurons resposive to stimuli', show_sem=True, stimuli_colors: dict | None = None, stimuli_linestyles: dict | None = None, save: bool = False, plots_path: pathlib.Path | str | None = None, prefix: str | None = None, dpi: int = 600, close_after: bool = False, kept_cells=None, comment='all_stimuli', figsize=(7, 4.5))",
+    "summarize_durations": "(stimuli_durations)",
+    "compute_move_lines_for_flat_matrix": "(trial_aligned_traces, stim_order, stimuli_id_map, stimuli_durations, stimuli_colors, fps_2p, t_pre_s, combine_mode='concat')",
+    "plot_allfish_flat_raster": "(data, trial_aligned_traces, stim_order, stimuli_id_map, stimuli_durations, stimuli_colors, stimuli_linestyles, fps_2p, t_pre_s, combine_mode='concat', *, sort_mode='kmeans', n_clusters=8, random_state=0, neuron_order=None, sort_label=None, is_binary=False, figsize=(8, 6), fish_id='all_fish', show_mean_trace=False, mean_height_ratio=1.2, mean_linewidth=1.5, mean_color='black', mean_ylabel='Mean activity', vmin=None, vmax=None)",
+    "plot_accepted_rejected_rasters": "(dfof: numpy.ndarray, t=None, kept_mask: numpy.ndarray = None, vmax: float = None, vmin: float = 0.0, perc_for_vmax: float = 99.0, sort_by_peak_time: bool = False, share_color_scale: bool = True)",
+    "plot_venn_3stim": "(response_type_by_id, stim_ids=(5, 6, 7), stim_labels=None, title=None)",
+    "plot_reliability_diagnostics": "(dfof, nanfiltered_max, otsu_threshold, kept_mask, kept_neuron_indices, fps_2p, hist_bins=70)"
+  },
+  "exports": [
+    "PCA",
+    "KMeans",
+    "linkage",
+    "fcluster",
+    "leaves_list",
+    "pdist",
+    "np",
+    "plt",
+    "gridspec",
+    "Path",
+    "re",
+    "math",
+    "st",
+    "Patch",
+    "Line2D",
+    "pd",
+    "venn3",
+    "_natural_sort_key",
+    "STATIC_FLICKER_CATEGORY_ORDER",
+    "STATIC_FLICKER_CATEGORY_COLORS",
+    "STATIC_FLICKER_STIMULUS_COLORS",
+    "plot_bout_flicker_position_figure",
+    "_add_bout_position_markers",
+    "_vertical_reference_line",
+    "_horizontal_reference_line",
+    "_plot_bout_flicker_position_summary",
+    "_first_post_onset_raster_time",
+    "plot_static_flicker_classification_raster",
+    "plot_static_flicker_category_proportions",
+    "plot_pooled_static_flicker_category_proportions",
+    "plot_shared_static_flicker_auc_summary",
+    "plot_recruitment_amplification",
+    "list_stimulus_names",
+    "_stimulus_style_key",
+    "_is_right_side_stimulus",
+    "build_stimulus_style_maps",
+    "plot_similarity_heatmaps",
+    "plot_similarity_by_distance",
+    "_resolve_analysis_label",
+    "_preferred_stimulus_colors",
+    "plot_stimulus_specificity_sparseness",
+    "plot_stimulus_specificity_selectivity_index",
+    "plot_active_stimuli_histogram",
+    "plot_preferred_stimulus_distribution",
+    "plot_stimulus_specificity_summary",
+    "_plot_lme_fixed_effects",
+    "_plot_lme_model_comparison",
+    "_plot_lme_observed_vs_fitted",
+    "_plot_lme_response_distribution",
+    "plot_lme_model_outputs",
+    "plot_motion_delta_distribution",
+    "_diagnostic_sort_order",
+    "plot_active_trace_decision_diagnostic",
+    "plot_bout_flicker_position_cell06_style",
+    "add_stimuli_markers",
+    "raster_with_stimuli",
+    "compute_sort_orders",
+    "compute_single_sort_order",
+    "save_sorted_rasters_for_all_modes",
+    "plot_sorted_chunks_single_mode",
+    "plot_stimulus_means",
+    "summarize_durations",
+    "compute_move_lines_for_flat_matrix",
+    "plot_allfish_flat_raster",
+    "plot_accepted_rejected_rasters",
+    "plot_venn_3stim",
+    "plot_reliability_diagnostics"
+  ],
+  "function_ast_sha256": {
+    "_natural_sort_key": "9dd4f2aa5d6da5fc0b67265a10c1aae4a43c8a33f2a7ffd3c33a24844e74b352",
+    "plot_bout_flicker_position_figure": "151bc0f8f428b61cb73d6d8a25f3a001e62d7090fb00abc3c249b0947a8ab4bb",
+    "_add_bout_position_markers": "0c55b298be0c63ad056ef0c54e91ae4c5ecf9229751826aa5887c2c6e977a669",
+    "_vertical_reference_line": "62a53e73b2dca3af5cd5cba9d4f562376c8146ceb418883fcc6fca963cc1f7fc",
+    "_horizontal_reference_line": "4dc65123a07a538f945212205fdd42a14801d5aba7ebba2f2dce89cab1e06ff1",
+    "_plot_bout_flicker_position_summary": "7c97e8d67f364a0c326d48211cae312328402fd4705bd8de1a580a41adaee37e",
+    "_first_post_onset_raster_time": "881f52659ebb5078c23c0bab668a56aa426bae0e2d8ce25f018655cc71ca2f1c",
+    "plot_static_flicker_classification_raster": "e8b2c978293d514c9196264ebfaac3a92a584d668d520c7ddedbce5c1752d53f",
+    "plot_static_flicker_category_proportions": "25f41fc28084fabd82d2995ee6aa7fed47277159595aaff80947255a8bec97fb",
+    "plot_pooled_static_flicker_category_proportions": "147d201db45e617e19d1b9593b470c90ee11452c4a167168a29942985eb3e4f5",
+    "plot_shared_static_flicker_auc_summary": "9862712d7c76b3280353c31a145eab8dc73e41e8b42ebdd933c656c4989c2d96",
+    "plot_recruitment_amplification": "fb58ebac8691c954ee1ff5eb240fd8b571ce47c6e1f0c9a0d8b24b0e5dea0f28",
+    "list_stimulus_names": "f90715b2b820d8134868d22b83cd7d14e8b2a23c3895934981be29526caed9ae",
+    "_stimulus_style_key": "d6424728acc8aecff3542d640a986d7cfc638ae284df4da66bec5f2cdc9392c9",
+    "_is_right_side_stimulus": "9af2a5d336654667a7380fa2f3f86ed3197199d3c1b904da884da886ddea13d9",
+    "build_stimulus_style_maps": "c5f29503b19aad66d5ebdc2cbd00904497f93ba42c3ec4bdfbe95034331d962d",
+    "plot_similarity_heatmaps": "01a4e2d8418ef181a021df48db14ac3647abfd8d07ef9ae5de14b22b69e9851d",
+    "plot_similarity_by_distance": "b2ea17850ef31c9b54099f09209d72622f4bc18e9c4d8cfee2cb0a79fd0d74a2",
+    "_resolve_analysis_label": "956f9573fd728955b4f5493770820fd582de3d4023975752048da8b94b12a549",
+    "_preferred_stimulus_colors": "7c24dd30b19405e98499c8961085f036367bc8f01d5c37a500d95db874b9d116",
+    "plot_stimulus_specificity_sparseness": "d8c036337e6cc96a37baf6b3a3923409c68f2b576774b42bffa6130ae9b15a93",
+    "plot_stimulus_specificity_selectivity_index": "c6ca0962befd336a28420867362ecb95a4a2fc5b3d8adc239ce401e4a60c65dd",
+    "plot_active_stimuli_histogram": "d4a0f8793e4d789be791ca878333d3a32f2d3a08b486b88f7b66c888956f0792",
+    "plot_preferred_stimulus_distribution": "e3e8f710d339c910e4d4cbcfd93acd4e43a5077005786ce8c32ac4e5fb370741",
+    "plot_stimulus_specificity_summary": "dcdd35e8fc9036c821863a999e6469b414d7b2d6da5cdef3e471c9a6e48b178c",
+    "_plot_lme_fixed_effects": "dfdf8041213a1296dbce671d4f4d23d83496fa65e222e293ccc2731c45011964",
+    "_plot_lme_model_comparison": "1046cbabb20f7b7b2c80b23b033ca5cc3916d4725167da94bb0bfa1e2967c993",
+    "_plot_lme_observed_vs_fitted": "932f07756da719dea87c6c7d431fec54b6baf91555f52695b2bfe67d4758cd56",
+    "_plot_lme_response_distribution": "584941948430e29348ae0d6cca61149d25df13f787ebc15c5bd284d250a1c8cd",
+    "plot_lme_model_outputs": "8434e276c273113c2eb8b4f9d1ae5de5e0c06c7d059a844c5fefab59b5700614",
+    "plot_motion_delta_distribution": "c9a1c9026721fc54da1b5f4d350e376e2916157620b9aa0ec0106428cc24e865",
+    "_diagnostic_sort_order": "76070b1af076712c23181c4526d6b1f3b5ffb73b243a2cafe9e4977efe71679f",
+    "plot_active_trace_decision_diagnostic": "417e9eac243c7c67f4efcfeb50f12a75c50d0c7660b7e4b89378342624e330be",
+    "plot_bout_flicker_position_cell06_style": "76b8577d31fbce851c5523588817f5a2d7d181219f4cdf1ad01042e341848752",
+    "add_stimuli_markers": "584f9dbd38a43cb905c8d6391f99181398446c07344311dde9e318da67e3b95f",
+    "raster_with_stimuli": "8f9c8a94bad467f695674226a212c6743e503b29c4afddad189d22456d3d6287",
+    "compute_sort_orders": "a67fb8e28913cf0fdda6482c7f5853560ed58fe42da9725ee5500b715b38a55b",
+    "compute_single_sort_order": "dc9af23fe3399668e8578138931247571594f04b7e0df5451cc68b239c5b5fa6",
+    "save_sorted_rasters_for_all_modes": "643d59155c07f48d85acb1a678c55f3070540aa82bd26e262bdfc252a2145b54",
+    "plot_sorted_chunks_single_mode": "c0bc16682905a015c0027b991f61a7139a8f49d69a4d274cd0aa03b5fe8f84eb",
+    "plot_stimulus_means": "c8639906d348b3e3d01219330d9b77f842ff0df0d3dc481c3b931aa7b8b0d8e0",
+    "summarize_durations": "f5e23c4717702eabed6303bc6954702e9db48d34309cb52808dbca0cc14bfaf0",
+    "compute_move_lines_for_flat_matrix": "fd6922d7ff23f3d6ebfed6db5ebd0b680deed0b06cdfc686593a6d2618b52821",
+    "plot_allfish_flat_raster": "bb832e7edd8c6ac029a077de8f42fdceb444dda2688531d8e0adc2e01116ca9b",
+    "plot_accepted_rejected_rasters": "5cf86748d2f0c226d4af34cce6874f76561bb730043b5dcd81d1538abf438725",
+    "plot_venn_3stim": "7df9786cbe2d38735ab6205a81ae97506b7dec8a47c51658ca1b92148543ff2a",
+    "plot_reliability_diagnostics": "85a24c87a1d69f7b82f550dde9d92cc467959c47f7450bfad6a72a55ab0fa18f"
+  },
+  "families": {
+    "common": {
+      "reference_lines": {
+        "returned": {
+          "tuple": [
+            {
+              "artist": "Figure",
+              "axes": 1
+            },
+            {
+              "artist": "Axes",
+              "index": 0
+            }
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "08e98b20518350d431249ac4399298a6ac57a477110ac4c190c006dd6d06d00e",
+            "axes": [
+              {
+                "title": "",
+                "xlabel": "",
+                "ylabel": "",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 3,
+                "collections": 0,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "styles": {
+        "returned": {
+          "tuple": [
+            {
+              "dict": [
+                [
+                  "FL2",
+                  {
+                    "tuple": [
+                      0.12156862745098039,
+                      0.4666666666666667,
+                      0.7058823529411765,
+                      1.0
+                    ]
+                  }
+                ],
+                [
+                  "FL10",
+                  {
+                    "tuple": [
+                      0.6196078431372549,
+                      0.8549019607843137,
+                      0.8980392156862745,
+                      1.0
+                    ]
+                  }
+                ],
+                [
+                  "FR2",
+                  "red"
+                ],
+                [
+                  "FR10",
+                  {
+                    "tuple": [
+                      0.6196078431372549,
+                      0.8549019607843137,
+                      0.8980392156862745,
+                      1.0
+                    ]
+                  }
+                ]
+              ]
+            },
+            {
+              "dict": [
+                [
+                  "FL2",
+                  "-"
+                ],
+                [
+                  "FL10",
+                  "-"
+                ],
+                [
+                  "FR2",
+                  "--"
+                ],
+                [
+                  "FR10",
+                  "--"
+                ]
+              ]
+            }
+          ]
+        },
+        "figures": [],
+        "stdout": ""
+      }
+    },
+    "single_fish": {
+      "raster": {
+        "returned": {
+          "tuple": [
+            {
+              "artist": "Figure",
+              "axes": 1
+            },
+            {
+              "artist": "Axes",
+              "index": 0
+            },
+            {
+              "artist": "AxesImage"
+            },
+            {
+              "list": [
+                {
+                  "artist": "Line2D"
+                },
+                {
+                  "artist": "Line2D"
+                }
+              ]
+            }
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "da6e4332e19d14c32a9d490d3d5ab147e4906d29b940063090c1aed89ef1699e",
+            "axes": [
+              {
+                "title": "synthetic - ",
+                "xlabel": "Time (s)",
+                "ylabel": "# Neuron",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 6,
+                "collections": 0,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "binary_raster": {
+        "returned": {
+          "tuple": [
+            {
+              "artist": "Figure",
+              "axes": 1
+            },
+            {
+              "artist": "Axes",
+              "index": 0
+            },
+            {
+              "artist": "AxesImage"
+            },
+            {
+              "list": [
+                {
+                  "artist": "Line2D"
+                },
+                {
+                  "artist": "Line2D"
+                }
+              ]
+            }
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "f52ef5a162e8221d3673056247fe2423ce9fc33ad8e71cb424370ce54835e609",
+            "axes": [
+              {
+                "title": "synthetic - ",
+                "xlabel": "Time (s)",
+                "ylabel": "# Neuron",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 6,
+                "collections": 0,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "chunks_False_False": {
+        "returned": {
+          "tuple": [
+            {
+              "artist": "Figure",
+              "axes": 2
+            },
+            {
+              "artist": "Axes",
+              "index": 0
+            },
+            {
+              "shape": [
+                5
+              ],
+              "dtype": "int64",
+              "sha256": "a37a69f899e8b4760bd5d68b73f5518d7e06b35b2978f3c1d40d86822f96ca04",
+              "mask": "8855508aade16ec573d21e6a485dfd0a7624085c1a14b5ecdd6485de0c6839a4"
+            }
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "118e61679edf62759f2e1d250f6409ae5f728ebb318294316be51bbf62a6365e",
+            "axes": [
+              {
+                "title": "synthetic - ordered by stimulus type | sort=max_intensity",
+                "xlabel": "Chunks aligned to stimulus onset (s)",
+                "ylabel": "# Neuron",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 6,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "",
+                "ylabel": "$\\Delta F/F$",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 2,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "chunks_False_True": {
+        "returned": {
+          "tuple": [
+            {
+              "artist": "Figure",
+              "axes": 2
+            },
+            {
+              "artist": "Axes",
+              "index": 0
+            },
+            {
+              "shape": [
+                5
+              ],
+              "dtype": "int64",
+              "sha256": "a202cd4c59698dd02591e869824104e294204c1797008206bc667df2c72028ad",
+              "mask": "8855508aade16ec573d21e6a485dfd0a7624085c1a14b5ecdd6485de0c6839a4"
+            }
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "960cfbc8148dfd12a707baa6ba3d450acee0d83508470d9ba6d7065e6c845b59",
+            "axes": [
+              {
+                "title": "synthetic - ordered by stimulus type | sort=max_intensity",
+                "xlabel": "Chunks aligned to stimulus onset (s)",
+                "ylabel": "# Neuron",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 4,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "",
+                "ylabel": "$\\Delta F/F$",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 2,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "chunks_True_False": {
+        "returned": {
+          "tuple": [
+            {
+              "artist": "Figure",
+              "axes": 1
+            },
+            {
+              "artist": "Axes",
+              "index": 0
+            },
+            {
+              "shape": [
+                5
+              ],
+              "dtype": "int64",
+              "sha256": "281b02b10f5f4997e5bf8c93343e6f2aa8bc81ffad6d6813c593181ebceda12a",
+              "mask": "8855508aade16ec573d21e6a485dfd0a7624085c1a14b5ecdd6485de0c6839a4"
+            }
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "b81edfdc29bb2cb52fd47e667471d8b9c760f9aaed864f1a9d112b5d092ed91a",
+            "axes": [
+              {
+                "title": "synthetic - ordered by stimulus type | sort=max_intensity",
+                "xlabel": "Chunks aligned to stimulus onset (s)",
+                "ylabel": "# Neuron",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 6,
+                "collections": 0,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "chunks_True_True": {
+        "returned": {
+          "tuple": [
+            {
+              "artist": "Figure",
+              "axes": 1
+            },
+            {
+              "artist": "Axes",
+              "index": 0
+            },
+            {
+              "shape": [
+                5
+              ],
+              "dtype": "int64",
+              "sha256": "281b02b10f5f4997e5bf8c93343e6f2aa8bc81ffad6d6813c593181ebceda12a",
+              "mask": "8855508aade16ec573d21e6a485dfd0a7624085c1a14b5ecdd6485de0c6839a4"
+            }
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "03cce7ce0eb544c8c43ef0534a30a72e28acea9736f08690df6bcfe96d664592",
+            "axes": [
+              {
+                "title": "synthetic - ordered by stimulus type | sort=max_intensity",
+                "xlabel": "Chunks aligned to stimulus onset (s)",
+                "ylabel": "# Neuron",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 4,
+                "collections": 0,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "custom_chunks": {
+        "returned": {
+          "tuple": [
+            {
+              "artist": "Figure",
+              "axes": 2
+            },
+            {
+              "artist": "Axes",
+              "index": 0
+            },
+            {
+              "shape": [
+                5
+              ],
+              "dtype": "int64",
+              "sha256": "189d4ad44acd04fb4554b62b63c5e2407e6e6977a1a3c399e8c9685b9ed9efbb",
+              "mask": "8855508aade16ec573d21e6a485dfd0a7624085c1a14b5ecdd6485de0c6839a4"
+            }
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "581eb084755a144c33f78f3b9daca5c2c07a84a466e6b0b0c524aa8742ae273b",
+            "axes": [
+              {
+                "title": " - ordered by stimulus type | sort=fixed",
+                "xlabel": "Chunks aligned to stimulus onset (s)",
+                "ylabel": "# Neuron",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 6,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "",
+                "ylabel": "$\\Delta F/F$",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 2,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      }
+    },
+    "all_fish": {
+      "flat_mean_False": {
+        "returned": {
+          "tuple": [
+            {
+              "artist": "Figure",
+              "axes": 2
+            },
+            {
+              "artist": "Axes",
+              "index": 0
+            },
+            {
+              "artist": "AxesImage"
+            },
+            {
+              "shape": [
+                8
+              ],
+              "dtype": "int64",
+              "sha256": "b840ed0b175743fe8c40a8045989e73aca0e408f54d03644b8a46421b8bfef53",
+              "mask": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc"
+            }
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "f6ade1d7e73b8d357272b30da305bb4513e44e2df490acff534260326f8c81b1",
+            "axes": [
+              {
+                "title": "all_fish - ordered by stimulus type | sort=max_intensity",
+                "xlabel": "Time (s)",
+                "ylabel": "# Neuron",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 8,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "",
+                "ylabel": "$\\Delta F/F$",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 2,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "flat_mean_True": {
+        "returned": {
+          "tuple": [
+            {
+              "artist": "Figure",
+              "axes": 3
+            },
+            {
+              "artist": "Axes",
+              "index": 0
+            },
+            {
+              "artist": "AxesImage"
+            },
+            {
+              "shape": [
+                8
+              ],
+              "dtype": "int64",
+              "sha256": "fece8d601cd4c9020e24f9e4a47feedefb2bceff5e9798d8056aea8700052eaa",
+              "mask": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc"
+            }
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "9d48b8bf37fb6dbf8ec0ab33e758e6498ec9012b5bb036da73f9072d40f8a0e3",
+            "axes": [
+              {
+                "title": "all_fish - ordered by stimulus type | sort=max_intensity",
+                "xlabel": "Time (s)",
+                "ylabel": "# Neuron",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 8,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "Time (s)",
+                "ylabel": "Mean activity",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 5,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "",
+                "ylabel": "Significant activity (0/1)",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 2,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "flat_concat_False": {
+        "returned": {
+          "tuple": [
+            {
+              "artist": "Figure",
+              "axes": 2
+            },
+            {
+              "artist": "Axes",
+              "index": 0
+            },
+            {
+              "artist": "AxesImage"
+            },
+            {
+              "shape": [
+                8
+              ],
+              "dtype": "int64",
+              "sha256": "b840ed0b175743fe8c40a8045989e73aca0e408f54d03644b8a46421b8bfef53",
+              "mask": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc"
+            }
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "609a7e442bb8ed5710c65d018910e9b234c8cee195d6d9b33db019c98fc76b95",
+            "axes": [
+              {
+                "title": "all_fish - ordered by stimulus type | sort=max_intensity",
+                "xlabel": "Time (s)",
+                "ylabel": "# Neuron",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 20,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "",
+                "ylabel": "$\\Delta F/F$",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 2,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "flat_concat_True": {
+        "returned": {
+          "tuple": [
+            {
+              "artist": "Figure",
+              "axes": 3
+            },
+            {
+              "artist": "Axes",
+              "index": 0
+            },
+            {
+              "artist": "AxesImage"
+            },
+            {
+              "shape": [
+                8
+              ],
+              "dtype": "int64",
+              "sha256": "fece8d601cd4c9020e24f9e4a47feedefb2bceff5e9798d8056aea8700052eaa",
+              "mask": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc"
+            }
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "870979482132f5223ceb548bcdd128364b8da0971f4e532ac5e40008625b8728",
+            "axes": [
+              {
+                "title": "all_fish - ordered by stimulus type | sort=max_intensity",
+                "xlabel": "Time (s)",
+                "ylabel": "# Neuron",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 20,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "Time (s)",
+                "ylabel": "Mean activity",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 17,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "",
+                "ylabel": "Significant activity (0/1)",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 2,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "means": {
+        "returned": {
+          "tuple": [
+            {
+              "artist": "Figure",
+              "axes": 1
+            },
+            {
+              "artist": "Axes",
+              "index": 0
+            },
+            {
+              "dict": [
+                [
+                  "flickL",
+                  "#0072B2"
+                ],
+                [
+                  "boutL",
+                  "#D55E00"
+                ],
+                [
+                  "flickR",
+                  "#CC79A7"
+                ],
+                [
+                  "boutR",
+                  "#009E73"
+                ]
+              ]
+            },
+            null
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "30829cdd779527e4528cc37b97f3296fdc7adb0bcdc8531ef1285c3f88ecba41",
+            "axes": [
+              {
+                "title": "Synthetic cohort",
+                "xlabel": "Time (s) relative to onset",
+                "ylabel": "\u0394F/F",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 7,
+                "collections": 4,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "means_saved": {
+        "returned": {
+          "tuple": [
+            {
+              "artist": "Figure",
+              "axes": 1
+            },
+            {
+              "artist": "Axes",
+              "index": 0
+            },
+            {
+              "dict": [
+                [
+                  "flickL",
+                  "#0072B2"
+                ],
+                [
+                  "boutL",
+                  "#D55E00"
+                ],
+                [
+                  "flickR",
+                  "#CC79A7"
+                ],
+                [
+                  "boutR",
+                  "#009E73"
+                ]
+              ]
+            },
+            {
+              "filename": "fixture_dfof_as_func_of_time_selected.png"
+            }
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "3e1e3ea57459d97136031e4034e8d423d2982ed4e2ce36358c76cb3ac02e7892",
+            "axes": [
+              {
+                "title": "neurons resposive to stimuli",
+                "xlabel": "Time (s) relative to onset",
+                "ylabel": "\u0394F/F",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 7,
+                "collections": 0,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": "\u2705 Saved: <output>\\fixture_dfof_as_func_of_time_selected.png\n"
+      }
+    },
+    "static_bout": {
+      "classification": {
+        "returned": {
+          "dict": [
+            [
+              "left",
+              {
+                "artist": "Figure",
+                "axes": 1
+              }
+            ],
+            [
+              "right",
+              {
+                "artist": "Figure",
+                "axes": 1
+              }
+            ]
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "60ba7eb0c0e3177181cfb0fb8a2c4fb031e004c7784db68dd17ad170579cea3a",
+            "axes": [
+              {
+                "title": "Left flickL",
+                "xlabel": "Time from onset (s): Static 2 s | Flicker 2 s",
+                "ylabel": "Neurons (category, then motion-onset ordered)",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 1,
+                "collections": 0,
+                "patches": 0
+              }
+            ]
+          },
+          {
+            "sha256": "0363ac55b633c1cea21a7239f7d83081c72718bbadf4cb9246cb7627db093402",
+            "axes": [
+              {
+                "title": "Right flickR",
+                "xlabel": "Time from onset (s): Static 2 s | Flicker 2 s",
+                "ylabel": "Neurons (category, then motion-onset ordered)",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 1,
+                "collections": 0,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "categories": {
+        "returned": {
+          "dict": [
+            [
+              "left",
+              {
+                "artist": "Figure",
+                "axes": 1
+              }
+            ],
+            [
+              "right",
+              {
+                "artist": "Figure",
+                "axes": 1
+              }
+            ]
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "e3bab62708f2925433f4c50d04ce920971e9f06cfddce633681ff139ac0abfe1",
+            "axes": [
+              {
+                "title": "Left flickL",
+                "xlabel": "",
+                "ylabel": "Proportion of valid neurons",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 0,
+                "patches": 8
+              }
+            ]
+          },
+          {
+            "sha256": "f44b7b662059a121cbfe4292fcdcaa4cdb3a5b014064a01a543f95ab6e99a9fd",
+            "axes": [
+              {
+                "title": "Right flickR",
+                "xlabel": "",
+                "ylabel": "Proportion of valid neurons",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 0,
+                "patches": 8
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "pooled_categories": {
+        "returned": {
+          "dict": [
+            [
+              "left",
+              {
+                "artist": "Figure",
+                "axes": 1
+              }
+            ],
+            [
+              "right",
+              {
+                "artist": "Figure",
+                "axes": 1
+              }
+            ]
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "415d0c10b9d5653744afdfc5d2315d5481cb9faad6fb48145a45674882aa65d6",
+            "axes": [
+              {
+                "title": "Left hemifield: pooled-cell recruitment categories",
+                "xlabel": "Stimulus position",
+                "ylabel": "Proportion of pooled valid neurons",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 0,
+                "patches": 4
+              }
+            ]
+          },
+          {
+            "sha256": "9c7d583d6d936d5ac880b811b658c390ac258f61d7c8d7816fef4e603a281c7a",
+            "axes": [
+              {
+                "title": "Right hemifield: pooled-cell recruitment categories",
+                "xlabel": "Stimulus position",
+                "ylabel": "Proportion of pooled valid neurons",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 0,
+                "patches": 4
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "auc": {
+        "returned": {
+          "dict": [
+            [
+              "left",
+              {
+                "artist": "Figure",
+                "axes": 2
+              }
+            ],
+            [
+              "right",
+              {
+                "artist": "Figure",
+                "axes": 2
+              }
+            ]
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "1185af08b7bac8ff53378d18f98ca49f37869c4f7f6d22edf3f8095003c61f5b",
+            "axes": [
+              {
+                "title": "Left: shared neurons",
+                "xlabel": "Static AUC",
+                "ylabel": "Motion AUC",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 1,
+                "collections": 1,
+                "patches": 0
+              },
+              {
+                "title": "Fish median \u0394AUC versus zero",
+                "xlabel": "Stimulus",
+                "ylabel": "Median motion \u2212 static AUC",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 4,
+                "collections": 3,
+                "patches": 0
+              }
+            ]
+          },
+          {
+            "sha256": "f865dad3c59b1d1b2666cda4f3f3d9737e32c1a5bc7a20c4a0905302eaec1348",
+            "axes": [
+              {
+                "title": "Right: shared neurons",
+                "xlabel": "Static AUC",
+                "ylabel": "Motion AUC",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 1,
+                "collections": 1,
+                "patches": 0
+              },
+              {
+                "title": "Fish median \u0394AUC versus zero",
+                "xlabel": "Stimulus",
+                "ylabel": "Median motion \u2212 static AUC",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 4,
+                "collections": 3,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "recruitment": {
+        "returned": {
+          "dict": [
+            [
+              "left",
+              {
+                "artist": "Figure",
+                "axes": 1
+              }
+            ],
+            [
+              "right",
+              {
+                "artist": "Figure",
+                "axes": 1
+              }
+            ]
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "0eb7a78062c7a5aaf6c377ba0f5fd6c70fdb5382902f8af8c5a6afdfefa37260",
+            "axes": [
+              {
+                "title": "Left flickL",
+                "xlabel": "",
+                "ylabel": "Summed z-score AUC",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 0,
+                "patches": 4
+              }
+            ]
+          },
+          {
+            "sha256": "344d5e9953d401fb6513b8e8daeff9a7d7c7ad3dd7df99bc776b840bd97263f4",
+            "axes": [
+              {
+                "title": "Right flickR",
+                "xlabel": "",
+                "ylabel": "Summed z-score AUC",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 0,
+                "patches": 4
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "bout_cell06": {
+        "returned": {
+          "dict": [
+            [
+              "figure",
+              {
+                "artist": "Figure",
+                "axes": 4
+              }
+            ],
+            [
+              "axes",
+              {
+                "tuple": [
+                  {
+                    "artist": "Axes",
+                    "index": 0
+                  },
+                  {
+                    "artist": "Axes",
+                    "index": 2
+                  }
+                ]
+              }
+            ],
+            [
+              "neuron_order",
+              {
+                "shape": [
+                  6
+                ],
+                "dtype": "int64",
+                "sha256": "f190072c5052f4f440d4a607c25f5bced487c420806c9aab4ca5b0653e72da61",
+                "mask": "b0f66adc83641586656866813fd9dd0b8ebb63796075661ba45d1aa8089e1d44"
+              }
+            ],
+            [
+              "markers",
+              {
+                "list": [
+                  {
+                    "dict": [
+                      [
+                        "flicker_stimulus",
+                        "flickL"
+                      ],
+                      [
+                        "nearest_bout_position_index",
+                        1
+                      ],
+                      [
+                        "time_after_motion_onset_s",
+                        2.0
+                      ],
+                      [
+                        "color",
+                        "#0072B2"
+                      ],
+                      [
+                        "label",
+                        "flickL | idx 1 | +2.00 s"
+                      ],
+                      [
+                        "label_x_axes",
+                        0.01
+                      ],
+                      [
+                        "label_y_axes",
+                        1.005
+                      ],
+                      [
+                        "label_rotation",
+                        0
+                      ],
+                      [
+                        "label_va",
+                        "bottom"
+                      ],
+                      [
+                        "label_ha",
+                        "left"
+                      ]
+                    ]
+                  }
+                ]
+              }
+            ],
+            [
+              "onset_coincidence_rows",
+              {
+                "list": [
+                  {
+                    "dict": [
+                      [
+                        "flicker_stimulus",
+                        "flickL"
+                      ],
+                      [
+                        "matched_rows",
+                        {
+                          "shape": [
+                            0
+                          ],
+                          "dtype": "int64",
+                          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                          "mask": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                        }
+                      ],
+                      [
+                        "last_matching_row",
+                        null
+                      ]
+                    ]
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "fc10c6414a5b04d212ec48d2d3674196aadf478e6352afd7cc5c113a6b6a72e9",
+            "axes": [
+              {
+                "title": "Significant raster",
+                "xlabel": "Aligned time blocks",
+                "ylabel": "Pooled neurons",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 4,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "",
+                "ylabel": "Fraction of repetitions significant",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 2,
+                "patches": 0
+              },
+              {
+                "title": "Active",
+                "xlabel": "Strict active decision",
+                "ylabel": "",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 0,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "",
+                "ylabel": "Final active (0/1)",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 2,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "bout_four_panel": {
+        "returned": {
+          "dict": [
+            [
+              "figure",
+              {
+                "artist": "Figure",
+                "axes": 16
+              }
+            ],
+            [
+              "zscore_axes",
+              {
+                "list": [
+                  {
+                    "artist": "Axes",
+                    "index": 0
+                  },
+                  {
+                    "artist": "Axes",
+                    "index": 1
+                  },
+                  {
+                    "artist": "Axes",
+                    "index": 2
+                  },
+                  {
+                    "artist": "Axes",
+                    "index": 3
+                  }
+                ]
+              }
+            ],
+            [
+              "significant_axes",
+              {
+                "list": [
+                  {
+                    "artist": "Axes",
+                    "index": 4
+                  },
+                  {
+                    "artist": "Axes",
+                    "index": 5
+                  },
+                  {
+                    "artist": "Axes",
+                    "index": 6
+                  },
+                  {
+                    "artist": "Axes",
+                    "index": 7
+                  }
+                ]
+              }
+            ],
+            [
+              "count_axes",
+              {
+                "list": [
+                  {
+                    "artist": "Axes",
+                    "index": 8
+                  },
+                  {
+                    "artist": "Axes",
+                    "index": 9
+                  },
+                  {
+                    "artist": "Axes",
+                    "index": 10
+                  },
+                  {
+                    "artist": "Axes",
+                    "index": 11
+                  }
+                ]
+              }
+            ],
+            [
+              "summary_axes",
+              {
+                "list": [
+                  {
+                    "artist": "Axes",
+                    "index": 12
+                  },
+                  {
+                    "artist": "Axes",
+                    "index": 13
+                  },
+                  {
+                    "artist": "Axes",
+                    "index": 14
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "bc3fcb4087e6ce69f339f0847abdb79e18a24364f728500922fc8c1d1b0e435e",
+            "axes": [
+              {
+                "title": "boutL",
+                "xlabel": "",
+                "ylabel": "Fixed neuron order\n(bout-active \u2192 flicker-only)",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 7,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "flickL",
+                "xlabel": "",
+                "ylabel": "",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 4,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "flick2",
+                "xlabel": "",
+                "ylabel": "",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 4,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "flick3",
+                "xlabel": "",
+                "ylabel": "",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 4,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "",
+                "ylabel": "Temporal significant activity",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 7,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "",
+                "ylabel": "",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 4,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "",
+                "ylabel": "",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 4,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "",
+                "ylabel": "",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 4,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "Time relative to motion/flicker onset (s)",
+                "ylabel": "# significant\nneurons",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 7,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "Time relative to motion/flicker onset (s)",
+                "ylabel": "",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 4,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "Time relative to motion/flicker onset (s)",
+                "ylabel": "",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 4,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "Time relative to motion/flicker onset (s)",
+                "ylabel": "",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 4,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "flickL: bout idx 1\n+1.00 s",
+                "xlabel": "Bout-window mean z-score",
+                "ylabel": "Flicker-window mean z-score",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 3,
+                "collections": 2,
+                "patches": 0
+              },
+              {
+                "title": "flick2: bout idx 2\n+2.00 s",
+                "xlabel": "Bout-window mean z-score",
+                "ylabel": "",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 3,
+                "collections": 2,
+                "patches": 0
+              },
+              {
+                "title": "flick3: bout idx 3\n+3.00 s",
+                "xlabel": "Bout-window mean z-score",
+                "ylabel": "",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 3,
+                "collections": 2,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "",
+                "ylabel": "",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 0,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      }
+    },
+    "specificity": {
+      "summary": {
+        "returned": {
+          "tuple": [
+            {
+              "artist": "Figure",
+              "axes": 3
+            },
+            {
+              "shape": [
+                3
+              ],
+              "items": [
+                {
+                  "artist": "Axes",
+                  "index": 0
+                },
+                {
+                  "artist": "Axes",
+                  "index": 1
+                },
+                {
+                  "artist": "Axes",
+                  "index": 2
+                }
+              ]
+            }
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "06b3c5f1b8dc0fe364f1057904d7cc9a73f01194cf2b6d8d912ffac27531f408",
+            "axes": [
+              {
+                "title": "Lifetime sparseness vs max response - characterization",
+                "xlabel": "Lifetime sparseness",
+                "ylabel": "Max z-score AUC",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 1,
+                "patches": 0
+              },
+              {
+                "title": "Active stimuli per neuron - characterization",
+                "xlabel": "Number of active stimuli",
+                "ylabel": "Neurons",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 0,
+                "patches": 5
+              },
+              {
+                "title": "Preferred stimulus distribution - characterization",
+                "xlabel": "Preferred stimulus",
+                "ylabel": "Neurons",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 0,
+                "patches": 4
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "selectivity": {
+        "returned": {
+          "artist": "Axes",
+          "index": 0
+        },
+        "figures": [
+          {
+            "sha256": "e51bc86ff338a0795dcba17ec135f47c0f8f0f44a2f6ebe5e65fc87c09a5ba37",
+            "axes": [
+              {
+                "title": "Selectivity index vs max response - characterization",
+                "xlabel": "Selectivity index",
+                "ylabel": "Max z-score AUC",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 1,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "heatmaps": {
+        "returned": {
+          "tuple": [
+            {
+              "artist": "Figure",
+              "axes": 4
+            },
+            {
+              "shape": [
+                2
+              ],
+              "items": [
+                {
+                  "artist": "Axes",
+                  "index": 0
+                },
+                {
+                  "artist": "Axes",
+                  "index": 1
+                }
+              ]
+            }
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "96db030fc57e9165a332dbe4d934d365a240f61e08dd29e2244ae606d4701a4d",
+            "axes": [
+              {
+                "title": "Pearson similarity",
+                "xlabel": "",
+                "ylabel": "",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 1,
+                "patches": 0
+              },
+              {
+                "title": "Cosine similarity",
+                "xlabel": "",
+                "ylabel": "",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 1,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "",
+                "ylabel": "",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 2,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "",
+                "ylabel": "",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 2,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "distance": {
+        "returned": {
+          "artist": "Axes",
+          "index": 0
+        },
+        "figures": [
+          {
+            "sha256": "72a24566484206809fa085bbd911b774cb2c0744e9212d1785389352fbbbd4ff",
+            "axes": [
+              {
+                "title": "Pearson similarity by segment distance",
+                "xlabel": "Segment distance",
+                "ylabel": "Pearson similarity",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 1,
+                "collections": 1,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      }
+    },
+    "diagnostics": {
+      "motion_delta": {
+        "returned": {
+          "tuple": [
+            {
+              "artist": "Figure",
+              "axes": 2
+            },
+            {
+              "shape": [
+                2
+              ],
+              "items": [
+                {
+                  "artist": "Axes",
+                  "index": 0
+                },
+                {
+                  "artist": "Axes",
+                  "index": 1
+                }
+              ]
+            }
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "397b01e53f6b2488f2c644717f49bbb6906826c40acd5a9e2fff073c2b6b0aa3",
+            "axes": [
+              {
+                "title": "Right",
+                "xlabel": "stimulus",
+                "ylabel": "delta_integral",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 1,
+                "collections": 5,
+                "patches": 0
+              },
+              {
+                "title": "Left",
+                "xlabel": "stimulus",
+                "ylabel": "",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 1,
+                "collections": 5,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "active_mean": {
+        "returned": {
+          "tuple": [
+            {
+              "artist": "Figure",
+              "axes": 5
+            },
+            {
+              "tuple": [
+                {
+                  "artist": "Axes",
+                  "index": 0
+                },
+                {
+                  "artist": "Axes",
+                  "index": 1
+                },
+                {
+                  "artist": "Axes",
+                  "index": 3
+                }
+              ]
+            },
+            {
+              "shape": [
+                8
+              ],
+              "dtype": "int64",
+              "sha256": "0b3c44aa2df4458d2bc058be77b2530e4a18ff840ad18783ad6afdc55cca0548",
+              "mask": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc"
+            }
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "d86f83b526b68e8d8e5aad2a8b37212f8d21c16ead3fcf277f97500a628d5787",
+            "axes": [
+              {
+                "title": "Significant raster (mean; 48.0 s shown)",
+                "xlabel": "",
+                "ylabel": "Pooled neurons",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 8,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "Aligned time blocks",
+                "ylabel": "# Active neurons",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 8,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "",
+                "ylabel": "Fraction of repetitions significant",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 2,
+                "patches": 0
+              },
+              {
+                "title": "Active",
+                "xlabel": "Strict active decision",
+                "ylabel": "",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 1,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "",
+                "ylabel": "Final active (0/1)",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 2,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "active_concat": {
+        "returned": {
+          "tuple": [
+            {
+              "artist": "Figure",
+              "axes": 4
+            },
+            {
+              "tuple": [
+                {
+                  "artist": "Axes",
+                  "index": 0
+                },
+                {
+                  "artist": "Axes",
+                  "index": 2
+                }
+              ]
+            },
+            {
+              "shape": [
+                8
+              ],
+              "dtype": "int64",
+              "sha256": "fece8d601cd4c9020e24f9e4a47feedefb2bceff5e9798d8056aea8700052eaa",
+              "mask": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc"
+            }
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "0370c52fc3bc8ed0fb9261c9c18125b5afaa977ed930a76e7aba0d0eff9dde29",
+            "axes": [
+              {
+                "title": "Significant raster (concat; 192.0 s shown)",
+                "xlabel": "Aligned time blocks",
+                "ylabel": "Pooled neurons",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 19,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "",
+                "ylabel": "Significant activity (0/1)",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 2,
+                "patches": 0
+              },
+              {
+                "title": "Active",
+                "xlabel": "Strict active decision",
+                "ylabel": "",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 0,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "",
+                "ylabel": "Final active (0/1)",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 2,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      }
+    },
+    "lme": {
+      "models": {
+        "returned": {
+          "dict": [
+            [
+              "fixed_effects",
+              {
+                "tuple": [
+                  {
+                    "artist": "Figure",
+                    "axes": 1
+                  },
+                  {
+                    "shape": [
+                      1
+                    ],
+                    "items": [
+                      {
+                        "artist": "Axes",
+                        "index": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            [
+              "model_comparison",
+              {
+                "tuple": [
+                  {
+                    "artist": "Figure",
+                    "axes": 1
+                  },
+                  {
+                    "artist": "Axes",
+                    "index": 0
+                  }
+                ]
+              }
+            ],
+            [
+              "observed_vs_fitted",
+              {
+                "tuple": [
+                  {
+                    "artist": "Figure",
+                    "axes": 1
+                  },
+                  {
+                    "shape": [
+                      1
+                    ],
+                    "items": [
+                      {
+                        "artist": "Axes",
+                        "index": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            [
+              "response_distribution",
+              {
+                "tuple": [
+                  {
+                    "artist": "Figure",
+                    "axes": 2
+                  },
+                  {
+                    "shape": [
+                      2
+                    ],
+                    "items": [
+                      {
+                        "artist": "Axes",
+                        "index": 0
+                      },
+                      {
+                        "artist": "Axes",
+                        "index": 1
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "cf9e904b64ce6786200217fbba0dba11b38d276c36e8558921d75b874b4fd071",
+            "axes": [
+              {
+                "title": "full",
+                "xlabel": "Fixed-effect coefficient",
+                "ylabel": "",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 4,
+                "collections": 1,
+                "patches": 0
+              }
+            ]
+          },
+          {
+            "sha256": "59351273438102c6f268fa2df9dd97eb520555b4a7899f99a15ad260a34afff8",
+            "axes": [
+              {
+                "title": "Model comparison",
+                "xlabel": "",
+                "ylabel": "Information criterion",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 0,
+                "patches": 4
+              }
+            ]
+          },
+          {
+            "sha256": "6df03a87253963c5b94c98cbff1f9d0ae525cba34ae55d0c61d4c24014a53547",
+            "axes": [
+              {
+                "title": "full",
+                "xlabel": "Fitted response",
+                "ylabel": "Observed response",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 1,
+                "collections": 1,
+                "patches": 0
+              }
+            ]
+          },
+          {
+            "sha256": "b3b0ec9cf3ada8566f5d3da742ce1927bdba206bbb0d46ee92d89f2ce5b7b739",
+            "axes": [
+              {
+                "title": "Response by stimulus class",
+                "xlabel": "stimulus_class",
+                "ylabel": "Response",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 13,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "Response by position",
+                "xlabel": "position_id",
+                "ylabel": "",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 13,
+                "collections": 0,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "intercept": {
+        "returned": {
+          "tuple": [
+            {
+              "artist": "Figure",
+              "axes": 1
+            },
+            {
+              "shape": [
+                1
+              ],
+              "items": [
+                {
+                  "artist": "Axes",
+                  "index": 0
+                }
+              ]
+            }
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "e5fc8487a9ece1bfc280380ff9fbfc4740bfe6ac08df37b812d5cc962453a59b",
+            "axes": [
+              {
+                "title": "full",
+                "xlabel": "Fixed-effect coefficient",
+                "ylabel": "",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 4,
+                "collections": 1,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "empty": {
+        "returned": {
+          "dict": []
+        },
+        "figures": [],
+        "stdout": ""
+      }
+    },
+    "reliability": {
+      "reliability": {
+        "returned": {
+          "dict": [
+            [
+              "histogram",
+              {
+                "tuple": [
+                  {
+                    "artist": "Figure",
+                    "axes": 1
+                  },
+                  {
+                    "artist": "Axes",
+                    "index": 0
+                  }
+                ]
+              }
+            ],
+            [
+              "threshold_curve",
+              {
+                "tuple": [
+                  {
+                    "artist": "Figure",
+                    "axes": 1
+                  },
+                  {
+                    "artist": "Axes",
+                    "index": 0
+                  }
+                ]
+              }
+            ],
+            [
+              "rasters",
+              {
+                "tuple": [
+                  {
+                    "artist": "Figure",
+                    "axes": 4
+                  },
+                  {
+                    "shape": [
+                      2
+                    ],
+                    "items": [
+                      {
+                        "artist": "Axes",
+                        "index": 0
+                      },
+                      {
+                        "artist": "Axes",
+                        "index": 1
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "eea1a90c84a9a87a71ec528c97607b4c0ec8366d667a3719849e8191472d2ce0",
+            "axes": [
+              {
+                "title": "Reliability of response across stimuli\nOtsu 0.50 \u2014 kept 60.0% (3 ROIs)",
+                "xlabel": "max avg intertrial correlation",
+                "ylabel": "neuron count",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 1,
+                "collections": 0,
+                "patches": 8
+              }
+            ]
+          },
+          {
+            "sha256": "78820777db94a8b902f35d8912d5c7e8d60a1dfb2cf36ec04729be6d46d8fc2e",
+            "axes": [
+              {
+                "title": "ROIs kept vs threshold",
+                "xlabel": "Threshold",
+                "ylabel": "# ROIs kept",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 1,
+                "collections": 0,
+                "patches": 0
+              }
+            ]
+          },
+          {
+            "sha256": "ccbb50dcaeb91503b60cfaedf5b2cd80c93708cf3832774c5d7b424570cb52cb",
+            "axes": [
+              {
+                "title": "Accepted (n=3)",
+                "xlabel": "Time (s)",
+                "ylabel": "Neuron #",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 0,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "Rejected (n=2)",
+                "xlabel": "Time (s)",
+                "ylabel": "Neuron #",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 0,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "",
+                "ylabel": "\u0394F/F",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 2,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "",
+                "ylabel": "\u0394F/F",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 2,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "independent_scales": {
+        "returned": {
+          "tuple": [
+            {
+              "artist": "Figure",
+              "axes": 4
+            },
+            {
+              "shape": [
+                2
+              ],
+              "items": [
+                {
+                  "artist": "Axes",
+                  "index": 0
+                },
+                {
+                  "artist": "Axes",
+                  "index": 1
+                }
+              ]
+            }
+          ]
+        },
+        "figures": [
+          {
+            "sha256": "78d7d4cb86de2dd3ffaffdde64b27de39295f2329c4be27908703c9bc9322058",
+            "axes": [
+              {
+                "title": "Accepted (n=3)",
+                "xlabel": "Time",
+                "ylabel": "Neuron #",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 0,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "Rejected (n=2)",
+                "xlabel": "Time",
+                "ylabel": "Neuron #",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 1,
+                "lines": 0,
+                "collections": 0,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "",
+                "ylabel": "\u0394F/F",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 2,
+                "patches": 0
+              },
+              {
+                "title": "",
+                "xlabel": "",
+                "ylabel": "\u0394F/F",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 2,
+                "patches": 0
+              }
+            ]
+          }
+        ],
+        "stdout": ""
+      },
+      "venn": {
+        "returned": null,
+        "figures": [
+          {
+            "sha256": "8e1f6f397bd0764bc8dfe4f79655fb57207e67c035a051fa7b08f23476cdf636",
+            "axes": [
+              {
+                "title": "Responsive neurons to: A, B, C",
+                "xlabel": "",
+                "ylabel": "",
+                "xscale": "linear",
+                "yscale": "linear",
+                "images": 0,
+                "lines": 0,
+                "collections": 0,
+                "patches": 7
+              }
+            ]
+          }
+        ],
+        "stdout": "Only 5: 1\nOnly 6: 1\nOnly 7: 1\n5 & 6 only: 1\n5 & 7 only: 1\n6 & 7 only: 1\n5 & 6 & 7: 1\n"
+      }
+    }
+  },
+  "preparation": {
+    "sort_orders": {
+      "dict": [
+        [
+          "unsorted",
+          null
+        ],
+        [
+          "max_intensity",
+          {
+            "shape": [
+              5
+            ],
+            "dtype": "int64",
+            "sha256": "52302141b70edf44baf537a15a46d9cd082544dd7bb4e12a5641c3a7b16983d6",
+            "mask": "8855508aade16ec573d21e6a485dfd0a7624085c1a14b5ecdd6485de0c6839a4"
+          }
+        ],
+        [
+          "pca",
+          {
+            "shape": [
+              5
+            ],
+            "dtype": "int64",
+            "sha256": "52302141b70edf44baf537a15a46d9cd082544dd7bb4e12a5641c3a7b16983d6",
+            "mask": "8855508aade16ec573d21e6a485dfd0a7624085c1a14b5ecdd6485de0c6839a4"
+          }
+        ],
+        [
+          "kmeans",
+          {
+            "shape": [
+              5
+            ],
+            "dtype": "int64",
+            "sha256": "83e35dc1efab97aff06bda9b7f85031e2e113fc3b6ccff06c99a09ad61165599",
+            "mask": "8855508aade16ec573d21e6a485dfd0a7624085c1a14b5ecdd6485de0c6839a4"
+          }
+        ],
+        [
+          "hier",
+          {
+            "shape": [
+              5
+            ],
+            "dtype": "int64",
+            "sha256": "a100b9df8fb6808a16463ceee7bb47f7b7f1b44c50742e00bb46baeedda334da",
+            "mask": "8855508aade16ec573d21e6a485dfd0a7624085c1a14b5ecdd6485de0c6839a4"
+          }
+        ],
+        [
+          "corravg",
+          {
+            "shape": [
+              5
+            ],
+            "dtype": "int64",
+            "sha256": "c93f78e7b50feddf4460d3fa5244d1b3c25f0283ea36ca8089015079615082e6",
+            "mask": "8855508aade16ec573d21e6a485dfd0a7624085c1a14b5ecdd6485de0c6839a4"
+          }
+        ]
+      ]
+    },
+    "unsorted": null,
+    "max_intensity": {
+      "shape": [
+        5
+      ],
+      "dtype": "int64",
+      "sha256": "52302141b70edf44baf537a15a46d9cd082544dd7bb4e12a5641c3a7b16983d6",
+      "mask": "8855508aade16ec573d21e6a485dfd0a7624085c1a14b5ecdd6485de0c6839a4"
+    },
+    "pca": {
+      "shape": [
+        5
+      ],
+      "dtype": "int64",
+      "sha256": "52302141b70edf44baf537a15a46d9cd082544dd7bb4e12a5641c3a7b16983d6",
+      "mask": "8855508aade16ec573d21e6a485dfd0a7624085c1a14b5ecdd6485de0c6839a4"
+    },
+    "kmeans": {
+      "shape": [
+        5
+      ],
+      "dtype": "int64",
+      "sha256": "83e35dc1efab97aff06bda9b7f85031e2e113fc3b6ccff06c99a09ad61165599",
+      "mask": "8855508aade16ec573d21e6a485dfd0a7624085c1a14b5ecdd6485de0c6839a4"
+    },
+    "hier": {
+      "shape": [
+        5
+      ],
+      "dtype": "int64",
+      "sha256": "a100b9df8fb6808a16463ceee7bb47f7b7f1b44c50742e00bb46baeedda334da",
+      "mask": "8855508aade16ec573d21e6a485dfd0a7624085c1a14b5ecdd6485de0c6839a4"
+    },
+    "corravg": {
+      "shape": [
+        5
+      ],
+      "dtype": "int64",
+      "sha256": "c93f78e7b50feddf4460d3fa5244d1b3c25f0283ea36ca8089015079615082e6",
+      "mask": "8855508aade16ec573d21e6a485dfd0a7624085c1a14b5ecdd6485de0c6839a4"
+    },
+    "markers_mean": {
+      "tuple": [
+        {
+          "list": [
+            4,
+            16
+          ]
+        },
+        {
+          "list": [
+            "#CC79A7",
+            "#0072B2"
+          ]
+        },
+        {
+          "list": [
+            "flickR",
+            "flickL"
+          ]
+        }
+      ]
+    },
+    "markers_concat": {
+      "tuple": [
+        {
+          "list": [
+            4,
+            16,
+            28,
+            40,
+            52,
+            64,
+            76,
+            88
+          ]
+        },
+        {
+          "list": [
+            "#CC79A7",
+            "#CC79A7",
+            "#CC79A7",
+            "#CC79A7",
+            "#0072B2",
+            "#0072B2",
+            "#0072B2",
+            "#0072B2"
+          ]
+        },
+        {
+          "list": [
+            "flickR",
+            "flickR",
+            "flickR",
+            "flickR",
+            "flickL",
+            "flickL",
+            "flickL",
+            "flickL"
+          ]
+        }
+      ]
+    },
+    "durations": {
+      "static_before_sec": 2.0,
+      "total_sec": 4.0
+    },
+    "errors": [
+      [
+        "ValueError",
+        "Provide either stimuli_path or stimuli_names."
+      ],
+      [
+        "ValueError",
+        "Expected 2D array (time, neurons), got (2, 3, 4)"
+      ],
+      [
+        "ValueError",
+        "Unknown sort_mode 'bad'. Use one of: 'unsorted', 'max_intensity', 'pca', 'kmeans', 'hier', 'corravg'."
+      ],
+      [
+        "ValueError",
+        "pair_similarity is missing 'pearson_similarity'."
+      ],
+      [
+        "ValueError",
+        "summary_table is missing column(s): lifetime_sparseness, max_response, preferred_stimulus"
+      ],
+      [
+        "ValueError",
+        "summary_table is missing column(s): selectivity_index, max_response, preferred_stimulus"
+      ],
+      [
+        "ValueError",
+        "summary_table is missing n_active_stimuli."
+      ],
+      [
+        "ValueError",
+        "summary_table is missing preferred_stimulus."
+      ],
+      [
+        "ValueError",
+        "delta_df is missing required column(s): ['delta_integral', 'stimulus']"
+      ],
+      [
+        "ValueError",
+        "sort_mode must be 'decision_then_mean', 'none', or None."
+      ],
+      [
+        "ValueError",
+        "A bout/flicker position figure requires one bout and three flicker panels."
+      ],
+      [
+        "ValueError",
+        "Custom neuron_order has shape (1,), expected (5,)."
+      ]
+    ]
+  },
+  "saving": [
+    [
+      "rasters\\synthetic_grouped_dfof_sorted_by_unsorted.png",
+      {
+        "dpi": 600,
+        "bbox_inches": "tight"
+      }
+    ],
+    [
+      "rasters\\synthetic_grouped_dfof_sorted_by_max_intensity.png",
+      {
+        "dpi": 600,
+        "bbox_inches": "tight"
+      }
+    ],
+    [
+      "rasters\\synthetic_grouped_dfof_sorted_by_pca.png",
+      {
+        "dpi": 600,
+        "bbox_inches": "tight"
+      }
+    ],
+    [
+      "rasters\\synthetic_grouped_dfof_sorted_by_kmeans.png",
+      {
+        "dpi": 600,
+        "bbox_inches": "tight"
+      }
+    ],
+    [
+      "rasters\\synthetic_grouped_dfof_sorted_by_hier.png",
+      {
+        "dpi": 600,
+        "bbox_inches": "tight"
+      }
+    ],
+    [
+      "rasters\\synthetic_grouped_dfof_sorted_by_corravg.png",
+      {
+        "dpi": 600,
+        "bbox_inches": "tight"
+      }
+    ]
+  ]
+}
