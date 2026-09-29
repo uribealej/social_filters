@@ -50,8 +50,18 @@ and owner definitions, and no active consumer imported `analysis_tools`,
 `multifish_analysis`, `plotting`, or `reusable_several_fish`. No facade export
 was removed. Synthetic notebook-cell tests were updated to call the migrated
 owners while retaining separate facade compatibility assertions; all test
-modules compiled. Continue with the remaining preprocessing/stimulus consumer
-audit (S12 step 4), then the compatibility decision.
+modules compiled.
+
+Step 4 audited the remaining preprocessing and stimulus consumers. Their
+existing `src` imports already point to `dff_extraction` and
+`stimulus_visualization`, and the file-ops, generator, and playback wrappers
+have no `src` dependency. The dFoF batch notebook's obsolete external-repo
+fallback guidance was removed without changing its import or writer behavior.
+All 112 active source units compiled, the exact consumer contract matched, and
+the edited notebook kept its cell metadata and outputs. The output names are
+unchanged. `current-state.md` now records the corrected Exp 8 syntax and the
+outstanding block/timing comparison.
+Continue with the S12 compatibility decision (step 5).
 
 The S11 completion record reports 98 passing tests in
 `social_filters_openblas`. This shell's `python` resolves to an unusable Windows
@@ -60,7 +70,7 @@ app alias. The accessible Inkscape Python lacks `IPython`, `pandas`, and
 be run here. The configured `D:` experiment and stimulus data paths are also
 unavailable. Representative single-fish, several-fish, and specialized data
 runs and figure review remain for an environment with those inputs; no figure
-implementation changed in steps 1-3.
+implementation changed in steps 1-4.
 
 ## Maintenance rule
 

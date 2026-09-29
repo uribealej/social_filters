@@ -34,6 +34,16 @@ This inventory was established on 2026-09-25 during Step 2 of `src-refactor-road
 - All active notebook code cells now compile after S12 step 3 corrected the pre-existing syntax error in raw cell 2 of `notebooks/calcium/exp_08_accumulation_ev/02_bout_flicker_position_onset.ipynb`.
 - Files under `archive/` and `.agents/history/` were excluded.
 
+S12 step 4 checked the remaining preprocessing and stimulus consumers against
+their owner and output stages. The dFoF batch notebook already calls
+`src.dff_extraction.process_suite2p_fluorescence`; its import guidance now
+points only to this repository. The file-ops notebook has no reusable `src`
+call. The stimulus inspection notebook calls `src.stimulus_visualization`
+directly. The three trajectory generators and playback script intentionally
+remain experiment-specific asset wrappers without `src` imports; downstream
+timing interpretation belongs to `src.stimuli_timeline`. No consumer import or
+machine-contract symbol changed in this audit.
+
 ## Consumer overview
 
 | Consumer | Active `src` imports | Compatibility role |
