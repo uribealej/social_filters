@@ -40,7 +40,7 @@ Use this file when
 - `src/data_loading.py` is the loader-side authority for how these outputs are discovered and reused.
 
 ## Several-fish reviewed-run reports
-- `src/several_fish_reporting.py` writes optional reports when `REPORT_SETTINGS['save_report']` is enabled. Active notebooks still call it through `src.reusable_several_fish`.
+- `src/several_fish_reporting.py` writes optional reports when `REPORT_SETTINGS['save_report']` is enabled. The shared several-fish and all-fish raster notebooks call it directly; specialized notebooks still use `src.reusable_several_fish` during S12.
 - Report folder: `<analysis_path>/<experiment_name>/reports/<YYYY-MM-DD_HHMM>_<run_label>/`.
 - Each saved run contains `settings.json`, `report_settings.json`, `run_metadata.json`, `comments.md`, and `tables/`. Nonempty supplied tables become `<slugified_table_name>.csv` files under `tables/`.
 - When notebook export is requested, nbconvert writes `<report_name>.html` and/or `<report_name>.pdf` in the run folder. A failed PDF export may create an HTML fallback. The returned export status and paths report what succeeded.

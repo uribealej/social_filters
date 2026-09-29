@@ -32,6 +32,7 @@ Use this file when
 - `src/significant_trace_detection.py` owns current and explicit legacy detector modes plus raster cleanup and diagnostic plotting; the versioned modules are compatibility facades only.
 - The `src/plotting_*` modules own figure construction by family; `src/plotting.py` is their compatibility facade. `src/neuron_ordering.py` and `src/stimuli_timeline.py` own reusable preparation used by those figures.
 - The shared single-fish notebook imports `trial_alignment`, `response_normalization`, `response_metrics`, `reliability`, `plotting_common`, `plotting_single_fish`, and `plotting_all_fish` directly. Its loader and significant-trace imports remain on their established public owners.
+- The shared several-fish notebook and Exp 1, 5, and 8 all-fish raster notebooks import their scientific, plotting, cohort-loading, diagnostics, figure, and reporting owners directly. Their configured fish/stimulus order, response-row alignment, report folders, and output stages remain unchanged.
 - Analysis notebooks own configuration, orchestration, and interpretation around those shared helpers.
 
 ## Navigation notes

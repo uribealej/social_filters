@@ -102,6 +102,7 @@ Canonical implementation owners after S06:
 ### `src/trial_alignment.py`
 - `build_trial_aligned_traces` - build trial windows keyed by stimulus id; used directly by the shared single-fish notebook.
 - `resolve_selected_stimuli` - normalize ordered stimulus selections from names or IDs.
+- `compute_response_window_frames` - compute clipped aligned-trace response-window frame indices.
 
 ### `src/response_normalization.py`
 - `zscore_dfof_from_prestim_baseline` - z-score dFoF using pre-stimulus baselines.
@@ -134,6 +135,22 @@ Compatibility facade: S07 moved scientific implementations into `src.multifish_m
 - `build_active_neuron_overlap_matrices_all_fish` - build pooled and mean-per-fish left/right active-neuron overlap matrices.
 - `build_static_flicker_recruitment_analysis` - combine per-fish, per-position static--flicker metrics into category, shared-ΔAUC, and recruitment/amplification summaries.
 - `build_pooled_active_trace_diagnostic` - pool binary trial-aligned traces and active decisions across fish for strictness diagnostics.
+
+### `src/motion_metrics.py`
+- `compute_motion_delta_integrals` - build per-trial motion-minus-fixed integral metrics.
+- `compute_motion_delta_peaks` - build per-trial motion-minus-fixed peak metrics.
+
+### `src/multifish_matrices.py`
+- `build_matrix_all_fish` - stack per-fish matrices in fish and stimulus order.
+- `build_zscore_response_matrix_for_fish` - build one fish's neuron-by-stimulus response matrix.
+- `build_zscore_response_matrices_all_fish` - build per-fish and pooled response matrices with row metadata.
+
+### `src/active_neuron_analysis.py`
+- `build_active_neuron_matrices_all_fish` - build per-fish active-neuron decisions.
+- `build_pooled_active_trace_diagnostic` - align pooled binary traces with active decisions and row metadata.
+
+### `src/stimulus_similarity.py`
+- `build_stimulus_vector_similarity` - compute selected stimulus-vector similarity and pairwise summaries.
 
 ### `src/several_fish_reporting.py`
 - `save_analysis_report_run` - save a timestamped several-fish run folder with settings, comments, metadata, tables, and optional notebook export.
@@ -251,6 +268,19 @@ Compatibility facade: S08 moved figure construction into the `src.plotting_*` mo
 
 ### `src/plotting_all_fish.py`
 - `plot_stimulus_means` - plot per-stimulus mean traces with optional save behavior.
+- `plot_allfish_flat_raster` - render pooled flattened matrices with optional mean panels.
+
+### `src/plotting_diagnostics.py`
+- `plot_active_trace_decision_diagnostic` - plot pooled trace and strict active-decision diagnostics.
+- `plot_motion_delta_distribution` - plot motion-minus-fixed metric distributions.
+
+### `src/plotting_specificity.py`
+- `plot_similarity_heatmaps` - plot Pearson and cosine stimulus-vector similarity heatmaps.
+- `plot_similarity_by_distance` - plot selected-order distance summaries.
+- `plot_stimulus_specificity_sparseness` - plot lifetime sparseness and response strength.
+- `plot_stimulus_specificity_selectivity_index` - plot selectivity index and response strength.
+- `plot_active_stimuli_histogram` - plot active-stimulus counts.
+- `plot_preferred_stimulus_distribution` - plot preferred-stimulus counts in selected order.
 
 ## Ownership notes
 - If a notebook calls one of the symbols above, start in its implementation owner before editing the notebook; inspect a facade only when its compatibility surface matters.

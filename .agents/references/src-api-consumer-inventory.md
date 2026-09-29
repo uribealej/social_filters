@@ -37,16 +37,16 @@ This inventory was established on 2026-09-25 during Step 2 of `src-refactor-road
 
 | Consumer | Active `src` imports | Compatibility role |
 | --- | --- | --- |
-| Exp 1 all-fish raster | `plotting`, `reusable_several_fish` | Shared cohort loading, raster/mean figures, diagnostics, report saving |
+| Exp 1 all-fish raster | `plotting_common`, `several_fish_figures`, `several_fish_loading`, `several_fish_reporting` | Shared cohort loading, raster/mean figures, diagnostics, report saving |
 | Exp 1 bout/flicker position | `multifish_analysis`, `plotting`, `reusable_several_fish` | Bout-position analysis and Cell 06-style figure |
 | Exp 1 static/flicker recruitment | `analysis_tools`, `multifish_analysis`, `plotting`, `reusable_several_fish` | Recruitment calculation, validation, statistics, and figures |
-| Exp 5 all-fish raster | `analysis_tools`, `multifish_analysis`, `plotting`, `reusable_several_fish` | Response matrices, active decisions, pooled diagnostics, standard reports |
+| Exp 5 all-fish raster | `active_neuron_analysis`, `multifish_matrices`, `plotting_common`, `plotting_diagnostics`, `several_fish_figures`, `several_fish_loading`, `several_fish_reporting`, `trial_alignment` | Response matrices, active decisions, pooled diagnostics, standard reports |
 | Exp 5 LME decomposition | `analysis_tools`, `data_loading`, `lme_feature_decomposition`, `multifish_analysis`, `plotting` | Loader/alignment, response matrices, model fitting, and figures |
-| Exp 8 all-fish raster | `analysis_tools`, `multifish_analysis`, `plotting`, `reusable_several_fish` | Response selection, response matrices, diagnostics, standard reports |
+| Exp 8 all-fish raster | `multifish_matrices`, `plotting_common`, `plotting_diagnostics`, `several_fish_figures`, `several_fish_loading`, `several_fish_reporting`, `trial_alignment` | Response selection, response matrices, diagnostics, standard reports |
 | Exp 8 bout/flicker position | `multifish_analysis`, `plotting`, `reusable_several_fish` | Same public bout-position surface as Exp 1 |
 | dFoF batch preprocessing | `dff_extraction` | Per-plane Suite2p-to-dFoF extraction entrypoint |
 | Shared single-fish analysis | `data_loading`, `trial_alignment`, `response_normalization`, `response_metrics`, `reliability`, `plotting_common`, `plotting_single_fish`, `plotting_all_fish`, `significant_trace_detection` | Load, align, filter, detect significant traces, and plot through the owning modules |
-| Shared several-fish analysis | `analysis_tools`, `data_loading`, `multifish_analysis`, `plotting`, `reusable_several_fish` | Reusable pooled matrices, selection, overlap, diagnostics, and figures |
+| Shared several-fish analysis | `active_neuron_analysis`, `data_loading`, `motion_metrics`, `multifish_matrices`, `plotting_all_fish`, `plotting_common`, `plotting_diagnostics`, `plotting_specificity`, `several_fish_diagnostics`, `several_fish_reporting`, `several_fish_selection`, `stimulus_similarity` | Reusable pooled matrices, selection, overlap, diagnostics, and figures |
 | Stimulus batch plots | `stimulus_visualization` | Load trajectories, summarize, plot, and save reports |
 
 The exact per-consumer function list lives in the machine contract rather than being duplicated here.
@@ -58,13 +58,11 @@ These symbols are directly referenced by active notebooks.
 ### `src.analysis_tools`
 
 - `build_trial_aligned_traces`
-- `compute_motion_delta_integrals`
-- `compute_motion_delta_peaks`
 - `compute_response_window_frames`
 - `resolve_selected_stimuli`
 - `validate_static_flicker_recruitment_result`
 
-Classification: active compatibility facade. S06 moved implementations to responsibility-specific owners while preserving every `src.analysis_tools.<name>` import and signature. The shared single-fish notebook migrated in S12; other active consumers still use this facade.
+Classification: active compatibility facade. S06 moved implementations to responsibility-specific owners while preserving every `src.analysis_tools.<name>` import and signature. The shared single-fish and several-fish raster notebooks migrated in S12; specialized notebooks still use this facade.
 
 ### Single-fish analysis owners
 
@@ -99,39 +97,33 @@ Classification: stable public scientific workflow.
 
 ### `src.multifish_analysis`
 
-- `build_active_neuron_matrices_all_fish`
 - `build_bout_flicker_position_analysis`
-- `build_matrix_all_fish`
-- `build_pooled_active_trace_diagnostic`
 - `build_static_flicker_recruitment_analysis`
-- `build_stimulus_vector_similarity`
 - `build_zscore_response_matrices_all_fish`
-- `build_zscore_response_matrix_for_fish`
 - `compute_static_flicker_fish_level_statistics`
 
-Classification: active compatibility facade. S07 moved implementations to scientific-domain owners; preserve `src.multifish_analysis.<name>` until the planned consumer migration.
+Classification: active compatibility facade. S07 moved implementations to scientific-domain owners. The several-fish raster notebooks migrated in S12; specialized notebooks still use this facade.
+
+### Several-fish scientific owners
+
+- `src.motion_metrics` - motion-minus-fixed peak and integral calculations in the shared several-fish notebook.
+- `src.multifish_matrices` - pooled matrices and per-fish or pooled z-score response matrices.
+- `src.active_neuron_analysis` - active-neuron matrices and pooled trace diagnostics.
+- `src.stimulus_similarity` - selected stimulus-vector similarity.
+- `src.trial_alignment` - response selection and response-window frames in the cohort notebooks.
+
+Classification: canonical owner imports used by the shared several-fish and all-fish raster notebooks after their S12 migration. The response-row, fish, and stimulus ordering contracts above remain in force.
 
 ### `src.plotting`
 
-- `build_stimulus_style_maps`
-- `plot_active_stimuli_histogram`
-- `plot_active_trace_decision_diagnostic`
-- `plot_allfish_flat_raster`
 - `plot_bout_flicker_position_cell06_style`
 - `plot_lme_model_outputs`
-- `plot_motion_delta_distribution`
 - `plot_pooled_static_flicker_category_proportions`
-- `plot_preferred_stimulus_distribution`
 - `plot_recruitment_amplification`
 - `plot_shared_static_flicker_auc_summary`
-- `plot_similarity_by_distance`
-- `plot_similarity_heatmaps`
 - `plot_static_flicker_classification_raster`
-- `plot_stimulus_means`
-- `plot_stimulus_specificity_selectivity_index`
-- `plot_stimulus_specificity_sparseness`
 
-Classification: active compatibility facade. S08 moved implementations to figure-family owners. The shared single-fish notebook migrated in S12; other active notebooks still use this facade.
+Classification: active compatibility facade. S08 moved implementations to figure-family owners. The shared single-fish and several-fish raster notebooks migrated in S12; specialized notebooks still use this facade.
 
 ### Single-fish plotting owners
 
@@ -141,25 +133,23 @@ Classification: active compatibility facade. S08 moved implementations to figure
 
 Classification: canonical owner imports used by the shared single-fish notebook after its S12 migration. The plotted data, figure arguments, and optional save behavior are unchanged.
 
+### Several-fish plotting owners
+
+- `src.plotting_common` - stimulus style maps.
+- `src.plotting_all_fish` - flat pooled rasters and stimulus means.
+- `src.plotting_diagnostics` - active-trace decisions and motion-delta figures.
+- `src.plotting_specificity` - similarity and stimulus-specificity figures.
+
+Classification: canonical owner imports used by the shared several-fish and all-fish raster notebooks after their S12 migration. Figure arguments, row ordering, and optional save behavior are unchanged.
+
 ### `src.reusable_several_fish`
 
-- `build_all_fish_raster_figure`
-- `build_filtered_trial_aligned_traces_for_fish`
-- `build_fish_keep_masks`
-- `build_high_sparseness_raster_data`
-- `build_overlap_diagnostic_data`
-- `build_plot_all_fish_mean_zscore_traces`
-- `build_pooled_mean_trace_by_stimulus`
-- `build_response_window_validation`
-- `build_selected_neuron_summary`
 - `load_and_preflight_fish_raster_inputs`
-- `plot_left_right_active_overlap_diagnostics`
-- `plot_lifetime_sparseness_analysis`
-- `plot_motion_active_neuron_counts`
-- `resolve_stimulus_set`
 - `save_analysis_report_run`
 
-Classification: active import-only compatibility facade after S09. Active notebooks retain these imports until the S12 consumer migration.
+Classification: active import-only compatibility facade after S09. The shared several-fish and all-fish raster notebooks migrated in S12; specialized notebooks still use these two imports.
+
+The migrated notebooks now import `src.several_fish_loading`, `src.several_fish_selection`, `src.several_fish_diagnostics`, `src.several_fish_figures`, and `src.several_fish_reporting` as their calls require. The canonical file, table, and figure contracts below are unchanged.
 
 S09 step 1: `save_analysis_report_run` and `export_notebook_report` now belong to `src.several_fish_reporting`; `src.reusable_several_fish` re-exports both for active notebook callers. The report folder and return contracts below are unchanged.
 
