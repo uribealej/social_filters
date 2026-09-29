@@ -48,4 +48,5 @@ Choose one row. A dash means no extra reference is needed before opening the own
 - `src/several_fish_selection.py` owns pure several-fish stimulus selection, response summaries, keep masks, and row filtering; `src/reusable_several_fish.py` preserves historical notebook imports.
 - `src/several_fish_diagnostics.py` owns pure several-fish diagnostic and figure-input preparation, including raster inputs, sparseness summaries, and active-count tables.
 - `src/several_fish_figures.py` owns high-level several-fish figure orchestration; `src/plotting_*` modules own the reusable figure primitives. `src/reusable_several_fish.py` is an import-only compatibility facade.
+- The shared single-fish notebook uses the narrow analysis and plotting owners directly; other analysis notebooks may still import the compatibility facades during S12.
 - Analysis notebooks own experiment selection, scientific narration, style dictionaries, and orchestration across cached outputs.

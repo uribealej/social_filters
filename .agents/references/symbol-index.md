@@ -99,6 +99,19 @@ Canonical implementation owners after S06:
 | `src.analysis_io` | File discovery and interactive object inspection |
 | `src.plotting_reliability` | Reliability raster diagnostics and three-stimulus Venn figures; `src.plotting` remains the compatibility import |
 
+### `src/trial_alignment.py`
+- `build_trial_aligned_traces` - build trial windows keyed by stimulus id; used directly by the shared single-fish notebook.
+- `resolve_selected_stimuli` - normalize ordered stimulus selections from names or IDs.
+
+### `src/response_normalization.py`
+- `zscore_dfof_from_prestim_baseline` - z-score dFoF using pre-stimulus baselines.
+
+### `src/response_metrics.py`
+- `compute_trial_mean_response_metrics` - build per-stimulus trial-mean traces and response metrics.
+
+### `src/reliability.py`
+- `filter_neurons_by_trial_reliability` - select reliable neurons and optionally save their indices.
+
 ### `src/multifish_analysis.py`
 Compatibility facade: S07 moved scientific implementations into `src.multifish_matrices`, `src.static_flicker_analysis`, `src.bout_flicker_analysis`, `src.stimulus_specificity`, `src.stimulus_similarity`, and `src.active_neuron_analysis`. Follow the facade import for the exact implementation; current notebook imports remain supported.
 
@@ -226,6 +239,18 @@ Compatibility facade: S08 moved figure construction into the `src.plotting_*` mo
 - `plot_recruitment_amplification` - render per-position, per-fish recruitment and amplification components.
 - `plot_bout_flicker_position_cell06_style` - render the active Cell 06-style bout/flicker position comparison figure.
 - `raster_with_stimuli` - render a single-fish raster with stimulus timing annotations.
+
+### `src/plotting_common.py`
+- `list_stimulus_names` - discover stimulus names from trajectory files.
+- `build_stimulus_style_maps` - build stimulus color and linestyle dictionaries.
+
+### `src/plotting_single_fish.py`
+- `add_stimuli_markers` - add stimulus timing markers to an existing axis.
+- `raster_with_stimuli` - render a single-fish raster with stimulus timing annotations.
+- `plot_sorted_chunks_single_mode` - build and plot one sorted stimulus-chunk raster.
+
+### `src/plotting_all_fish.py`
+- `plot_stimulus_means` - plot per-stimulus mean traces with optional save behavior.
 
 ## Ownership notes
 - If a notebook calls one of the symbols above, start in its implementation owner before editing the notebook; inspect a facade only when its compatibility surface matters.

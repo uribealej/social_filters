@@ -15,14 +15,25 @@ S12 is in progress. Step 0 checkpointed completed S09-S11 work in commit
 `d35d0d6`. The consumer baseline is
 [`src-api-consumer-inventory.md`](src-api-consumer-inventory.md) and its exact
 machine contract is `tests/contracts/src_api_consumers.json` (11 active
-`src`-using notebooks and 4 scanned scripts). No S12 consumer import has yet
-been changed. Start with the shared single-fish notebook migration, then
-validate its owning helpers and first downstream notebook chain.
+`src`-using notebooks and 4 scanned scripts).
+
+Step 1 migrated `General_analysis_single_fish_reusable.ipynb` from the
+`analysis_tools` and `plotting` facades to the narrow analysis and plotting
+owners. Its configuration, cell order, call arguments, and output paths are
+unchanged. The consumer JSON, inventory, symbol index, analysis stage map, and
+router were updated. All 16 notebook code cells compiled after removing the
+three IPython magic lines; the exact consumer contract, indexed symbols, owner
+definitions, and 11 facade-to-owner re-exports matched. `git diff --check`
+passed. Continue with the shared several-fish workflow and then its cohort
+notebooks.
 
 The S11 completion record reports 98 passing tests in
 `social_filters_openblas`. This shell's `python` resolves to an unusable Windows
-app alias, so the suite could not be rerun at the S12 checkpoint. The staged
-checkpoint passed `git diff --cached --check`.
+app alias. The accessible Inkscape Python lacks `IPython`, `pandas`, and
+`matplotlib`, so the repository test suite and single-fish execution could not
+be run here. The notebook's configured `D:` experiment and stimulus data paths
+are also unavailable. A representative single-fish data run and figure review
+remain for an environment with those inputs; no figure implementation changed.
 
 ## Maintenance rule
 

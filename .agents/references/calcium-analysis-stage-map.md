@@ -31,6 +31,7 @@ Use this file when
 - `src/multifish_matrices.py` owns pure multi-fish matrix and response-matrix construction from already trial-aligned per-fish traces. Other S07 scientific families live in `src/static_flicker_analysis.py`, `src/bout_flicker_analysis.py`, `src/stimulus_specificity.py`, `src/stimulus_similarity.py`, and `src/active_neuron_analysis.py`; `src/multifish_analysis.py` is their compatibility facade.
 - `src/significant_trace_detection.py` owns current and explicit legacy detector modes plus raster cleanup and diagnostic plotting; the versioned modules are compatibility facades only.
 - The `src/plotting_*` modules own figure construction by family; `src/plotting.py` is their compatibility facade. `src/neuron_ordering.py` and `src/stimuli_timeline.py` own reusable preparation used by those figures.
+- The shared single-fish notebook imports `trial_alignment`, `response_normalization`, `response_metrics`, `reliability`, `plotting_common`, `plotting_single_fish`, and `plotting_all_fish` directly. Its loader and significant-trace imports remain on their established public owners.
 - Analysis notebooks own configuration, orchestration, and interpretation around those shared helpers.
 
 ## Navigation notes

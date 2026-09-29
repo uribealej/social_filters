@@ -45,7 +45,7 @@ This inventory was established on 2026-09-25 during Step 2 of `src-refactor-road
 | Exp 8 all-fish raster | `analysis_tools`, `multifish_analysis`, `plotting`, `reusable_several_fish` | Response selection, response matrices, diagnostics, standard reports |
 | Exp 8 bout/flicker position | `multifish_analysis`, `plotting`, `reusable_several_fish` | Same public bout-position surface as Exp 1 |
 | dFoF batch preprocessing | `dff_extraction` | Per-plane Suite2p-to-dFoF extraction entrypoint |
-| Shared single-fish analysis | `analysis_tools`, `data_loading`, `plotting`, `significant_trace_detection` | Load, align, filter, detect significant traces, and plot through the canonical current-mode owner |
+| Shared single-fish analysis | `data_loading`, `trial_alignment`, `response_normalization`, `response_metrics`, `reliability`, `plotting_common`, `plotting_single_fish`, `plotting_all_fish`, `significant_trace_detection` | Load, align, filter, detect significant traces, and plot through the owning modules |
 | Shared several-fish analysis | `analysis_tools`, `data_loading`, `multifish_analysis`, `plotting`, `reusable_several_fish` | Reusable pooled matrices, selection, overlap, diagnostics, and figures |
 | Stimulus batch plots | `stimulus_visualization` | Load trajectories, summarize, plot, and save reports |
 
@@ -61,13 +61,19 @@ These symbols are directly referenced by active notebooks.
 - `compute_motion_delta_integrals`
 - `compute_motion_delta_peaks`
 - `compute_response_window_frames`
-- `compute_trial_mean_response_metrics`
-- `filter_neurons_by_trial_reliability`
 - `resolve_selected_stimuli`
 - `validate_static_flicker_recruitment_result`
-- `zscore_dfof_from_prestim_baseline`
 
-Classification: active compatibility facade. S06 moved implementations to responsibility-specific owners while preserving every `src.analysis_tools.<name>` import and signature. Consumer migration remains a later slice.
+Classification: active compatibility facade. S06 moved implementations to responsibility-specific owners while preserving every `src.analysis_tools.<name>` import and signature. The shared single-fish notebook migrated in S12; other active consumers still use this facade.
+
+### Single-fish analysis owners
+
+- `src.trial_alignment.build_trial_aligned_traces`, `resolve_selected_stimuli`
+- `src.response_normalization.zscore_dfof_from_prestim_baseline`
+- `src.response_metrics.compute_trial_mean_response_metrics`
+- `src.reliability.filter_neurons_by_trial_reliability`
+
+Classification: canonical owner imports used by the shared single-fish notebook after its S12 migration. The function arguments, return values, and notebook stage order are unchanged.
 
 ### `src.data_loading`
 
@@ -107,9 +113,7 @@ Classification: active compatibility facade. S07 moved implementations to scient
 
 ### `src.plotting`
 
-- `add_stimuli_markers`
 - `build_stimulus_style_maps`
-- `list_stimulus_names`
 - `plot_active_stimuli_histogram`
 - `plot_active_trace_decision_diagnostic`
 - `plot_allfish_flat_raster`
@@ -122,14 +126,20 @@ Classification: active compatibility facade. S07 moved implementations to scient
 - `plot_shared_static_flicker_auc_summary`
 - `plot_similarity_by_distance`
 - `plot_similarity_heatmaps`
-- `plot_sorted_chunks_single_mode`
 - `plot_static_flicker_classification_raster`
 - `plot_stimulus_means`
 - `plot_stimulus_specificity_selectivity_index`
 - `plot_stimulus_specificity_sparseness`
-- `raster_with_stimuli`
 
-Classification: active compatibility facade. S08 moved implementations to figure-family owners; preserve the current names until the planned consumer migration.
+Classification: active compatibility facade. S08 moved implementations to figure-family owners. The shared single-fish notebook migrated in S12; other active notebooks still use this facade.
+
+### Single-fish plotting owners
+
+- `src.plotting_common.list_stimulus_names`, `build_stimulus_style_maps`
+- `src.plotting_single_fish.raster_with_stimuli`, `add_stimuli_markers`, `plot_sorted_chunks_single_mode`
+- `src.plotting_all_fish.plot_stimulus_means`
+
+Classification: canonical owner imports used by the shared single-fish notebook after its S12 migration. The plotted data, figure arguments, and optional save behavior are unchanged.
 
 ### `src.reusable_several_fish`
 
