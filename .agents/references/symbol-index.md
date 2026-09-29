@@ -88,9 +88,11 @@ Canonical implementation owners after S06:
 | `src.response_selectivity` | Paired response indices and stimulus-selectivity metrics/classes |
 | `src.response_normalization` | Pre-stimulus baseline z-scoring |
 | `src.analysis_io` | File discovery and interactive object inspection |
-| `src.plotting` | Reliability raster diagnostics and three-stimulus Venn figures |
+| `src.plotting_reliability` | Reliability raster diagnostics and three-stimulus Venn figures; `src.plotting` remains the compatibility import |
 
 ### `src/multifish_analysis.py`
+Compatibility facade: S07 moved scientific implementations into `src.multifish_matrices`, `src.static_flicker_analysis`, `src.bout_flicker_analysis`, `src.stimulus_specificity`, `src.stimulus_similarity`, and `src.active_neuron_analysis`. Follow the facade import for the exact implementation; current notebook imports remain supported.
+
 - `build_bout_flicker_position_analysis` - build pooled bout-referenced flicker-position comparison data.
 - `compute_static_flicker_fish_level_statistics` - compute fish-level static--flicker tests, confidence intervals, and Holm-adjusted p-values.
 - `combine_reps_one_stim` - combine one stimulus' trial-aligned repetitions by concatenating time or averaging repeats.
@@ -148,6 +150,8 @@ Compatibility facades:
 - New analysis must import `src.significant_trace_detection`; the shared single-fish notebook has migrated to this owner.
 
 ### `src/plotting.py`
+Compatibility facade: S08 moved figure construction into the `src.plotting_*` modules. Neuron ordering and timing preparation live in `src.neuron_ordering` and `src.stimuli_timeline`. Follow the facade import for the exact implementation; current notebook imports remain supported.
+
 - `add_stimuli_markers` - add stimulus timing markers to an existing axis.
 - `list_stimulus_names` - discover stimulus names from `*_trajectory.*` files by stripping `_trajectory`.
 - `build_stimulus_style_maps` - build reusable stimulus color and linestyle dictionaries from discovered stimulus names.
@@ -173,5 +177,5 @@ Compatibility facades:
 - `raster_with_stimuli` - render a single-fish raster with stimulus timing annotations.
 
 ## Ownership notes
-- If a notebook calls one of the symbols above, start in the owning module before editing the notebook.
-- If a task changes any public helper signature or return contract, update this file and the relevant stage map in the same change.
+- If a notebook calls one of the symbols above, start in its implementation owner before editing the notebook; inspect a facade only when its compatibility surface matters.
+- If a public helper signature or return contract changes, update this file and the consumer inventory. Update a stage map or output document when its stage flow or file contract changes.

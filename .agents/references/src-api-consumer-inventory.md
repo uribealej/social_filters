@@ -17,7 +17,8 @@ This inventory was established on 2026-09-25 during Step 2 of `src-refactor-road
 
 - **External-active:** referenced by an active notebook or script. Preserve its import path and observable contract until consumers migrate.
 - **Internal-active:** called by another `src` module or by another helper in its owner module. It may move internally, but callers must migrate in the same slice.
-- **Active facade candidate:** external-active but implemented in a large mixed-responsibility module scheduled to become a compatibility facade.
+- **Active compatibility facade:** external-active import path whose implementation has moved to a narrower owner. Preserve the import until consumers migrate.
+- **Active facade candidate:** external-active mixed-responsibility module whose implementation is scheduled to move.
 - **Documented, currently uncalled:** listed in `symbol-index.md` but not called by an active notebook/script. It is not dead merely because it is currently uncalled.
 - **Deprecation review candidate:** duplicated, accidentally re-exported, or unreferenced code that may be retired only through Step 11 evidence.
 - **Private implementation:** underscore-prefixed helper or a helper deliberately excluded from the stable notebook API.
@@ -34,7 +35,7 @@ This inventory was established on 2026-09-25 during Step 2 of `src-refactor-road
 
 ## Consumer overview
 
-| Consumer | Active `src` owners | Compatibility role |
+| Consumer | Active `src` imports | Compatibility role |
 | --- | --- | --- |
 | Exp 1 all-fish raster | `plotting`, `reusable_several_fish` | Shared cohort loading, raster/mean figures, diagnostics, report saving |
 | Exp 1 bout/flicker position | `multifish_analysis`, `plotting`, `reusable_several_fish` | Bout-position analysis and Cell 06-style figure |
@@ -50,7 +51,7 @@ This inventory was established on 2026-09-25 during Step 2 of `src-refactor-road
 
 The exact per-consumer function list lives in the machine contract rather than being duplicated here.
 
-## External-active surface by owner
+## External-active surface by import module
 
 These symbols are directly referenced by active notebooks.
 
@@ -102,7 +103,7 @@ Classification: stable public scientific workflow.
 - `build_zscore_response_matrix_for_fish`
 - `compute_static_flicker_fish_level_statistics`
 
-Classification: active facade candidates. Preserve `src.multifish_analysis.<name>` while Step 7 separates scientific domains.
+Classification: active compatibility facade. S07 moved implementations to scientific-domain owners; preserve `src.multifish_analysis.<name>` until the planned consumer migration.
 
 ### `src.plotting`
 
@@ -128,7 +129,7 @@ Classification: active facade candidates. Preserve `src.multifish_analysis.<name
 - `plot_stimulus_specificity_sparseness`
 - `raster_with_stimuli`
 
-Classification: active facade candidates. Preserve the current names while Step 8 moves figure families.
+Classification: active compatibility facade. S08 moved implementations to figure-family owners; preserve the current names until the planned consumer migration.
 
 ### `src.reusable_several_fish`
 
@@ -200,10 +201,10 @@ This classification does not authorize deletion. Step 11 requires stronger evide
 ## Deprecation and boundary review candidates
 
 - `data_loading.transform_stimuli_duration` is a compatibility wrapper that delegates to the canonical timing owner; it contains no normalization logic.
-- `multifish_analysis.compute_stimulus_selectivity_metrics` is an accidental re-export created by importing the function from `analysis_tools`; `reusable_several_fish.py` currently accesses it through `mfa`. That hidden coupling must be corrected deliberately, with tests, rather than disappearing during an import cleanup.
+- `multifish_analysis.compute_stimulus_selectivity_metrics` is a compatibility re-export from `response_selectivity`; `reusable_several_fish.py` still accesses it through `mfa`. Migrate that internal caller deliberately during S09 or S12, with focused validation.
 - `analysis_tools.inspect_obj`, `analysis_tools.plot_venn_3stim`, and other public-looking but undocumented helpers remain Step 11 review candidates.
 - `src.significant_traces` and `src.significant_traces_v2` are thin compatibility facades after S05. Their removal remains a later compatibility/deprecation decision; neither contains scientific array logic.
-- No `__all__` declarations were added in Step 2 because the current modules contain accidental and transitional exports. Public export lists should be introduced only after the facade boundaries are agreed.
+- `analysis_tools.py` now has an explicit `__all__`; other transitional facades still expose historical imports. Review their export boundaries during S12 rather than treating every imported name as permanent API.
 
 ## High-value compatibility contracts
 
@@ -283,7 +284,7 @@ With `return_diagnostics=True`, a ninth diagnostics dictionary is appended. Tupl
 
 ### Plotting contracts
 
-Active plotting helpers must preserve configured stimulus order, neuron row alignment, return object structure, and existing optional save behavior. Moving a plotting family requires figure rendering and screenshot inspection. The current environment's Matplotlib native render failure remains documented in `tests/README.md` and must be repaired or replaced by a working validation environment before Step 8 can close.
+Active plotting helpers must preserve configured stimulus order, neuron row alignment, return object structure, and existing optional save behavior. Moving a plotting family requires figure rendering and screenshot inspection. S08 is complete; `tests/README.md` documents the historical Matplotlib rendering failure and the current render probe.
 
 ## Change protocol
 

@@ -216,9 +216,8 @@ Restart kernel
 
 ## Experiment-specific configuration
 
-There is no global `configs/` folder.
-
-Settings that vary between experiments or figures stay close to the corresponding experiment.
+Stimulus generation has shared configuration files under `configs/stimuli/`.
+Analysis settings that vary between experiments or figures stay close to the corresponding experiment.
 
 Examples:
 

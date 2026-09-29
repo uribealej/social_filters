@@ -3,30 +3,32 @@
 This repository uses a routed instruction system under `.agents/` so future agents can read the smallest repo-specific guidance first instead of scanning large notebooks. The goal is to route work by real ownership boundaries: reusable logic in `src/`, notebooks as orchestration and reporting, and stimulus scripts as asset-generation wrappers.
 
 ## Required startup order
-1. Open `.agents/workflows/social-filters-router.md`.
-2. Follow its dispatch table to the matching workflow profile router.
-3. Read the smallest relevant reference file under `.agents/references/`.
-4. Before creating or modifying Python or notebook code, read `.agents/references/code-authoring-checklist.md`.
-5. Open the stage map or `symbol-index.md` only if the smaller reference file is not enough.
-6. Open the owning `src/` module before large notebooks or scripts.
-7. Open large notebook or script regions only when owner-module context is still insufficient.
+1. Open `.agents/workflows/social-filters-router.md` and select the matching workflow profile. For a repository-wide `src/` refactor, start with the status tracker and relevant slice in `.agents/references/src-refactor-roadmap.md`.
+2. Use one matching row in the top router. For documentation-only or test-only work, open the target file directly. For scientific workflow work, open the selected profile, read its row's reference only when needed, then open the named owner or target file. Consult `.agents/references/recent-changes.md` only when resuming incomplete work.
+3. Before creating or modifying Python or notebook code, read `.agents/references/code-authoring-checklist.md`.
+4. For reusable behavior, inspect the owning `src/` implementation before the calling notebook or script region. For notebook configuration, reporting, or stimulus asset wrappers, inspect the target file directly. Open only the relevant regions of large files.
 
 ## Non-negotiable repo rules
 - `src/` owns reusable analysis logic, timing semantics, and plotting helpers.
 - Notebooks in `notebooks/calcium/` stay orchestration, exploration, and reporting first.
 - Files under `archive/` are historical and out of scope unless the user explicitly asks to inspect or restore them.
-- Keep notebook cells short and single-purpose, with minimal success output. Move reusable or verbose loading, analysis, and plotting orchestration into the owning `src/` helper; notebook cells should show only the configuration, a brief explanation, and the call.
+- When editing notebook workflows, keep cells short and single-purpose, with minimal success output. Move reusable or verbose loading, analysis, and plotting orchestration into the owning `src/` helper as part of the relevant owner slice. Existing preprocessing writer cells remain the batch notebook's output stage until explicitly migrated.
 - Stimulus generation scripts in `scripts/stimuli/generation/` are wrappers around experiment-specific asset generation, not downstream timing authority.
 - Fix scientific or file-contract semantics at the narrowest owner layer instead of patching downstream notebooks.
 - Preserve canonical output names, folder layouts, and stage order unless a task explicitly includes a migration.
-- Validate changes with the smallest practical rerun or smoke check; do not claim success from static reasoning alone.
-- For every new or materially changed figure, render a screenshot during validation and inspect it for overlapping labels, legends, ticks, annotations, clipped content, or unreadable layout. Iterate on the figure until the screenshot is clear; record any environment limitation that prevents this check.
+
+## Validation by change
+- Documentation-only: inspect the diff and verify affected paths, links, and factual claims against the repository.
+- Code behavior or scientific calculation: run a focused known-output test or the smallest practical smoke or data-backed check; do not claim scientific success from static reasoning alone.
+- Public helper, writer, or file contract: also check the first downstream consumer and relevant names, shapes, and ordering.
+- Notebook behavior: compile affected code cells and run the smallest affected data-backed chain when data are available; report any execution limitation.
+- New or materially changed figure: render a screenshot and inspect overlapping labels, legends, ticks, annotations, clipped content, and readability. Iterate until clear; record any environment limitation that prevents inspection.
 
 ## Reference files
 
 This is a lookup list, not a required reading list. Read only the references needed for the current task.
 - `.agents/workflows/social-filters-router.md` - top-level dispatcher for all repo work.
-- `.agents/workflows/calcium-preprocessing-router.md` - dFoF extraction, sweeps, merge outputs, and file-ops utilities.
+- `.agents/workflows/calcium-preprocessing-router.md` - dFoF extraction, parameter exploration, merge outputs, and file-ops utilities.
 - `.agents/workflows/calcium-analysis-router.md` - experiment loading, alignment, response analysis, and plotting.
 - `.agents/workflows/stimulus-authoring-router.md` - trajectory generation, mapping JSONs, timing handoff, and playback wrappers.
 - `.agents/references/symbol-index.md` - notebook-callable and script-callable public surface in `src/`.

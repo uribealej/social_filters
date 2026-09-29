@@ -12,10 +12,11 @@ Use this file when
 
 ## Ownership rules
 - New reusable analysis logic belongs in `src/`.
-- Plot construction and reusable raster or mean-trace helpers belong in `src/plotting.py`.
+- Reusable figures belong in the relevant `src/plotting_*` family module; `src/plotting.py` preserves historical imports. Neuron ordering and timing preparation belong in `src/neuron_ordering.py` and `src/stimuli_timeline.py`.
 - Timing extraction and log-to-trace semantics belong in `src/stimuli_timeline.py`.
 - Experiment bundle assembly and cache discovery belong in `src/data_loading.py`.
 - Response filtering, classification, and derived metrics belong in the narrow S06 owner (`trial_alignment`, `response_metrics`, `motion_metrics`, `reliability`, `response_classification`, `response_selectivity`, or `response_normalization`); `analysis_tools.py` is compatibility-only.
+- Multi-fish matrices, static-flicker analysis, bout/flicker analysis, specificity, similarity, and active-neuron analysis belong in their narrow `src/` modules; `multifish_analysis.py` preserves historical imports. Use its imports to locate the exact owner.
 - The significant-trace and rasterization model belongs in `src/significant_trace_detection.py`; keep versioned modules free of scientific implementation logic.
 
 ## Notebook and script rules
@@ -30,6 +31,5 @@ Use this file when
 - Do not patch downstream consumers just to compensate for an upstream naming or contract bug.
 
 ## Preservation rules
-- Preserve canonical output filenames, folder names, and stage order unless the task explicitly includes a migration.
 - Preserve notebook stage flow and established config variable names unless the task is intentionally reorganizing the notebook.
-- If a public helper or output contract changes, update the relevant stage map, `symbol-index.md`, and output docs in the same change.
+- Update `symbol-index.md` when the stable public callable surface changes, and `src-api-consumer-inventory.md` when consumers or compatibility contracts change. Update the relevant stage map or `canonical-outputs.md` when stage flow or an output contract changes.

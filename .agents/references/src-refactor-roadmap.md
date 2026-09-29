@@ -11,7 +11,7 @@ Use this file when
 - Recording which slice is active or completed across chats and days.
 - Deciding what must be validated before a slice can close.
 
-Start with the status tracker and the relevant unfinished slice. Read `src-diagnosis.md` only when the dated audit baseline is needed. Also follow `refactor-loop-policy.md`, the relevant workflow router, and `code-authoring-checklist.md` before editing Python or notebooks.
+Start with the status tracker and the relevant unfinished slice. Use `src-diagnosis.md` only for dated audit evidence, `refactor-loop-policy.md` for the structural work loop, and the relevant workflow router to locate an owner. Read `code-authoring-checklist.md` before editing Python or notebooks.
 
 ## How to use this roadmap
 

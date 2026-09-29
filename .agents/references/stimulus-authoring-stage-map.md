@@ -14,7 +14,7 @@ Use this file when
 1. Choose or edit experiment-specific mapping JSONs and package files in `configs/stimuli/`.
 2. Generate per-stimulus trajectory tables in the relevant script, including rocking, flicker, radius, and repetition logic.
 3. Write parameter tables or package metadata alongside generated trajectories.
-4. Inspect generated assets with `plots_stimuli.ipynb` or similar notebook tooling.
+4. Inspect generated assets with `notebooks/stimuli/plots_stimuli_batch.ipynb`.
 5. Convert trajectory and experiment-log semantics into downstream timing traces with `src/stimuli_timeline.py`.
 6. Optionally replay generated stimuli or capture timing logs with `try_projection.py`.
 
@@ -26,12 +26,11 @@ Use this file when
 ## Concept ownership
 - Scripts under `scripts/stimuli/generation/` own experiment-specific trajectory generation.
 - Mapping and package JSON files own experiment-specific configuration values.
-- `plots_stimuli.ipynb` owns inspection and visualization of generated assets.
 - `src/stimulus_visualization.py` owns reusable batch trajectory loading, visible-direction summaries, inspection figures, and report saving. `notebooks/stimuli/plots_stimuli_batch.ipynb` is its configuration/reporting wrapper.
 - `src/stimuli_timeline.py` owns reusable timing extraction and log-to-trace semantics consumed by analysis code.
 - `scripts/stimuli/playback/try_projection.py` owns playback wrapper behavior and timing-log capture.
 
 ## Navigation notes
-- Read `canonical-outputs.md` for file naming and folder-layout expectations.
-- Read `symbol-index.md` before changing reusable timing helpers in `src/stimuli_timeline.py`.
-- Read `current-state.md` for repo-specific naming caveats and legacy file surfaces.
+- Consult `canonical-outputs.md` when file names or output folders matter.
+- Consult `symbol-index.md` when locating a helper or checking its stable public import path.
+- Consult `current-state.md` for repo-specific naming caveats or legacy file surfaces.

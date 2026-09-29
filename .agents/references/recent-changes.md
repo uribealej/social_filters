@@ -11,9 +11,7 @@ Use this file when
 
 ## Current handoff
 
-- The repository-organization changes are not yet committed.
-- `notebooks/calcium/exp_08_accumulation_ev/01_all_fish_raster.ipynb` has an unresolved local-versus-index difference: the staged organization version preserves the complete 17-cell committed notebook, while the local working notebook has 14 cells and retained outputs. Do not overwrite either version until the user decides how to reconcile them.
-- No `src/` refactoring plan is active. Define it with the user before changing analysis modules.
+No active handoff. For the next `src/` refactor slice, consult `src-refactor-roadmap.md`.
 
 ## Maintenance rule
 

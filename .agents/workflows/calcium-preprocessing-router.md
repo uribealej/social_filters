@@ -10,24 +10,20 @@ Use this file when
 - The task targets preprocessing notebooks under `notebooks/calcium/preprocessing/`.
 - The task changes per-plane dFoF outputs, merged dFoF outputs, or preprocessing parameter sweeps.
 
-## Read order
-1. `../references/calcium-preprocessing-stage-map.md`
-2. `../references/canonical-outputs.md` for output naming, folder layout, or writer-stage questions
-3. `../references/symbol-index.md` for callable owners in `src/`
-4. `../references/refactor-rules.md` before adding logic to notebooks
-5. `../references/current-state.md` if the task touches utility notebooks or legacy experiment trees
-6. `../references/recent-changes.md` only when resuming incomplete work
-
 ## Task routing table
 
-| Task pattern | Read first | Open next |
+Choose one row. A dash means no extra reference is needed before opening the owner.
+
+| Task pattern | Reference if needed | Open next |
 | --- | --- | --- |
-| Per-plane dFoF extraction, ROI filtering, baseline math, `min_std`, `percentile`, `tau`, or Suite2p file handling | `symbol-index.md` | `src/dff_extraction.py` |
-| Aux trigger extraction from ScanImage TIFF metadata | `symbol-index.md` | `src/auxtrigger_extraction.py` |
+| Per-plane dFoF extraction, ROI filtering, baseline math, `min_std`, `percentile`, `tau`, or Suite2p file handling | — | `src/dff_extraction.py` |
+| Aux trigger extraction from ScanImage TIFF metadata | — | `src/auxtrigger_extraction.py` |
 | Merged dFoF file naming, map CSV behavior, merge output folders, downstream lookup compatibility | `canonical-outputs.md` | `DeltaFF_batch_pipeline.ipynb`, then first consumer such as `src/data_loading.py` |
-| Baseline sweep or threshold sweep notebook behavior | `calcium-preprocessing-stage-map.md` | Target sweep notebook, then extract reusable logic to `src/dff_extraction.py` if the logic is repeating |
-| Repeated preprocessing setup helpers such as experiment discovery, plane lookup, prefix derivation, or per-plane file lookup | `refactor-rules.md` | `symbol-index.md`, then the likely owner such as `src/data_loading.py` or `src/dff_extraction.py` before editing the notebook |
-| Experiment tree copy, rename, or migration utility work | `current-state.md` | `2P_Experiment_FileOps.ipynb` |
+| Baseline or threshold parameter exploration | `calcium-preprocessing-stage-map.md` if stage placement is unclear | `src/dff_extraction.py` for reusable math; target notebook for settings and reporting |
+| Repeated preprocessing setup helpers such as experiment discovery, plane lookup, prefix derivation, or per-plane file lookup | `refactor-rules.md` if ownership is unclear | Likely owner, such as `src/data_loading.py` or `src/dff_extraction.py`, before the notebook region |
+| Experiment tree copy, rename, or migration utility work | `current-state.md` for legacy layout caveats | `2P_Experiment_FileOps.ipynb` |
+| Preprocessing stage order or smallest rerun chain | `calcium-preprocessing-stage-map.md` | Relevant writer and first consumer |
+| Helper name without a known owner, or stable public import path | `symbol-index.md` | Owner identified there |
 
 ## Ownership guidance
 - `src/dff_extraction.py` owns reusable fluorescence loading, filtering, baseline estimation, and dFoF extraction math.
@@ -36,5 +32,4 @@ Use this file when
 - Preprocessing notebooks own batch orchestration, sweep setup, summary tables, and ad hoc migration utilities.
 - `2P_Experiment_FileOps.ipynb` is a file-ops surface, not the authority for scientific extraction semantics.
 - Diagnostic sweep plots such as `plot_raster_gray` stay notebook-local unless a later slice promotes them into shared plotting API.
-- Smallest practical validation surface: rerun the smallest affected notebook stage on one experiment or one plane, then verify the written output names and shapes expected by the first downstream consumer.
-- Record only incomplete work in `../references/recent-changes.md`; completed history is not part of normal routing.
+- For extraction or writer behavior changes, rerun the affected stage on one experiment or plane when data are available; check written names and shapes with the first consumer when the output contract changes.

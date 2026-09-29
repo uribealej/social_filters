@@ -28,12 +28,12 @@ Use this file when
 - `src/data_loading.py` owns experiment-bundle assembly and cache lookup.
 - `src/stimuli_timeline.py` owns timing extraction and stimulus-trace construction used by loaders and plots.
 - `src/analysis_tools.py` is the compatibility facade for narrow S06 owners: `trial_alignment`, `response_metrics`, `motion_metrics`, `reliability`, `response_classification`, `response_selectivity`, and `response_normalization`.
-- `src/multifish_analysis.py` owns pure multi-fish matrix and response-matrix construction from already trial-aligned per-fish traces.
+- `src/multifish_matrices.py` owns pure multi-fish matrix and response-matrix construction from already trial-aligned per-fish traces. Other S07 scientific families live in `src/static_flicker_analysis.py`, `src/bout_flicker_analysis.py`, `src/stimulus_specificity.py`, `src/stimulus_similarity.py`, and `src/active_neuron_analysis.py`; `src/multifish_analysis.py` is their compatibility facade.
 - `src/significant_trace_detection.py` owns current and explicit legacy detector modes plus raster cleanup and diagnostic plotting; the versioned modules are compatibility facades only.
-- `src/plotting.py` owns reusable raster, chunk, mean-trace, and active-count trace figure construction.
+- The `src/plotting_*` modules own figure construction by family; `src/plotting.py` is their compatibility facade. `src/neuron_ordering.py` and `src/stimuli_timeline.py` own reusable preparation used by those figures.
 - Analysis notebooks own configuration, orchestration, and interpretation around those shared helpers.
 
 ## Navigation notes
-- Read `current-state.md` before trusting older notebook-local helpers or legacy imports.
-- Read `canonical-outputs.md` for cache names and downstream file contracts.
-- Read `symbol-index.md` if you need the public callable surface first.
+- Consult `current-state.md` for a known loader caveat or suspected notebook migration drift.
+- Consult `canonical-outputs.md` when cache names or downstream file contracts matter.
+- Consult `symbol-index.md` when locating a helper or checking its stable public import path.

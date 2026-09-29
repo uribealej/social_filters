@@ -2,7 +2,7 @@
 
 Purpose
 
-Apply the practical coding rules from `docs/reproducibility_policy.md` without rereading the full policy for every edit. Read this file before creating or modifying Python or notebook code, then follow the relevant workflow router and owner-specific reference.
+Apply the practical coding rules from `docs/reproducibility_policy.md` without rereading the full policy for every edit. Read this file before creating or modifying Python or notebook code; use the selected workflow router for any owner-specific reference.
 
 The full reproducibility policy remains the source of truth. Read it when changing repository architecture, data/provenance policy, publication workflows, or these rules.
 
@@ -39,7 +39,5 @@ The full reproducibility policy remains the source of truth. Read it when changi
 
 ## Validation before handoff
 
-- Run the smallest practical smoke check or data-backed execution for the changed owner.
-- When a public helper or writer changes, also check its first downstream consumer.
-- Render and inspect every new or materially changed figure for clipping, overlaps, unreadable labels, and misleading layout.
+- Follow the change-specific validation in `AGENTS.md`; use the selected workflow to choose the smallest useful run and check the first consumer when the change requires it.
 - State what was validated and what still requires data-backed or publication-level validation.

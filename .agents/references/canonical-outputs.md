@@ -11,11 +11,13 @@ Use this file when
 - You need to know which stage owns a cache or derived artifact.
 
 ## Calcium preprocessing outputs
-- Per-plane writer stage: preprocessing notebooks using `process_suite2p_fluorescence`.
-- Typical per-plane files:
-  - `dFoF.npy`
-  - `roi_filtered.npy`
-  - `meta.json`
+- Per-plane writer stage: `DeltaFF_batch_pipeline.ipynb`, using `process_suite2p_fluorescence` for extraction.
+- Canonical per-plane files written by `DeltaFF_batch_pipeline.ipynb`:
+  - `{prefix}_dFoF.npy`
+  - `{prefix}_filtered_roi_indices.npy`
+  - `{prefix}_dFoF_outputs.npz`
+  - `metadata.json`
+- The standalone `__main__` block in `src/dff_extraction.py` writes unprefixed example files. Those names are not the batch notebook's per-plane output contract; review that standalone path during S10 of `src-refactor-roadmap.md`.
 - Experiment-level merge writer stage: `DeltaFF_batch_pipeline.ipynb`.
 - Canonical merged folder:
   - `03_analysis/functional/suite2P/merged_dFoF`

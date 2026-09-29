@@ -4,10 +4,10 @@ Purpose
 
 Protect the current scientific and file-contract behavior while `src/` is reorganized in small refactor slices.
 
-Run the complete suite from the repository root with the supported environment:
+Activate an environment created from `environment.yml` (default name: `social_filters`), then run the complete suite from the repository root:
 
 ```powershell
-& 'C:\Users\larsch-lab\.conda\envs\social_filters_openblas\python.exe' -m unittest discover -s tests -t . -v
+python -m unittest discover -s tests -t . -v
 ```
 
 ## Current foundation
@@ -23,6 +23,8 @@ Run the complete suite from the repository root with the supported environment:
 - `tests/significant_traces/test_v1_v2_characterization.py` compares all 13 historical V1/V2 stages, edge-case behavior, random-state contracts, and legacy mixed-workflow reproducibility.
 - `tests/significant_traces/test_consolidation.py` requires one canonical detector owner and checks both compatibility facades against explicit current and legacy modes.
 - `tests/analysis/test_analysis_tools_split.py` protects the S06 owner boundaries, public facade, known numerical outputs, first downstream consumers, and moved reliability diagnostics.
+- `tests/analysis/test_multifish_split.py` protects the S07 scientific owners and the `multifish_analysis` compatibility facade.
+- `tests/plotting/test_plotting_split.py` and `tests/plotting/test_plotting_consumers.py` protect the S08 figure owners, public facade, and active consumer calls.
 
 ## Known environment limitations
 

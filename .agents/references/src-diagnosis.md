@@ -7,11 +7,11 @@ Preserve the read-only architecture audit of `src/` performed on 2026-09-24 so f
 Use this file when
 
 - Planning or resuming a repository-wide `src/` refactor.
-- Deciding which module owns a function or which large module should be split next.
+- Reviewing why a module was originally selected for a refactor slice.
 - Reviewing duplicate, legacy, or apparently unused functions.
 - Checking the baseline risks that must be protected by tests before moving code.
 
-Pair this diagnosis with `src-refactor-roadmap.md`. The diagnosis records what was observed; the roadmap defines the ordered work.
+This is a dated baseline, not a current module inventory or ownership map. S00-S08 have since added tests and split several modules. Use `src-refactor-roadmap.md` for current status and inspect the current `src/` owner before editing.
 
 ## Scope and method
 

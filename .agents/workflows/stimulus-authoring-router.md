@@ -10,24 +10,22 @@ Use this file when
 - The task changes stimulus geometry, flicker cadence, rocking behavior, mapping JSON contents, or saved trajectory CSVs.
 - The task mentions timing mismatches between generated stimuli and calcium-analysis alignment.
 
-## Read order
-1. `../references/stimulus-authoring-stage-map.md`
-2. `../references/canonical-outputs.md` for output names and folder layout
-3. `../references/symbol-index.md` for timing owners in `src/stimuli_timeline.py`
-4. `../references/refactor-rules.md`
-5. `../references/current-state.md` if the task touches legacy naming or downstream timing assumptions
-6. `../references/recent-changes.md` only when resuming incomplete work
-
 ## Task routing table
 
-| Task pattern | Read first | Open next |
+Choose one row. A dash means no extra reference is needed before opening the owner.
+
+| Task pattern | Reference if needed | Open next |
 | --- | --- | --- |
-| Trajectory geometry, rocking pair logic, flicker cadence, repetitions, pauses, or CSV writer behavior | `stimulus-authoring-stage-map.md` | Target script in `scripts/stimuli/generation/` |
-| Mapping JSON, package JSON, experiment parameter content, or per-experiment stimulus config | `stimulus-authoring-stage-map.md` | Target JSON file, then generating script |
-| Timing mismatch between generated CSVs and calcium-analysis interpretation | `canonical-outputs.md` | `src/stimuli_timeline.py` before touching notebooks or plotting code |
-| Repeated generator or inspection helpers such as `generate_circular_trajectory` or `get_angles_from_positions` | `refactor-rules.md` | Target script or notebook, then decide whether the owner stays in `scripts/stimuli/generation/` or belongs in `src/stimuli_timeline.py` for downstream timing semantics |
-| Projection, PsychoPy playback, or runtime timing-log capture | `stimulus-authoring-stage-map.md` | `scripts/stimuli/playback/try_projection.py` |
-| Stimulus plotting or inspection notebook behavior | `stimulus-authoring-stage-map.md` | `src/stimulus_visualization.py` before `notebooks/stimuli/plots_stimuli_batch.ipynb` |
+| Trajectory geometry, rocking pair logic, flicker cadence, repetitions, pauses, or CSV writer behavior | — | Target script in `scripts/stimuli/generation/` |
+| Mapping JSON, package JSON, experiment parameter content, or per-experiment stimulus config | — | Target JSON file, then generating script if its behavior matters |
+| Timing mismatch between generated CSVs and calcium-analysis interpretation | `canonical-outputs.md` if the file contract is involved | `src/stimuli_timeline.py`, then the generating script if the written trajectory is wrong |
+| Repeated generator-only geometry helpers | `refactor-rules.md` if ownership is unclear | Target script in `scripts/stimuli/generation/` |
+| Shared angle or timing interpretation, including `get_angles_from_positions` | — | `src/stimuli_timeline.py` |
+| Projection, PsychoPy playback, or runtime timing-log capture | — | `scripts/stimuli/playback/try_projection.py` |
+| Stimulus plotting or batch inspection behavior | — | `src/stimulus_visualization.py`; notebook only for configuration or reporting |
+| Stimulus stage order, writer handoff, or rerun chain | `stimulus-authoring-stage-map.md` | Relevant writer and first consumer |
+| Output names, folders, or legacy spelling | `canonical-outputs.md`; `current-state.md` for legacy caveats | Relevant writer |
+| Helper name without a known owner, or stable public import path | `symbol-index.md` | Owner identified there |
 
 ## Ownership guidance
 - Stimulus scripts own experiment-specific asset generation and packaging.
@@ -35,7 +33,5 @@ Use this file when
 - `src/stimuli_timeline.py` owns reusable timing extraction and log-to-trace semantics consumed by calcium analysis.
 - Shared geometry helpers that are only used by generator and inspection code may still live in `scripts/stimuli/generation/` until they become downstream timing authority.
 - `try_projection.py` owns display wrapper behavior and timing-log capture only; it should not redefine trajectory semantics.
-- Inspection helpers in `notebooks/stimuli/plots_stimuli_batch.ipynb` remain notebook-local unless a later slice explicitly promotes them.
 - Batch inspection helpers belong in the dedicated `src/stimulus_visualization.py`; the batch notebook contains only configuration and report calls. Spatial coverage uses visible directions, while time traces retain all frames.
-- Smallest practical validation surface: regenerate the smallest affected CSV or parameter set, run timing extraction on that output, and verify that downstream assumptions still match the written trajectory.
-- Record only incomplete work in `../references/recent-changes.md`; completed history is not part of normal routing.
+- For generator or timing behavior changes, regenerate the smallest affected CSV or parameter set, run timing extraction on that output, and check the downstream interpretation.
