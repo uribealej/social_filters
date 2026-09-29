@@ -1,8 +1,8 @@
 """Compatibility facade for calcium-imaging figure families.
 
-Historical public/private helpers and dependency aliases remain available
-until consumer migration. Implementations live in narrow figure owners;
-neuron ordering and timing preparation live in scientific owners.
+Historical helper imports and dependency aliases remain available for old
+callers. New consumers should use the narrow figure owners; neuron ordering
+and timing preparation live in their own modules.
 """
 
 # Preserve historical helper imports and dependency aliases.

@@ -36,6 +36,7 @@ Choose one row. A dash means no extra reference is needed before opening the own
 | Several-fish pooled raster, sparseness, mean-trace, active-overlap, or active-count figure orchestration | `src-api-consumer-inventory.md` for figure return contracts | `src/several_fish_figures.py`; check `src/reusable_several_fish.py` for historical notebook imports |
 | Analysis stage order or smallest rerun chain | `calcium-analysis-stage-map.md` | Relevant owner and first consumer |
 | Helper name without a known owner, or stable public import path | `symbol-index.md` | Owner identified there |
+| Historical facade import or removal question | `src-compatibility-decision.md` | Canonical owner named in the decision |
 
 ## Ownership guidance
 - `src/data_loading.py` owns experiment bundle assembly and output lookup semantics.
@@ -43,10 +44,10 @@ Choose one row. A dash means no extra reference is needed before opening the own
 - `src/multifish_matrices.py` owns pure multi-fish matrix construction from already trial-aligned per-fish traces; `src/multifish_analysis.py` preserves historical imports for this and other S07 scientific owners.
 - `src/significant_trace_detection.py` owns the Romano-style noise-model and rasterization pipeline; the versioned significant-trace modules are compatibility facades.
 - The `src/plotting_*` modules own reusable figure families; `src/plotting.py` preserves historical imports. Inspect its imports to locate the exact owner.
-- `src/several_fish_reporting.py` owns several-fish report serialization and notebook export; `src/reusable_several_fish.py` keeps the existing notebook imports available until the S12 consumer migration.
+- `src/several_fish_reporting.py` owns several-fish report serialization and notebook export; `src/reusable_several_fish.py` keeps historical imports available under the S12 compatibility decision.
 - `src/several_fish_loading.py` owns several-fish cohort loading and stimulus preflight; its existing notebook import remains available through `src/reusable_several_fish.py`.
 - `src/several_fish_selection.py` owns pure several-fish stimulus selection, response summaries, keep masks, and row filtering; `src/reusable_several_fish.py` preserves historical notebook imports.
 - `src/several_fish_diagnostics.py` owns pure several-fish diagnostic and figure-input preparation, including raster inputs, sparseness summaries, and active-count tables.
 - `src/several_fish_figures.py` owns high-level several-fish figure orchestration; `src/plotting_*` modules own the reusable figure primitives. `src/reusable_several_fish.py` is an import-only compatibility facade.
-- Active analysis notebooks use their narrow scientific, plotting, and several-fish workflow owners directly. `analysis_tools`, `multifish_analysis`, `plotting`, and `reusable_several_fish` remain compatibility facades pending the S12 support decision.
+- Active analysis notebooks and reusable owners use narrow scientific, plotting, and several-fish workflow modules directly. `analysis_tools`, `multifish_analysis`, `plotting`, and `reusable_several_fish` remain supported historical compatibility facades; see `src-compatibility-decision.md` for their boundaries.
 - Analysis notebooks own experiment selection, scientific narration, style dictionaries, and orchestration across cached outputs.

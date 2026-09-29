@@ -1,4 +1,8 @@
-"""Reusable orchestration helpers for several-fish calcium analysis notebooks."""
+"""Compatibility imports for historical several-fish notebook calls.
+
+New consumers should import loading, selection, diagnostics, figures, and
+reporting from their owning modules.
+"""
 
 import numpy as np
 import pandas as pd

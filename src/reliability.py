@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 from skimage.filters import threshold_otsu
 
-import src.plotting as plotting
+import src.plotting_reliability as plotting
 
 def filter_neurons_by_trial_reliability(
     dfof: np.ndarray,                    # (T, n_neurons)

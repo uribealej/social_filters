@@ -1,13 +1,12 @@
 """Compatibility facade for calcium-analysis helpers.
 
-Scientific implementations live in responsibility-specific modules. Existing
-notebooks and modules may continue importing ``src.analysis_tools`` while later
-consumer-migration slices adopt the narrower owners.
+Scientific implementations live in responsibility-specific modules. Historical
+imports remain available; new consumers should use the narrow owners.
 """
 
 from src.analysis_io import find_file_with_suffix, inspect_obj
 from src.motion_metrics import compute_motion_delta_integrals, compute_motion_delta_peaks
-from src.plotting import plot_accepted_rejected_rasters, plot_venn_3stim
+from src.plotting_reliability import plot_accepted_rejected_rasters, plot_venn_3stim
 from src.reliability import filter_neurons_by_trial_reliability
 from src.response_classification import (
     _has_consecutive_true,

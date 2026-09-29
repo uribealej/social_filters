@@ -1,8 +1,8 @@
 """Compatibility facade for multifish calcium analyses.
 
-Scientific families live in narrow owners. Historical public and private
-function imports, including the selectivity re-export used by several-fish
-notebooks, remain available here until the planned consumer migration.
+Scientific families live in narrow owners. Historical imports, including the
+selectivity re-export, remain available for old callers; new consumers should
+use the narrow owners.
 """
 
 # Preserve historically exposed dependency aliases as well as helper imports.

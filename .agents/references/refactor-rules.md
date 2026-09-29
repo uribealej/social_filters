@@ -33,3 +33,4 @@ Use this file when
 ## Preservation rules
 - Preserve notebook stage flow and established config variable names unless the task is intentionally reorganizing the notebook.
 - Update `symbol-index.md` when the stable public callable surface changes, and `src-api-consumer-inventory.md` when consumers or compatibility contracts change. Update the relevant stage map or `canonical-outputs.md` when stage flow or an output contract changes.
+- Keep historical facade imports within the supported boundary in `src-compatibility-decision.md`; new reusable owners import their canonical dependencies directly.

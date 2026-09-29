@@ -61,7 +61,20 @@ All 112 active source units compiled, the exact consumer contract matched, and
 the edited notebook kept its cell metadata and outputs. The output names are
 unchanged. `current-state.md` now records the corrected Exp 8 syntax and the
 outstanding block/timing comparison.
-Continue with the S12 compatibility decision (step 5).
+
+Step 5 recorded the [S12 compatibility decision](src-compatibility-decision.md):
+documented historical callable paths on the four broad facades, both
+significant-trace facades, and the data-loading timing wrapper remain supported
+without runtime warnings. Private helper and dependency aliases remain
+importable but are not new stable API. `analysis_tools`, `data_loading`,
+`reliability`, and `several_fish_figures` now import their direct owners; the
+historical `at`, `mfa`, and `plott` aliases remain on the import-only
+`reusable_several_fish` facade. No public export or scientific call changed.
+AST comparison confirmed unchanged function bodies and canonical call targets;
+all six facade export-name sets were unchanged, and 112 consumer source units
+compiled. The focused unit suite could not import under the available Inkscape
+Python because `matplotlib`, `pandas`, and `scipy` are absent. S12 still needs
+its data-backed workflow validation before closure.
 
 The S11 completion record reports 98 passing tests in
 `social_filters_openblas`. This shell's `python` resolves to an unusable Windows

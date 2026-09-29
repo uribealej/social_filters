@@ -68,7 +68,7 @@ Canonical owner sections list symbols directly referenced by active notebooks. T
 
 ### `src.analysis_tools`
 
-Classification: retained compatibility facade. S06 moved implementations to responsibility-specific owners while preserving historical `src.analysis_tools.<name>` imports and signatures. No active notebook or script imports this module after S12 step 3. Its supported export set awaits the step 5 compatibility decision; see `symbol-index.md` for the documented surface.
+Classification: supported compatibility facade. S06 moved implementations to responsibility-specific owners while preserving historical `src.analysis_tools.<name>` imports and signatures. No active notebook or script imports this module after S12 step 3. Its explicit `__all__` callable surface remains supported under the [S12 compatibility decision](src-compatibility-decision.md).
 
 ### Single-fish analysis owners
 
@@ -103,7 +103,7 @@ Classification: stable public scientific workflow.
 
 ### `src.multifish_analysis`
 
-Classification: retained compatibility facade. S07 moved implementations to scientific-domain owners. No active notebook or script imports this module after S12 step 3. Its supported export set awaits the step 5 compatibility decision.
+Classification: supported compatibility facade. S07 moved implementations to scientific-domain owners. No active notebook or script imports this module after S12 step 3. Its documented public functions and characterized selectivity re-export remain supported under the [S12 compatibility decision](src-compatibility-decision.md).
 
 ### Several-fish scientific owners
 
@@ -126,7 +126,7 @@ Classification: canonical owner imports used by the specialized notebooks after 
 
 ### `src.plotting`
 
-Classification: retained compatibility facade. S08 moved implementations to figure-family owners. No active notebook or script imports this module after S12 step 3. Its supported export set awaits the step 5 compatibility decision.
+Classification: supported compatibility facade. S08 moved implementations to figure-family owners. No active notebook or script imports this module after S12 step 3. Its documented public figure functions remain supported under the [S12 compatibility decision](src-compatibility-decision.md).
 
 ### Single-fish plotting owners
 
@@ -155,13 +155,13 @@ Classification: canonical owner imports used by the specialized notebooks after 
 
 ### `src.reusable_several_fish`
 
-Classification: retained import-only compatibility facade after S09. No active notebook or script imports this module after S12 step 3. Its supported export set awaits the step 5 compatibility decision.
+Classification: supported import-only compatibility facade after S09. No active notebook or script imports this module after S12 step 3. Its documented several-fish callables remain supported under the [S12 compatibility decision](src-compatibility-decision.md).
 
 The migrated notebooks now import `src.several_fish_loading`, `src.several_fish_selection`, `src.several_fish_diagnostics`, `src.several_fish_figures`, and `src.several_fish_reporting` as their calls require. The canonical file, table, and figure contracts below are unchanged.
 
-S09 step 1: `save_analysis_report_run` and `export_notebook_report` now belong to `src.several_fish_reporting`; `src.reusable_several_fish` re-exports both for active notebook callers. The report folder and return contracts below are unchanged.
+S09 step 1: `save_analysis_report_run` and `export_notebook_report` now belong to `src.several_fish_reporting`; `src.reusable_several_fish` re-exports both for historical notebook callers. The report folder and return contracts below are unchanged.
 
-S09 step 2: `load_and_preflight_fish_raster_inputs` now belongs to `src.several_fish_loading`; `src.reusable_several_fish` re-exports it for active notebook callers. The returned bundle, path choices, fish/stimulus order, and all-or-error contract below are unchanged.
+S09 step 2: `load_and_preflight_fish_raster_inputs` now belongs to `src.several_fish_loading`; `src.reusable_several_fish` re-exports it for historical notebook callers. The returned bundle, path choices, fish/stimulus order, and all-or-error contract below are unchanged.
 
 S09 step 3: pure stimulus/control selection, response summary and keep-mask preparation, trace filtering, and active-matrix row/column selection now belong to `src.several_fish_selection`. `src.reusable_several_fish` re-exports the notebook-facing names. Pooled response-row ordering and summary return keys are unchanged.
 
@@ -193,6 +193,7 @@ The following are not necessarily direct notebook calls, but active `src` code d
 
 - Timing: `get_angles_from_positions`, `get_motion_timing_simple`, `make_stimulus_traces_2`, and `extract_stimulus_chunks`.
 - Analysis primitives retain their `analysis_tools` facade paths but are implemented by `analysis_io`, `response_selectivity`, `response_metrics`, and `response_classification`. Internal owner-to-owner dependencies now use the narrow modules rather than the facade.
+- `data_loading`, `reliability`, and `several_fish_figures` also import their analysis and plotting owners directly after S12 step 5; `reusable_several_fish` alone keeps facade module aliases for historical imports.
 - Multifish composition: `combine_reps_one_stim`, `build_matrix_for_fish`, `build_neuron_stimulus_summary_table`, `add_selectivity_metrics_to_summary_table`, `resolve_segment_labels`, `compute_active_neuron_jaccard_overlap`, and `build_active_neuron_overlap_matrices_all_fish`.
 - Several-fish reporting: `export_notebook_report` and `resolve_response_control_columns`.
 - Significant-trace comparison: `significant_trace_detection.compare_significant_trace_versions` calls the canonical detector in explicit legacy and current modes; the V2 facade delegates to that comparison helper.
@@ -218,13 +219,13 @@ This classification does not authorize deletion. S11 retained these documented
 helpers after its evidence review; any later change requires a new
 compatibility decision. See the [S11 completion record](../history/src-refactor-s11.md).
 
-## Deprecation and boundary review candidates
+## Compatibility boundary after S12
 
-- `data_loading.transform_stimuli_duration` is a compatibility wrapper that delegates to the canonical timing owner; it contains no normalization logic.
-- `multifish_analysis.compute_stimulus_selectivity_metrics` is a compatibility re-export from `response_selectivity`; S09 moved the several-fish calculation to `several_fish_diagnostics.py`, which imports `response_selectivity` directly. The `mfa` alias remains on `reusable_several_fish.py` for historical compatibility; review its export boundary during S12.
-- `analysis_tools.inspect_obj`, `analysis_tools.plot_venn_3stim`, and other public-looking helpers were retained in S11 because explicit exports or characterization contracts leave external use uncertain. Review facade exposure during S12.
-- `src.significant_traces` and `src.significant_traces_v2` are thin compatibility facades after S05. Their removal remains a later compatibility/deprecation decision; neither contains scientific array logic.
-- `analysis_tools.py` now has an explicit `__all__`; other transitional facades still expose historical imports. Review their export boundaries during S12 rather than treating every imported name as permanent API.
+- `data_loading.transform_stimuli_duration` remains a supported historical wrapper around the canonical timing owner.
+- `multifish_analysis.compute_stimulus_selectivity_metrics` remains a supported characterized re-export from `response_selectivity`. The `mfa` alias remains on `reusable_several_fish.py` for historical compatibility.
+- `analysis_tools.inspect_obj` and `analysis_tools.plot_venn_3stim` remain supported explicit `__all__` exports, along with the other documented callables.
+- `src.significant_traces` and `src.significant_traces_v2` remain supported mode-specific compatibility facades without independent scientific array logic.
+- Private helpers and third-party aliases historically exposed by the facades remain importable but are not new stable API. The [S12 compatibility decision](src-compatibility-decision.md) records the removal criteria and warning policy.
 
 ## High-value compatibility contracts
 

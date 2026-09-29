@@ -63,7 +63,7 @@ Boundary note:
 - `save_stimulus_report` - save two 300-dpi PNGs and a CSV with complete angle lists under the supplied output directory.
 
 ### `src/analysis_tools.py`
-Compatibility facade: existing notebook and module imports remain stable, while S06 moved implementations to the narrow owners listed below.
+Supported compatibility facade: its explicit `__all__` callable surface remains available while new code imports the narrow owners listed below. See the [S12 compatibility decision](src-compatibility-decision.md).
 
 - `build_trial_aligned_traces` - build trial windows keyed by stimulus id.
 - `compute_trial_mean_response_metrics` - build per-stimulus trial-mean traces plus peak, AUC, and average response metrics.
@@ -83,6 +83,11 @@ Compatibility facade: existing notebook and module imports remain stable, while 
 - `compute_motion_delta_integrals` - build tidy per-neuron/per-trial motion-minus-fixed integral metrics for selected stimuli.
 - `compute_motion_delta_peaks` - build tidy per-neuron/per-trial motion-minus-fixed peak metrics for selected stimuli.
 - `build_neuron_order_groupwise_onset` - derive onset-based neuron ordering across response groups.
+- `build_active_neuron_matrix_from_trial_raster` - build a neuron-by-stimulus active-decision matrix from trial-aligned rasters.
+- `find_file_with_suffix` - resolve a matching analysis file from a directory.
+- `inspect_obj` - inspect a loaded object's type, shape, and available keys for interactive analysis.
+- `plot_accepted_rejected_rasters` - show reliability-accepted and rejected neural traces.
+- `plot_venn_3stim` - show three-stimulus response-set overlap.
 - `zscore_dfof_from_prestim_baseline` - z-score dFoF using pre-stimulus baselines.
 
 Canonical implementation owners after S06:
@@ -115,7 +120,7 @@ Canonical implementation owners after S06:
 - `filter_neurons_by_trial_reliability` - select reliable neurons and optionally save their indices.
 
 ### `src/multifish_analysis.py`
-Compatibility facade: S07 moved scientific implementations into `src.multifish_matrices`, `src.static_flicker_analysis`, `src.bout_flicker_analysis`, `src.stimulus_specificity`, `src.stimulus_similarity`, and `src.active_neuron_analysis`. Historical imports remain available while S12 decides the supported compatibility surface; active notebooks now use the owners.
+Supported compatibility facade: S07 moved scientific implementations into `src.multifish_matrices`, `src.static_flicker_analysis`, `src.bout_flicker_analysis`, `src.stimulus_specificity`, `src.stimulus_similarity`, and `src.active_neuron_analysis`. Documented public functions and the characterized selectivity re-export remain available; active notebooks use the owners. See the [S12 compatibility decision](src-compatibility-decision.md).
 
 - `build_bout_flicker_position_analysis` - build pooled bout-referenced flicker-position comparison data.
 - `compute_static_flicker_fish_level_statistics` - compute fish-level static--flicker tests, confidence intervals, and Holm-adjusted p-values.
@@ -136,6 +141,7 @@ Compatibility facade: S07 moved scientific implementations into `src.multifish_m
 - `build_active_neuron_overlap_matrices_all_fish` - build pooled and mean-per-fish left/right active-neuron overlap matrices.
 - `build_static_flicker_recruitment_analysis` - combine per-fish, per-position static--flicker metrics into category, shared-ΔAUC, and recruitment/amplification summaries.
 - `build_pooled_active_trace_diagnostic` - pool binary trial-aligned traces and active decisions across fish for strictness diagnostics.
+- `compute_stimulus_selectivity_metrics` - characterized compatibility re-export from `src.response_selectivity`.
 
 ### `src/motion_metrics.py`
 - `compute_motion_delta_integrals` - build per-trial motion-minus-fixed integral metrics.
@@ -197,6 +203,8 @@ Compatibility facade: S07 moved scientific implementations into `src.multifish_m
 - `plot_lifetime_sparseness_analysis` - render lifetime sparseness and high-sparseness raster figures.
 
 ### `src/reusable_several_fish.py`
+Supported compatibility facade for the documented historical several-fish callables below; new code imports their owners directly. See the [S12 compatibility decision](src-compatibility-decision.md).
+
 - `resolve_stimulus_set` - historical notebook import; implementation in `src/several_fish_selection.py`.
 - `save_analysis_report_run` - historical notebook import; implementation in `src/several_fish_reporting.py`.
 - `export_notebook_report` - historical notebook import; implementation in `src/several_fish_reporting.py`.
@@ -237,9 +245,10 @@ Compatibility facades:
 - `src.significant_traces` preserves historical V1 signatures and delegates differing stages to canonical `mode="legacy"`.
 - `src.significant_traces_v2` preserves historical V2 signatures and delegates to canonical current mode.
 - New analysis must import `src.significant_trace_detection`; the shared single-fish notebook has migrated to this owner.
+- Both mode-specific paths remain supported under the [S12 compatibility decision](src-compatibility-decision.md).
 
 ### `src/plotting.py`
-Compatibility facade: S08 moved figure construction into the `src.plotting_*` modules. Neuron ordering and timing preparation live in `src.neuron_ordering` and `src.stimuli_timeline`. Historical imports remain available while S12 decides the supported compatibility surface; active notebooks now use the owners.
+Supported compatibility facade: S08 moved figure construction into the `src.plotting_*` modules. Neuron ordering and timing preparation live in `src.neuron_ordering` and `src.stimuli_timeline`. Documented public figure functions remain available; active notebooks use the owners. See the [S12 compatibility decision](src-compatibility-decision.md).
 
 - `add_stimuli_markers` - add stimulus timing markers to an existing axis.
 - `list_stimulus_names` - discover stimulus names from `*_trajectory.*` files by stripping `_trajectory`.

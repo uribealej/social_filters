@@ -40,6 +40,7 @@ This is a lookup list, not a required reading list. Read only the references nee
 - `.agents/references/src-diagnosis.md` - dated factual baseline for the repository-wide `src/` architecture audit.
 - `.agents/references/src-refactor-roadmap.md` - ordered multi-session `src/` refactor slices, validation gates, and status tracker.
 - `.agents/references/src-api-consumer-inventory.md` - active notebook/script consumers and public compatibility contracts for `src`.
+- `.agents/references/src-compatibility-decision.md` - supported historical `src` imports and their migration boundary.
 - `.agents/references/recent-changes.md` - active incomplete-work handoff only.
 
 ## Cross-experiment notebook copies

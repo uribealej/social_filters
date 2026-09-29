@@ -7,7 +7,8 @@ import numpy as np
 import pandas as pd
 
 import src.stimuli_timeline as st
-from src.analysis_tools import build_trial_aligned_traces, find_file_with_suffix
+from src.analysis_io import find_file_with_suffix
+from src.trial_alignment import build_trial_aligned_traces
 
 
 def transform_stimuli_duration(stimuli_durations: Dict[str, dict]) -> Dict[str, dict]:

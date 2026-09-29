@@ -4,9 +4,11 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-import src.analysis_tools as at
-import src.multifish_analysis as mfa
-import src.plotting as plott
+import src.active_neuron_analysis as active_neuron_analysis
+import src.plotting_all_fish as plot_all_fish
+import src.plotting_diagnostics as plot_diagnostics
+import src.plotting_specificity as plot_specificity
+import src.trial_alignment as trial_alignment
 from src.several_fish_diagnostics import (
     build_all_fish_raster_inputs, build_high_sparseness_raster_data,
     build_lifetime_sparseness_summary, build_motion_active_counts,
@@ -49,7 +51,7 @@ def build_all_fish_raster_figure(
     flat_matrix_all_fish = prepared["flat_matrix_all_fish"]
     raster_neuron_order = prepared["raster_neuron_order"]
 
-    fig, ax, image, neuron_order = plott.plot_allfish_flat_raster(
+    fig, ax, image, neuron_order = plot_all_fish.plot_allfish_flat_raster(
         data=flat_matrix_all_fish,
         trial_aligned_traces=reference_fish["trial_aligned_traces_z_core"],
         stim_order=stim_order,
@@ -121,7 +123,7 @@ def plot_lifetime_sparseness_analysis(
     summary_table = prepared["summary_table"]
 
     fig_sparseness, ax_sparseness = plt.subplots(figsize=sparseness_figsize)
-    plott.plot_stimulus_specificity_sparseness(
+    plot_specificity.plot_stimulus_specificity_sparseness(
         summary_table,
         selected_stimulus_labels=selection["stimulus_labels"],
         analysis_label=analysis_label,
@@ -144,7 +146,7 @@ def plot_lifetime_sparseness_analysis(
         print("No neurons exceeded the selected lifetime-sparseness threshold.")
         high_sparseness_figure = None
     else:
-        high_sparseness_figure, _, _, _ = plott.plot_allfish_flat_raster(
+        high_sparseness_figure, _, _, _ = plot_all_fish.plot_allfish_flat_raster(
             data=high_sparseness["matrix"],
             trial_aligned_traces=reference_fish["trial_aligned_traces_z_core"],
             stim_order=selection["stimulus_ids"],
@@ -200,7 +202,7 @@ def build_plot_all_fish_mean_zscore_traces(
     Returns:
         dict: Mean traces, resolved stimulus IDs/labels, figure, axes, and colors.
     """
-    selection = at.resolve_selected_stimuli(
+    selection = trial_alignment.resolve_selected_stimuli(
         stim_order,
         stimuli_id_map=reference_fish["stimuli_id_map"],
         available_stimuli=reference_fish["trial_aligned_traces_z_core"].keys(),
@@ -212,7 +214,7 @@ def build_plot_all_fish_mean_zscore_traces(
         trace_type="zscore",
         use_kept_neurons=True,
     )
-    fig, ax, colors_used, _ = plott.plot_stimulus_means(
+    fig, ax, colors_used, _ = plot_all_fish.plot_stimulus_means(
         mean_traces=mean_traces,
         stimuli_ids=selection["stimulus_ids"],
         stimuli_names=selection["stimulus_labels"],
@@ -289,7 +291,7 @@ def plot_left_right_active_overlap_diagnostics(
         raise ValueError("side_stimuli must contain exactly 'left' and 'right'.")
 
     selections = {
-        side: at.resolve_selected_stimuli(
+        side: trial_alignment.resolve_selected_stimuli(
             stimuli,
             stimuli_id_map=reference_fish["stimuli_id_map"],
             available_stimuli=reference_fish["trial_aligned_traces_raster"].keys(),
@@ -299,7 +301,7 @@ def plot_left_right_active_overlap_diagnostics(
     side_stimulus_ids = {side: selection["stimulus_ids"] for side, selection in selections.items()}
     side_stimulus_labels = {side: selection["stimulus_labels"] for side, selection in selections.items()}
     active_stim_order = list(dict.fromkeys(side_stimulus_ids["left"] + side_stimulus_ids["right"]))
-    active_matrices = mfa.build_active_neuron_matrices_all_fish(
+    active_matrices = active_neuron_analysis.build_active_neuron_matrices_all_fish(
         all_fish_data=all_fish_data,
         fish_ids=fish_ids,
         stim_order=active_stim_order,
@@ -355,7 +357,7 @@ def plot_left_right_active_overlap_diagnostics(
             if diagnostic["trace_matrix"].shape[0] == 0:
                 print(f"No active neurons passed the {side} settings.")
             else:
-                plott.plot_active_trace_decision_diagnostic(
+                plot_diagnostics.plot_active_trace_decision_diagnostic(
                     diagnostic,
                     fps_2p=timing["fps_2p"],
                     stimuli_durations=reference_fish["stimuli_durations"],
@@ -414,12 +416,12 @@ def plot_motion_active_neuron_counts(
     Returns:
         dict: Selection, active decisions, fish-by-stimulus count table, and figure.
     """
-    selection = at.resolve_selected_stimuli(
+    selection = trial_alignment.resolve_selected_stimuli(
         selected_stimuli,
         stimuli_id_map=reference_fish["stimuli_id_map"],
         available_stimuli=reference_fish["trial_aligned_traces_raster"].keys(),
     )
-    active_matrices = mfa.build_active_neuron_matrices_all_fish(
+    active_matrices = active_neuron_analysis.build_active_neuron_matrices_all_fish(
         all_fish_data=all_fish_data,
         fish_ids=fish_ids,
         stim_order=selection["stimulus_ids"],
