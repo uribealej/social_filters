@@ -24,10 +24,10 @@ NOTEBOOK = ROOT / "notebooks/calcium/exp_01_flickering/01_all_fish_raster.ipynb"
 
 
 def run_notebook_assignment(name, namespace):
-    """Execute one unchanged Exp 1 figure-wrapper assignment."""
+    """Execute one migrated Exp 1 figure-owner assignment."""
     notebook = json.loads(NOTEBOOK.read_text(encoding="utf-8"))
     for cell in notebook["cells"]:
-        if cell["cell_type"] != "code" or f"{name} = rsf." not in "".join(cell["source"]):
+        if cell["cell_type"] != "code" or f"{name} = several_figures." not in "".join(cell["source"]):
             continue
         for node in ast.walk(ast.parse("".join(cell["source"]))):
             if (isinstance(node, ast.Assign)
@@ -107,7 +107,7 @@ class SeveralFishFigureTests(unittest.TestCase):
         fixture = self.fixture
         reference = fixture["data"]["fish_b"]
         namespace = {
-            "rsf": rsf, "all_fish_data": fixture["data"],
+            "several_figures": figures, "all_fish_data": fixture["data"],
             "fish_ids": FISH_IDS, "stim_order": STIM_IDS,
             "reference_fish": reference, "timing": dict(TIMING, t_post_s=11.),
             "stimuli_colors": fixture["colors"],

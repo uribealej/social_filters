@@ -19,7 +19,11 @@ matplotlib.use("Agg")
 
 from src import multifish_analysis as mfa
 from src import reusable_several_fish as rsf
-from src import plotting
+from src import bout_flicker_analysis as bout_analysis
+from src import multifish_matrices
+from src import plotting_specificity as plot_specificity
+from src import static_flicker_analysis as static_analysis
+from src import stimulus_similarity
 from src.response_metrics import validate_static_flicker_recruitment_result
 from tests.analysis.multifish_cases import (
     FISH_IDS, SIDES, STATIC_SETTINGS, STIM_IDS, STIM_LABELS, TIMING,
@@ -141,7 +145,7 @@ class MultifishCharacterizationTests(unittest.TestCase):
         """Execute actual Exp 1 and LME analysis cells with small synthetic data."""
         with trajectory_folder() as folder:
             write_trajectories(folder)
-            namespace = dict(mfa=mfa, np=np, pd=pd, all_fish_data=cohort(),
+            namespace = dict(bout_analysis=bout_analysis, np=np, pd=pd, all_fish_data=cohort(),
                 fish_ids=FISH_IDS, timing=TIMING, stimuli_path=folder,
                 display=lambda *args: None,
                 BOUT_FLICKER_SETTINGS=dict(side_conditions=SIDES,
@@ -156,7 +160,7 @@ class MultifishCharacterizationTests(unittest.TestCase):
             with contextlib.redirect_stdout(io.StringIO()):
                 exec(compile(source, str(path), "exec"), namespace)
             self.assertEqual(encode(namespace["position_result"]), encode(self.outputs["bout_False"]))
-        namespace = dict(mfa=mfa, np=np, pd=pd, all_fish_data=cohort(), fish_ids=FISH_IDS,
+        namespace = dict(multifish_matrices=multifish_matrices, np=np, pd=pd, all_fish_data=cohort(), fish_ids=FISH_IDS,
                          selected_stimuli=STIM_LABELS, display=lambda *args: None,
                          motion_duration_key="motion_sec", **TIMING)
         path = ROOT / "notebooks/calcium/exp_05_map_positions/02_lme_feature_decomposition.ipynb"
@@ -171,7 +175,7 @@ class MultifishCharacterizationTests(unittest.TestCase):
 
         path = ROOT / "notebooks/calcium/exp_01_flickering/02_static_flicker_recruitment.ipynb"
         source = "".join(json.loads(path.read_text(encoding="utf-8"))["cells"][4]["source"])
-        namespace = dict(mfa=mfa, all_fish_data=cohort(), fish_ids=FISH_IDS,
+        namespace = dict(static_analysis=static_analysis, all_fish_data=cohort(), fish_ids=FISH_IDS,
             stimuli_id_map={"FR1": 3, "FL1": 7}, timing=TIMING,
             STATIC_FLICKER_SETTINGS=dict(STATIC_SETTINGS, min_consecutive_active_frames=2,
                                          min_active_trial_fraction=0.5))
@@ -182,7 +186,7 @@ class MultifishCharacterizationTests(unittest.TestCase):
         self.assertEqual(encode(expected), encode(namespace["recruitment_results"]))
         summary = self.outputs["metrics"].copy()
         summary["plot_neuron_keep"] = True
-        namespace = dict(mfa=mfa, plott=plotting, plt=plt,
+        namespace = dict(stimulus_similarity=stimulus_similarity, plot_specificity=plot_specificity, plt=plt,
             outputs={"similarity": True, "stimulus_specificity": True},
             selected_auc_response_matrix=self.outputs["responses"]["pooled_response_matrix"],
             plot_stimulus_labels=STIM_LABELS, neuron_summary_table=summary,

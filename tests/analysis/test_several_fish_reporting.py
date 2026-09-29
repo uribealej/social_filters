@@ -35,12 +35,12 @@ class SeveralFishReportingTests(unittest.TestCase):
         notebook = json.loads(NOTEBOOK.read_text(encoding="utf-8"))
         report_cell = next("".join(cell["source"]) for cell in notebook["cells"]
                            if cell["cell_type"] == "code"
-                           and "report_result = rsf.save_analysis_report_run(" in "".join(cell["source"]))
+                           and "report_result = several_reporting.save_analysis_report_run(" in "".join(cell["source"]))
         with tempfile.TemporaryDirectory() as folder:
             with mock.patch.object(reporting, "export_notebook_report",
                                    return_value={"ok": True, "message": "exported", "paths": []}) as export:
                 with contextlib.redirect_stdout(io.StringIO()):
-                    namespace = {"rsf": rsf, "pd": pd, "repo_root": ROOT,
+                    namespace = {"several_reporting": reporting, "pd": pd, "repo_root": ROOT,
                                  "settings": settings, "REPORT_SETTINGS": report_settings,
                                  "analysis_path": folder, "stim_order": np.array([1, 2]),
                                  "flat_matrix_all_fish": np.zeros((3, 8)),

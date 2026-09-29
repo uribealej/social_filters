@@ -15,7 +15,7 @@ python -m unittest discover -s tests -t . -v
 - `tests/smoke/test_source_contracts.py` compiles every `src/*.py` file and imports every required module in an isolated subprocess.
 - `src.auxtrigger_extraction` now passes the required module-import check without `ScanImageTiffReader`; extraction itself requires the reader and reports how to install it.
 - `tests/smoke/test_notebook_contracts.py` transforms IPython syntax and compiles every active notebook code cell.
-- The known syntax failure in code cell 2 of `notebooks/calcium/exp_08_accumulation_ev/02_bout_flicker_position_onset.ipynb` is registered explicitly. Any new failure fails the suite; fixing the registered failure also requires removing it from the registry.
+- S12 step 3 corrected the former syntax failure in code cell 2 of `notebooks/calcium/exp_08_accumulation_ev/02_bout_flicker_position_onset.ipynb` and cleared its contract registry entry. Any new notebook syntax failure fails the suite.
 - `tests/support/fixtures.py` provides deterministic synthetic arrays, stimulus metadata, rasters, and tables for later characterization slices.
 - `tests/support/assertions.py` provides reusable array, DataFrame, and figure-contract checks.
 - `tests/contracts/src_api_consumers.json` records every active notebook/script `src` import and referenced symbol, including consumers with no current `src` dependency.

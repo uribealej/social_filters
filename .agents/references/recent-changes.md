@@ -34,18 +34,33 @@ Comparison with the checkpoint confirmed that all non-setup cells changed only
 the owner-qualified call names; settings, call arguments, stage order, saved
 outputs, and notebook outputs are unchanged. No facade export was removed.
 Across all 16 active notebooks and scripts, 111 source units compiled and the
-full consumer inventory matched the contract; the pre-existing raw cell 2
-syntax failure in the Exp 8 bout/flicker notebook remains registered.
-Continue with the specialized analysis notebooks (S12 step 3).
+full consumer inventory matched the contract. The Exp 8 bout/flicker syntax
+failure was still registered at the end of step 2.
+
+Step 3 migrated the Exp 1 and Exp 8 bout/flicker, Exp 1 static/flicker
+recruitment, and Exp 5 LME notebooks to their narrow owners. Exp 8
+bout/flicker raw cell 2's extra comma and duplicate load were removed; Cell 03
+remains the load stage. Its fish IDs and stimulus order match the maintained
+Exp 8 raster notebook, but its configured blocks (`B1`-`B5`) and post window
+(32 s) differ from that notebook (`B1`-`B4`, 30 s). Those scientific settings
+were preserved pending a data-backed check. The notebook syntax registry and
+consumer contract now expect no failures. Across all 16 active notebooks and
+scripts, 112 source units compiled, all 69 active symbols matched the index
+and owner definitions, and no active consumer imported `analysis_tools`,
+`multifish_analysis`, `plotting`, or `reusable_several_fish`. No facade export
+was removed. Synthetic notebook-cell tests were updated to call the migrated
+owners while retaining separate facade compatibility assertions; all test
+modules compiled. Continue with the remaining preprocessing/stimulus consumer
+audit (S12 step 4), then the compatibility decision.
 
 The S11 completion record reports 98 passing tests in
 `social_filters_openblas`. This shell's `python` resolves to an unusable Windows
 app alias. The accessible Inkscape Python lacks `IPython`, `pandas`, and
 `matplotlib`, so the repository test suite and notebook execution could not
 be run here. The configured `D:` experiment and stimulus data paths are also
-unavailable. Representative single-fish and several-fish data runs and figure
-review remain for an environment with those inputs; no figure implementation
-changed in steps 1-2.
+unavailable. Representative single-fish, several-fish, and specialized data
+runs and figure review remain for an environment with those inputs; no figure
+implementation changed in steps 1-3.
 
 ## Maintenance rule
 

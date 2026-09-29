@@ -12,7 +12,7 @@ import numpy as np
 
 from src import reusable_several_fish as rsf
 from src import several_fish_loading as loading
-from src import plotting as plott
+from src import plotting_common as plot_common
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -51,13 +51,13 @@ class SeveralFishLoadingTests(unittest.TestCase):
         }
 
     def test_exp1_notebook_load_cell_preserves_bundle_and_order(self):
-        """Execute the unchanged first consumer with two ordered synthetic fish."""
+        """Execute the migrated first consumer with two ordered synthetic fish."""
         self.assertIs(rsf.load_and_preflight_fish_raster_inputs,
                       loading.load_and_preflight_fish_raster_inputs)
         notebook = json.loads(NOTEBOOK.read_text(encoding="utf-8"))
         load_cell = next("".join(cell["source"]) for cell in notebook["cells"]
                          if cell["cell_type"] == "code"
-                         and "raster_inputs = rsf.load_and_preflight_fish_raster_inputs("
+                         and "raster_inputs = several_loading.load_and_preflight_fish_raster_inputs("
                          in "".join(cell["source"]))
         bundles = {fish_id: fish_bundle() for fish_id in self.settings["fish_ids"]}
         calls = []
@@ -67,7 +67,8 @@ class SeveralFishLoadingTests(unittest.TestCase):
             print("loader progress")
             return bundles[kwargs["fish_id"]]
 
-        namespace = {"rsf": rsf, "plott": plott, "USER_SETTINGS": self.settings}
+        namespace = {"several_loading": loading, "plot_common": plot_common,
+                     "USER_SETTINGS": self.settings}
         output = io.StringIO()
         with mock.patch.object(loading.exio, "load_and_align_2p_experiment",
                                side_effect=fake_load):

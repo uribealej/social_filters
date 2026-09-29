@@ -21,10 +21,10 @@ NOTEBOOK = ROOT / "notebooks/calcium/shared/several_fish_reusable_analysis.ipynb
 
 
 def run_notebook_assignment(name, namespace):
-    """Execute one unchanged assignment from the shared several-fish notebook."""
+    """Execute one migrated assignment from the shared several-fish notebook."""
     notebook = json.loads(NOTEBOOK.read_text(encoding="utf-8"))
     for cell in notebook["cells"]:
-        if cell["cell_type"] != "code" or f"{name} = rsf." not in "".join(cell["source"]):
+        if cell["cell_type"] != "code" or f"{name} = several_diagnostics." not in "".join(cell["source"]):
             continue
         for node in ast.walk(ast.parse("".join(cell["source"]))):
             if (isinstance(node, ast.Assign)
@@ -76,7 +76,7 @@ class SeveralFishDiagnosticTests(unittest.TestCase):
         })
         matrix = np.arange(4 * 6).reshape(4, 6)
         namespace = {
-            "rsf": rsf, "all_fish_data": {}, "fish_ids": ["fish_b", "fish_a"],
+            "several_diagnostics": diagnostics, "all_fish_data": {}, "fish_ids": ["fish_b", "fish_a"],
             "neuron_summary_table": summary, "plot_stimulus_ids": [4, 8],
             "plot_stimulus_labels": ["FLB", "FRB"],
             "plot_neuron_keep_mask": np.ones(4, dtype=bool),
@@ -105,7 +105,7 @@ class SeveralFishDiagnosticTests(unittest.TestCase):
                        "trial_aligned_traces_z_core": {7: fish_a}},
         }
         namespace = {
-            "rsf": rsf, "all_fish_data": all_fish_data,
+            "several_diagnostics": diagnostics, "all_fish_data": all_fish_data,
             "fish_ids": ["fish_b", "fish_a"], "mean_stimulus_ids": [7],
             "response_row_metadata": pd.DataFrame(
                 {"fish_id": ["fish_b", "fish_b", "fish_a", "fish_a"]}),
@@ -127,7 +127,7 @@ class SeveralFishDiagnosticTests(unittest.TestCase):
             "neuron_id": list(range(4)) * 2,
         })
         namespace = {
-            "rsf": rsf, "all_fish_data": cohort(), "active_matrices": active,
+            "several_diagnostics": diagnostics, "all_fish_data": cohort(), "active_matrices": active,
             "fish_ids": FISH_IDS, "response_row_metadata": metadata,
             "plot_neuron_keep_mask": [True, False, True, False,
                                       False, True, False, True],

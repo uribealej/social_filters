@@ -13,9 +13,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 NOTEBOOK_ROOT = REPOSITORY_ROOT / "notebooks"
 
 # Values are one-based code-cell numbers, not raw notebook cell indexes.
-EXPECTED_SYNTAX_FAILURES = {
-    "notebooks/calcium/exp_08_accumulation_ev/02_bout_flicker_position_onset.ipynb": {2},
-}
+EXPECTED_SYNTAX_FAILURES = {}
 
 
 class NotebookContractTests(unittest.TestCase):

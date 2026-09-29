@@ -20,34 +20,35 @@
   },
   "notebooks/calcium/exp_01_flickering/02_bout_flicker_position_onset.ipynb": {
     "imports": [
-      "src.multifish_analysis",
-      "src.plotting",
-      "src.reusable_several_fish"
+      "src.bout_flicker_analysis",
+      "src.plotting_bout_position",
+      "src.several_fish_loading"
     ],
     "symbols": [
-      "src.multifish_analysis.build_bout_flicker_position_analysis",
-      "src.plotting.plot_bout_flicker_position_cell06_style",
-      "src.reusable_several_fish.load_and_preflight_fish_raster_inputs"
+      "src.bout_flicker_analysis.build_bout_flicker_position_analysis",
+      "src.plotting_bout_position.plot_bout_flicker_position_cell06_style",
+      "src.several_fish_loading.load_and_preflight_fish_raster_inputs"
     ],
     "syntax_failure_raw_cells": []
   },
   "notebooks/calcium/exp_01_flickering/02_static_flicker_recruitment.ipynb": {
     "imports": [
-      "src.analysis_tools",
-      "src.multifish_analysis",
-      "src.plotting",
-      "src.reusable_several_fish"
+      "src.plotting_static_flicker",
+      "src.response_metrics",
+      "src.several_fish_loading",
+      "src.several_fish_reporting",
+      "src.static_flicker_analysis"
     ],
     "symbols": [
-      "src.analysis_tools.validate_static_flicker_recruitment_result",
-      "src.multifish_analysis.build_static_flicker_recruitment_analysis",
-      "src.multifish_analysis.compute_static_flicker_fish_level_statistics",
-      "src.plotting.plot_pooled_static_flicker_category_proportions",
-      "src.plotting.plot_recruitment_amplification",
-      "src.plotting.plot_shared_static_flicker_auc_summary",
-      "src.plotting.plot_static_flicker_classification_raster",
-      "src.reusable_several_fish.load_and_preflight_fish_raster_inputs",
-      "src.reusable_several_fish.save_analysis_report_run"
+      "src.plotting_static_flicker.plot_pooled_static_flicker_category_proportions",
+      "src.plotting_static_flicker.plot_recruitment_amplification",
+      "src.plotting_static_flicker.plot_shared_static_flicker_auc_summary",
+      "src.plotting_static_flicker.plot_static_flicker_classification_raster",
+      "src.response_metrics.validate_static_flicker_recruitment_result",
+      "src.several_fish_loading.load_and_preflight_fish_raster_inputs",
+      "src.several_fish_reporting.save_analysis_report_run",
+      "src.static_flicker_analysis.build_static_flicker_recruitment_analysis",
+      "src.static_flicker_analysis.compute_static_flicker_fish_level_statistics"
     ],
     "syntax_failure_raw_cells": []
   },
@@ -81,23 +82,23 @@
   },
   "notebooks/calcium/exp_05_map_positions/02_lme_feature_decomposition.ipynb": {
     "imports": [
-      "src.analysis_tools",
       "src.data_loading",
       "src.lme_feature_decomposition",
-      "src.multifish_analysis",
-      "src.plotting"
+      "src.multifish_matrices",
+      "src.plotting_lme",
+      "src.trial_alignment"
     ],
     "symbols": [
-      "src.analysis_tools.build_trial_aligned_traces",
-      "src.analysis_tools.compute_response_window_frames",
-      "src.analysis_tools.resolve_selected_stimuli",
       "src.data_loading.load_2p_experiment",
       "src.lme_feature_decomposition.build_lme_response_table",
       "src.lme_feature_decomposition.fit_lme_models",
       "src.lme_feature_decomposition.summarize_lme_model_results",
       "src.lme_feature_decomposition.validate_lme_response_table",
-      "src.multifish_analysis.build_zscore_response_matrices_all_fish",
-      "src.plotting.plot_lme_model_outputs"
+      "src.multifish_matrices.build_zscore_response_matrices_all_fish",
+      "src.plotting_lme.plot_lme_model_outputs",
+      "src.trial_alignment.build_trial_aligned_traces",
+      "src.trial_alignment.compute_response_window_frames",
+      "src.trial_alignment.resolve_selected_stimuli"
     ],
     "syntax_failure_raw_cells": []
   },
@@ -129,18 +130,16 @@
   },
   "notebooks/calcium/exp_08_accumulation_ev/02_bout_flicker_position_onset.ipynb": {
     "imports": [
-      "src.multifish_analysis",
-      "src.plotting",
-      "src.reusable_several_fish"
+      "src.bout_flicker_analysis",
+      "src.plotting_bout_position",
+      "src.several_fish_loading"
     ],
     "symbols": [
-      "src.multifish_analysis.build_bout_flicker_position_analysis",
-      "src.plotting.plot_bout_flicker_position_cell06_style",
-      "src.reusable_several_fish.load_and_preflight_fish_raster_inputs"
+      "src.bout_flicker_analysis.build_bout_flicker_position_analysis",
+      "src.plotting_bout_position.plot_bout_flicker_position_cell06_style",
+      "src.several_fish_loading.load_and_preflight_fish_raster_inputs"
     ],
-    "syntax_failure_raw_cells": [
-      2
-    ]
+    "syntax_failure_raw_cells": []
   },
   "notebooks/calcium/preprocessing/2P_Experiment_FileOps.ipynb": {
     "imports": [],

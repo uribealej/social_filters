@@ -18,6 +18,7 @@ This inventory was established on 2026-09-25 during Step 2 of `src-refactor-road
 - **External-active:** referenced by an active notebook or script. Preserve its import path and observable contract until consumers migrate.
 - **Internal-active:** called by another `src` module or by another helper in its owner module. It may move internally, but callers must migrate in the same slice.
 - **Active compatibility facade:** external-active import path whose implementation has moved to a narrower owner. Preserve the import until consumers migrate.
+- **Retained compatibility facade:** historical public import path with no active notebook/script caller; keep its documented exports until the compatibility decision is recorded.
 - **Active facade candidate:** external-active mixed-responsibility module whose implementation is scheduled to move.
 - **Documented, currently uncalled:** listed in `symbol-index.md` but not called by an active notebook/script. It is not dead merely because it is currently uncalled.
 - **Deprecation review candidate:** duplicated, accidentally re-exported, or unreferenced code requiring per-symbol evidence and a documented compatibility decision before retirement.
@@ -30,7 +31,7 @@ This inventory was established on 2026-09-25 during Step 2 of `src-refactor-road
 - 11 notebooks currently import or call `src`.
 - `notebooks/calcium/preprocessing/2P_Experiment_FileOps.ipynb` currently has no `src` import.
 - None of the 4 stimulus generation/playback scripts currently imports `src`.
-- Raw notebook cell index 2 in `notebooks/calcium/exp_08_accumulation_ev/02_bout_flicker_position_onset.ipynb` remains the one registered syntax failure. Imports and uses from its other cells are included.
+- All active notebook code cells now compile after S12 step 3 corrected the pre-existing syntax error in raw cell 2 of `notebooks/calcium/exp_08_accumulation_ev/02_bout_flicker_position_onset.ipynb`.
 - Files under `archive/` and `.agents/history/` were excluded.
 
 ## Consumer overview
@@ -38,12 +39,12 @@ This inventory was established on 2026-09-25 during Step 2 of `src-refactor-road
 | Consumer | Active `src` imports | Compatibility role |
 | --- | --- | --- |
 | Exp 1 all-fish raster | `plotting_common`, `several_fish_figures`, `several_fish_loading`, `several_fish_reporting` | Shared cohort loading, raster/mean figures, diagnostics, report saving |
-| Exp 1 bout/flicker position | `multifish_analysis`, `plotting`, `reusable_several_fish` | Bout-position analysis and Cell 06-style figure |
-| Exp 1 static/flicker recruitment | `analysis_tools`, `multifish_analysis`, `plotting`, `reusable_several_fish` | Recruitment calculation, validation, statistics, and figures |
+| Exp 1 bout/flicker position | `bout_flicker_analysis`, `plotting_bout_position`, `several_fish_loading` | Bout-position analysis and Cell 06-style figure |
+| Exp 1 static/flicker recruitment | `plotting_static_flicker`, `response_metrics`, `several_fish_loading`, `several_fish_reporting`, `static_flicker_analysis` | Recruitment calculation, validation, statistics, and figures |
 | Exp 5 all-fish raster | `active_neuron_analysis`, `multifish_matrices`, `plotting_common`, `plotting_diagnostics`, `several_fish_figures`, `several_fish_loading`, `several_fish_reporting`, `trial_alignment` | Response matrices, active decisions, pooled diagnostics, standard reports |
-| Exp 5 LME decomposition | `analysis_tools`, `data_loading`, `lme_feature_decomposition`, `multifish_analysis`, `plotting` | Loader/alignment, response matrices, model fitting, and figures |
+| Exp 5 LME decomposition | `data_loading`, `lme_feature_decomposition`, `multifish_matrices`, `plotting_lme`, `trial_alignment` | Loader/alignment, response matrices, model fitting, and figures |
 | Exp 8 all-fish raster | `multifish_matrices`, `plotting_common`, `plotting_diagnostics`, `several_fish_figures`, `several_fish_loading`, `several_fish_reporting`, `trial_alignment` | Response selection, response matrices, diagnostics, standard reports |
-| Exp 8 bout/flicker position | `multifish_analysis`, `plotting`, `reusable_several_fish` | Same public bout-position surface as Exp 1 |
+| Exp 8 bout/flicker position | `bout_flicker_analysis`, `plotting_bout_position`, `several_fish_loading` | Same public bout-position surface as Exp 1 |
 | dFoF batch preprocessing | `dff_extraction` | Per-plane Suite2p-to-dFoF extraction entrypoint |
 | Shared single-fish analysis | `data_loading`, `trial_alignment`, `response_normalization`, `response_metrics`, `reliability`, `plotting_common`, `plotting_single_fish`, `plotting_all_fish`, `significant_trace_detection` | Load, align, filter, detect significant traces, and plot through the owning modules |
 | Shared several-fish analysis | `active_neuron_analysis`, `data_loading`, `motion_metrics`, `multifish_matrices`, `plotting_all_fish`, `plotting_common`, `plotting_diagnostics`, `plotting_specificity`, `several_fish_diagnostics`, `several_fish_reporting`, `several_fish_selection`, `stimulus_similarity` | Reusable pooled matrices, selection, overlap, diagnostics, and figures |
@@ -53,16 +54,11 @@ The exact per-consumer function list lives in the machine contract rather than b
 
 ## External-active surface by import module
 
-These symbols are directly referenced by active notebooks.
+Canonical owner sections list symbols directly referenced by active notebooks. The facade sections record compatibility paths retained after consumer migration; they have no active notebook or script import.
 
 ### `src.analysis_tools`
 
-- `build_trial_aligned_traces`
-- `compute_response_window_frames`
-- `resolve_selected_stimuli`
-- `validate_static_flicker_recruitment_result`
-
-Classification: active compatibility facade. S06 moved implementations to responsibility-specific owners while preserving every `src.analysis_tools.<name>` import and signature. The shared single-fish and several-fish raster notebooks migrated in S12; specialized notebooks still use this facade.
+Classification: retained compatibility facade. S06 moved implementations to responsibility-specific owners while preserving historical `src.analysis_tools.<name>` imports and signatures. No active notebook or script imports this module after S12 step 3. Its supported export set awaits the step 5 compatibility decision; see `symbol-index.md` for the documented surface.
 
 ### Single-fish analysis owners
 
@@ -78,7 +74,7 @@ Classification: canonical owner imports used by the shared single-fish notebook 
 - `load_2p_experiment`
 - `load_and_align_2p_experiment`
 
-Classification: stable public gateways. Their internals may be split in Step 10, but their input/output contracts remain public.
+Classification: stable public gateways. S10 separated loader internals into private stages; their input/output contracts remain public.
 
 ### `src.dff_extraction`
 
@@ -97,12 +93,7 @@ Classification: stable public scientific workflow.
 
 ### `src.multifish_analysis`
 
-- `build_bout_flicker_position_analysis`
-- `build_static_flicker_recruitment_analysis`
-- `build_zscore_response_matrices_all_fish`
-- `compute_static_flicker_fish_level_statistics`
-
-Classification: active compatibility facade. S07 moved implementations to scientific-domain owners. The several-fish raster notebooks migrated in S12; specialized notebooks still use this facade.
+Classification: retained compatibility facade. S07 moved implementations to scientific-domain owners. No active notebook or script imports this module after S12 step 3. Its supported export set awaits the step 5 compatibility decision.
 
 ### Several-fish scientific owners
 
@@ -114,16 +105,18 @@ Classification: active compatibility facade. S07 moved implementations to scient
 
 Classification: canonical owner imports used by the shared several-fish and all-fish raster notebooks after their S12 migration. The response-row, fish, and stimulus ordering contracts above remain in force.
 
+### Specialized analysis owners
+
+- `src.bout_flicker_analysis.build_bout_flicker_position_analysis` - pooled bout-position matching and ordered responses for Exp 1 and Exp 8.
+- `src.static_flicker_analysis.build_static_flicker_recruitment_analysis`, `compute_static_flicker_fish_level_statistics` - Exp 1 recruitment summaries and fish-level inference.
+- `src.response_metrics.validate_static_flicker_recruitment_result` - per-fish result validation.
+- `src.multifish_matrices.build_zscore_response_matrices_all_fish` and `src.trial_alignment` - Exp 5 LME input preparation.
+
+Classification: canonical owner imports used by the specialized notebooks after S12 step 3. Exp 8 bout/flicker cell 2's pre-existing syntax error and duplicate load were corrected without changing its block or timing settings; those settings still need a data-backed comparison with the maintained Exp 8 raster workflow.
+
 ### `src.plotting`
 
-- `plot_bout_flicker_position_cell06_style`
-- `plot_lme_model_outputs`
-- `plot_pooled_static_flicker_category_proportions`
-- `plot_recruitment_amplification`
-- `plot_shared_static_flicker_auc_summary`
-- `plot_static_flicker_classification_raster`
-
-Classification: active compatibility facade. S08 moved implementations to figure-family owners. The shared single-fish and several-fish raster notebooks migrated in S12; specialized notebooks still use this facade.
+Classification: retained compatibility facade. S08 moved implementations to figure-family owners. No active notebook or script imports this module after S12 step 3. Its supported export set awaits the step 5 compatibility decision.
 
 ### Single-fish plotting owners
 
@@ -142,12 +135,17 @@ Classification: canonical owner imports used by the shared single-fish notebook 
 
 Classification: canonical owner imports used by the shared several-fish and all-fish raster notebooks after their S12 migration. Figure arguments, row ordering, and optional save behavior are unchanged.
 
+### Specialized plotting owners
+
+- `src.plotting_bout_position.plot_bout_flicker_position_cell06_style` - Exp 1 and Exp 8 bout-position figures.
+- `src.plotting_static_flicker` - Exp 1 category, shared AUC, and recruitment figures.
+- `src.plotting_lme.plot_lme_model_outputs` - Exp 5 model figures.
+
+Classification: canonical owner imports used by the specialized notebooks after S12 step 3. Figure call arguments and configured save behavior are unchanged.
+
 ### `src.reusable_several_fish`
 
-- `load_and_preflight_fish_raster_inputs`
-- `save_analysis_report_run`
-
-Classification: active import-only compatibility facade after S09. The shared several-fish and all-fish raster notebooks migrated in S12; specialized notebooks still use these two imports.
+Classification: retained import-only compatibility facade after S09. No active notebook or script imports this module after S12 step 3. Its supported export set awaits the step 5 compatibility decision.
 
 The migrated notebooks now import `src.several_fish_loading`, `src.several_fish_selection`, `src.several_fish_diagnostics`, `src.several_fish_figures`, and `src.several_fish_reporting` as their calls require. The canonical file, table, and figure contracts below are unchanged.
 

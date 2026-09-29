@@ -76,7 +76,7 @@ class SeveralFishSelectionTests(unittest.TestCase):
         notebook = json.loads(NOTEBOOK.read_text(encoding="utf-8"))
         summary_cell = next("".join(cell["source"]) for cell in notebook["cells"]
                             if cell["cell_type"] == "code"
-                            and "summary_results = rsf.build_selected_neuron_summary("
+                            and "summary_results = several_selection.build_selected_neuron_summary("
                             in "".join(cell["source"]))
         assignment = next(node for node in ast.parse(summary_cell).body
                           if isinstance(node, ast.Assign)
@@ -84,7 +84,7 @@ class SeveralFishSelectionTests(unittest.TestCase):
                                   and target.id == "summary_results"
                                   for target in node.targets))
         namespace = {
-            "rsf": rsf, "response_matrices_by_fish": response_matrices,
+            "several_selection": selection, "response_matrices_by_fish": response_matrices,
             "pooled_response_matrix": pooled, "response_row_metadata": metadata,
             "active_matrices": active, "response_stimulus_ids": [4, 8],
             "response_stimulus_labels": ["FLB", "FRB"],
@@ -151,7 +151,7 @@ class SeveralFishSelectionTests(unittest.TestCase):
                            for cell in json.loads(NOTEBOOK.read_text(encoding="utf-8"))["cells"])
         for name in ("resolve_stimulus_set", "build_selected_neuron_summary",
                      "build_fish_keep_masks", "build_filtered_trial_aligned_traces_for_fish"):
-            self.assertIn(f"rsf.{name}(", source)
+            self.assertIn(f"several_selection.{name}(", source)
 
 
 if __name__ == "__main__":

@@ -14,7 +14,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from src import analysis_tools as at, multifish_analysis as mfa, plotting as plott
+from src import analysis_tools as at, multifish_analysis as mfa
+from src import motion_metrics, plotting_all_fish as plot_all_fish
+from src import plotting_bout_position as plot_bout, plotting_common as plot_common
+from src import plotting_diagnostics as plot_diagnostics, plotting_lme as plot_lme
+from src import plotting_single_fish as plot_single_fish
+from src import plotting_specificity as plot_specificity
+from src import plotting_static_flicker as plot_static, response_metrics
+from src import several_fish_diagnostics as several_diagnostics
+from src import several_fish_selection as several_selection, stimulus_similarity
 from src import reusable_several_fish as rsf
 from tests.plotting.plotting_cases import inputs, lme_inputs
 from tests.analysis.multifish_cases import FISH_IDS, STIM_IDS, STIM_LABELS, TIMING
@@ -59,7 +67,9 @@ class PlottingConsumerTests(unittest.TestCase):
         folder.mkdir(parents=True, exist_ok=True)
         for label in ["FL2", "FR1"]:
             (folder / f"{label}_trajectory.csv").write_text("x,y\n0,0\n", encoding="utf-8")
-        ns = dict(plott=plott, at=at, plt=plt, np=np, paths=dict(stimuli_path=folder,
+        ns = dict(plot_common=plot_common, plot_single_fish=plot_single_fish,
+            plot_all_fish=plot_all_fish, response_metrics=response_metrics,
+            plt=plt, np=np, paths=dict(stimuli_path=folder,
             plots_path=folder, prefix="synthetic"), stimuli_id_map={"FL2": 1, "FR1": 2},
             stimuli_order_ids=[2, 1], experiment_name="synthetic", fish_id="synthetic",
             sort_mode="max_intensity", sort_n_clusters=3, random_state=42,
@@ -91,7 +101,7 @@ class PlottingConsumerTests(unittest.TestCase):
         self.assertEqual(STIM_LABELS, [line.get_label() for line in means["axes"].lines[:4]])
 
     def test_bout_notebook_cell(self):
-        ns = dict(plott=plott, plt=plt, timing=TIMING,
+        ns = dict(plot_bout=plot_bout, plt=plt, timing=TIMING,
             position_result=self.fixture["outputs"]["bout_False"],
             BOUT_FLICKER_SETTINGS=dict(onset_match_tolerance_s=.5, save_figures=False),
             display=lambda figure: figure.canvas.draw())
@@ -105,7 +115,7 @@ class PlottingConsumerTests(unittest.TestCase):
         # Execute the exact plot expressions while supplying synthetic scientific
         # outputs upstream of the notebook's experiment-specific sampling settings.
         static = self.fixture["outputs"]["static"]
-        ns = dict(plott=plott, recruitment_results=static, raster_plot_results=static,
+        ns = dict(plot_static=plot_static, recruitment_results=static, raster_plot_results=static,
             auc_plot_results=static, cell07_stimuli=STIM_IDS, cell09_stimuli=STIM_IDS,
             CELL06_WINDOWS={"static": {"label": "Static"}, "comparison": {"label": "Motion"}},
             cell08_statistics=mfa.compute_static_flicker_fish_level_statistics(static["fish_median_delta_auc"]))
@@ -114,7 +124,7 @@ class PlottingConsumerTests(unittest.TestCase):
         for index in [6, 7, 8, 9]:
             tree = ast.parse(cell(path, index))
             for node in ast.walk(tree):
-                if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name) and node.func.value.id == "plott":
+                if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name) and node.func.value.id == "plot_static":
                     result = eval(compile(ast.Expression(node), path, "eval"), ns)
                     self.assertEqual(["left", "right"], list(result))
                     count += 1
@@ -123,7 +133,8 @@ class PlottingConsumerTests(unittest.TestCase):
     def test_specificity_similarity_notebook_cell(self):
         summary = self.fixture["outputs"]["metrics"].copy()
         summary["plot_neuron_keep"] = True
-        ns = dict(plott=plott, mfa=mfa, plt=plt, outputs=dict(similarity=True, stimulus_specificity=True),
+        ns = dict(plot_specificity=plot_specificity, stimulus_similarity=stimulus_similarity,
+            plt=plt, outputs=dict(similarity=True, stimulus_specificity=True),
             selected_auc_response_matrix=self.fixture["outputs"]["responses"]["pooled_response_matrix"],
             plot_stimulus_labels=STIM_LABELS, neuron_summary_table=summary,
             settings={"analysis_label": "synthetic"}, display=lambda *args: None)
@@ -133,7 +144,7 @@ class PlottingConsumerTests(unittest.TestCase):
 
     def test_lme_notebook_cell(self):
         results, table = lme_inputs()
-        ns = dict(plott=plott, plt=plt, model_results=results, response_table=table)
+        ns = dict(plot_lme=plot_lme, plt=plt, model_results=results, response_table=table)
         path = "exp_05_map_positions/02_lme_feature_decomposition.ipynb"
         exec(compile(cell(path, 20), path, "exec"), ns)
         self.assertEqual(["fixed_effects", "model_comparison", "observed_vs_fitted", "response_distribution"], list(ns["figures"]))
@@ -147,7 +158,9 @@ class PlottingConsumerTests(unittest.TestCase):
             raster_figsize=(14, 8))
         self.assertEqual(["left", "right"], list(results))
         self.assertEqual(2, len(plt.get_fignums()))
-        ns = dict(plott=plott, rsf=rsf, at=at, plt=plt, all_fish_data=fixture["data"],
+        ns = dict(several_selection=several_selection, several_diagnostics=several_diagnostics,
+            motion_metrics=motion_metrics, plot_diagnostics=plot_diagnostics,
+            plt=plt, all_fish_data=fixture["data"],
             fish_ids=FISH_IDS, reference_fish=reference, timing=TIMING,
             plot_options=dict(apply_neuron_filter_to_cell06=False, motion_delta_fish_id=None),
             outputs=dict(mean_traces=False, motion_delta=True),

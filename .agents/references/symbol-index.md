@@ -109,12 +109,13 @@ Canonical implementation owners after S06:
 
 ### `src/response_metrics.py`
 - `compute_trial_mean_response_metrics` - build per-stimulus trial-mean traces and response metrics.
+- `validate_static_flicker_recruitment_result` - check one fish's static--flicker windows, categories, and raster rows.
 
 ### `src/reliability.py`
 - `filter_neurons_by_trial_reliability` - select reliable neurons and optionally save their indices.
 
 ### `src/multifish_analysis.py`
-Compatibility facade: S07 moved scientific implementations into `src.multifish_matrices`, `src.static_flicker_analysis`, `src.bout_flicker_analysis`, `src.stimulus_specificity`, `src.stimulus_similarity`, and `src.active_neuron_analysis`. Follow the facade import for the exact implementation; current notebook imports remain supported.
+Compatibility facade: S07 moved scientific implementations into `src.multifish_matrices`, `src.static_flicker_analysis`, `src.bout_flicker_analysis`, `src.stimulus_specificity`, `src.stimulus_similarity`, and `src.active_neuron_analysis`. Historical imports remain available while S12 decides the supported compatibility surface; active notebooks now use the owners.
 
 - `build_bout_flicker_position_analysis` - build pooled bout-referenced flicker-position comparison data.
 - `compute_static_flicker_fish_level_statistics` - compute fish-level static--flicker tests, confidence intervals, and Holm-adjusted p-values.
@@ -151,6 +152,13 @@ Compatibility facade: S07 moved scientific implementations into `src.multifish_m
 
 ### `src/stimulus_similarity.py`
 - `build_stimulus_vector_similarity` - compute selected stimulus-vector similarity and pairwise summaries.
+
+### `src/bout_flicker_analysis.py`
+- `build_bout_flicker_position_analysis` - derive trajectory-matched bout/flicker position responses and neuron ordering.
+
+### `src/static_flicker_analysis.py`
+- `build_static_flicker_recruitment_analysis` - combine per-fish static--flicker responses into recruitment summaries.
+- `compute_static_flicker_fish_level_statistics` - calculate fish-level comparisons and adjusted p-values.
 
 ### `src/several_fish_reporting.py`
 - `save_analysis_report_run` - save a timestamped several-fish run folder with settings, comments, metadata, tables, and optional notebook export.
@@ -231,7 +239,7 @@ Compatibility facades:
 - New analysis must import `src.significant_trace_detection`; the shared single-fish notebook has migrated to this owner.
 
 ### `src/plotting.py`
-Compatibility facade: S08 moved figure construction into the `src.plotting_*` modules. Neuron ordering and timing preparation live in `src.neuron_ordering` and `src.stimuli_timeline`. Follow the facade import for the exact implementation; current notebook imports remain supported.
+Compatibility facade: S08 moved figure construction into the `src.plotting_*` modules. Neuron ordering and timing preparation live in `src.neuron_ordering` and `src.stimuli_timeline`. Historical imports remain available while S12 decides the supported compatibility surface; active notebooks now use the owners.
 
 - `add_stimuli_markers` - add stimulus timing markers to an existing axis.
 - `list_stimulus_names` - discover stimulus names from `*_trajectory.*` files by stripping `_trajectory`.
@@ -281,6 +289,18 @@ Compatibility facade: S08 moved figure construction into the `src.plotting_*` mo
 - `plot_stimulus_specificity_selectivity_index` - plot selectivity index and response strength.
 - `plot_active_stimuli_histogram` - plot active-stimulus counts.
 - `plot_preferred_stimulus_distribution` - plot preferred-stimulus counts in selected order.
+
+### `src/plotting_bout_position.py`
+- `plot_bout_flicker_position_cell06_style` - render the matched bout/flicker Cell 06-style figure.
+
+### `src/plotting_static_flicker.py`
+- `plot_static_flicker_classification_raster` - render independent left/right category-ordered rasters.
+- `plot_pooled_static_flicker_category_proportions` - render pooled category proportions.
+- `plot_shared_static_flicker_auc_summary` - render shared-neuron AUC comparisons.
+- `plot_recruitment_amplification` - render recruitment and amplification components.
+
+### `src/plotting_lme.py`
+- `plot_lme_model_outputs` - render model fit and response-distribution figures.
 
 ## Ownership notes
 - If a notebook calls one of the symbols above, start in its implementation owner before editing the notebook; inspect a facade only when its compatibility surface matters.
