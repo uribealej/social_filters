@@ -107,48 +107,29 @@ def _load_merged_map(map_file: Path):
     return dfof_merged_map
 
 
-def load_2p_experiment(
-    fish_id: str,
-    experiment_name: str,
-    main_path: Path,
-    stimuli_main_path: Path,
-    fps_2p: float = 2.0,
-    selected_blocks=None,
+def _experiment_paths(
+    fish_id: str, experiment_name: str, main_path: Path, stimuli_main_path: Path
 ) -> Dict[str, Any]:
-    """
-    High-level loader for a 2P experiment.
-
-    It will:
-      - build paths from fish_id + experiment_name
-      - load the merged dFoF file
-      - load & transform stimuli timing info
-      - find the correct block_log CSV
-      - call st.make_stimulus_traces_2
-
-    Returns a dict with:
-      - 'dfof':            np.ndarray (frames, neurons)
-      - 'fps_2p':          float
-      - 'frames_per_block':int
-      - 'duration_2p_block_sec': float
-      - 'stimuli_durations': dict
-      - 'adjusted_log':    DataFrame (from make_stimulus_traces_2)
-      - 'stimuli_trace_60':np.ndarray
-      - 'stimuli_table':   DataFrame
-      - 'stimuli_id_map':  dict
-      - 'paths':           dict with various Path objects and names
-    """
-    if selected_blocks is None:
-        selected_blocks = [f"B{n}" for n in range(1, 3)]
-
+    """Build the established experiment and output locations."""
     fish = f"{fish_id}_{experiment_name}"
     prefix = "_".join(fish.split("_")[:2])
+    analysis_dir = main_path / fish / "03_analysis" / "functional"
+    return {
+        "fish": fish,
+        "prefix": prefix,
+        "stimuli_path": stimuli_main_path / experiment_name / "stimuli",
+        "metadata_dir": main_path / fish / "01_raw" / "2p" / "metadata",
+        "dfof_dir": analysis_dir / "suite2P" / "merged_dFoF",
+        "plots_path": analysis_dir / "plots",
+        "planes_dir": analysis_dir / "suite2P",
+    }
 
-    stimuli_path = stimuli_main_path / experiment_name / "stimuli"
-    metadata_dir = main_path / fish / "01_raw" / "2p" / "metadata"
-    dfof_dir = main_path / fish / "03_analysis" / "functional" / "suite2P" / "merged_dFoF"
-    plots_path = main_path / fish / "03_analysis" / "functional" / "plots"
-    planes_dir = main_path / fish / "03_analysis" / "functional" / "suite2P"
 
+def _load_optional_caches(paths: Dict[str, Any]) -> Dict[str, Any]:
+    """Load available analysis caches, retaining None for missing or unreadable files."""
+    prefix = paths["prefix"]
+    plots_path = paths["plots_path"]
+    dfof_dir = paths["dfof_dir"]
     raster = None
     deltaF_center = None
     kept_neuron_indices = None
@@ -205,6 +186,20 @@ def load_2p_experiment(
     else:
         print(f"z_core file not found (skipping): {zcore_file}")
 
+    return {
+        "raster": raster,
+        "deltaF_center": deltaF_center,
+        "kept_neuron_indices": kept_neuron_indices,
+        "filtered_roi_indices": filtered_roi_indices,
+        "z_traces": z_traces,
+    }
+
+
+def _load_plane_metadata(paths: Dict[str, Any]) -> Dict[str, Any]:
+    """Load optional merged map and its Suite2p plane images and ROI records."""
+    dfof_dir = paths["dfof_dir"]
+    prefix = paths["prefix"]
+    planes_dir = paths["planes_dir"]
     merged_map_file = _resolve_merged_map_file(dfof_dir, prefix)
     dfof_merged_map = _load_merged_map(merged_map_file) if merged_map_file else None
 
@@ -228,7 +223,18 @@ def load_2p_experiment(
     else:
         print("No merged map available; skipping Suite2P plane metadata loading.")
 
-    dfof_file = _resolve_merged_dfof_file(dfof_dir, prefix)
+    return {
+        "merged_map_file": merged_map_file,
+        "dFoF_merged_map": dfof_merged_map,
+        "plane_ids": plane_ids,
+        "mean_imgs": mean_imgs,
+        "stat_per_plane": stat_per_plane,
+    }
+
+
+def _load_merged_dfof(paths: Dict[str, Any], selected_blocks, fps_2p: float) -> Dict[str, Any]:
+    """Load frames x neurons dFoF and derive the per-block frame and time counts."""
+    dfof_file = _resolve_merged_dfof_file(paths["dfof_dir"], paths["prefix"])
     dfof = np.load(dfof_file)
 
     if dfof.ndim < 2:
@@ -245,6 +251,20 @@ def load_2p_experiment(
     frames_per_block = n_frames // n_blocks
     duration_2p_block_sec = frames_per_block / fps_2p
 
+    return {
+        "dfof_file": dfof_file,
+        "dfof": dfof,
+        "frames_per_block": frames_per_block,
+        "duration_2p_block_sec": duration_2p_block_sec,
+    }
+
+
+def _load_stimulus_timing(
+    paths: Dict[str, Any], selected_blocks, duration_2p_block_sec: float
+) -> Dict[str, Any]:
+    """Find stimulus trajectories and the block log, then build 60 Hz timing."""
+    stimuli_path = paths["stimuli_path"]
+    metadata_dir = paths["metadata_dir"]
     stimuli_durations = {}
     for stim_file in stimuli_path.glob("*trajectory.*"):
         filename = stim_file.stem
@@ -279,40 +299,84 @@ def load_2p_experiment(
         duration_2p_block_sec,
     )
 
-    paths = {
-        "fish": fish,
-        "prefix": prefix,
-        "stimuli_path": stimuli_path,
-        "metadata_dir": metadata_dir,
-        "dfof_dir": dfof_dir,
-        "plots_path": plots_path,
-        "experiment_log_path": experiment_log_path,
-        "dfof_file": dfof_file,
-        "merged_map_file": merged_map_file,
-        "planes_dir": planes_dir,
-    }
-
     return {
-        "dfof": dfof,
-        "fps_2p": fps_2p,
-        "frames_per_block": frames_per_block,
-        "duration_2p_block_sec": duration_2p_block_sec,
+        "experiment_log_path": experiment_log_path,
         "stimuli_durations": stimuli_durations,
         "adjusted_log": adjusted_log,
         "stimuli_trace_60": stimuli_trace_60,
         "stimuli_table": stimuli_table,
         "stimuli_id_map": stimuli_id_map,
-        "paths": paths,
-        "dFoF_merged_map": dfof_merged_map,
-        "z_traces": z_traces,
-        "raster": raster,
-        "deltaF_center": deltaF_center,
-        "kept_neuron_indices": kept_neuron_indices,
-        "filtered_roi_indices": filtered_roi_indices,
-        "plane_ids": plane_ids,
-        "mean_imgs": mean_imgs,
-        "stat_per_plane": stat_per_plane,
     }
+
+
+def _assemble_experiment_bundle(
+    paths: Dict[str, Any],
+    caches: Dict[str, Any],
+    planes: Dict[str, Any],
+    imaging: Dict[str, Any],
+    timing: Dict[str, Any],
+    fps_2p: float,
+) -> Dict[str, Any]:
+    """Preserve the public bundle keys, array order, and path dictionary contract."""
+    public_paths = {
+        "fish": paths["fish"],
+        "prefix": paths["prefix"],
+        "stimuli_path": paths["stimuli_path"],
+        "metadata_dir": paths["metadata_dir"],
+        "dfof_dir": paths["dfof_dir"],
+        "plots_path": paths["plots_path"],
+        "experiment_log_path": timing["experiment_log_path"],
+        "dfof_file": imaging["dfof_file"],
+        "merged_map_file": planes["merged_map_file"],
+        "planes_dir": paths["planes_dir"],
+    }
+
+    return {
+        "dfof": imaging["dfof"],
+        "fps_2p": fps_2p,
+        "frames_per_block": imaging["frames_per_block"],
+        "duration_2p_block_sec": imaging["duration_2p_block_sec"],
+        "stimuli_durations": timing["stimuli_durations"],
+        "adjusted_log": timing["adjusted_log"],
+        "stimuli_trace_60": timing["stimuli_trace_60"],
+        "stimuli_table": timing["stimuli_table"],
+        "stimuli_id_map": timing["stimuli_id_map"],
+        "paths": public_paths,
+        "dFoF_merged_map": planes["dFoF_merged_map"],
+        "z_traces": caches["z_traces"],
+        "raster": caches["raster"],
+        "deltaF_center": caches["deltaF_center"],
+        "kept_neuron_indices": caches["kept_neuron_indices"],
+        "filtered_roi_indices": caches["filtered_roi_indices"],
+        "plane_ids": planes["plane_ids"],
+        "mean_imgs": planes["mean_imgs"],
+        "stat_per_plane": planes["stat_per_plane"],
+    }
+
+
+def load_2p_experiment(
+    fish_id: str,
+    experiment_name: str,
+    main_path: Path,
+    stimuli_main_path: Path,
+    fps_2p: float = 2.0,
+    selected_blocks=None,
+) -> Dict[str, Any]:
+    """Load one 2P experiment and return its imaging, timing, and cache bundle.
+
+    ``dfof`` is frames x neurons, ``stimuli_trace_60`` is sampled at 60 Hz,
+    and ``duration_2p_block_sec`` is in seconds. Optional caches and the
+    merged map are ``None`` when absent; their public keys remain present.
+    """
+    if selected_blocks is None:
+        selected_blocks = [f"B{n}" for n in range(1, 3)]
+
+    paths = _experiment_paths(fish_id, experiment_name, main_path, stimuli_main_path)
+    caches = _load_optional_caches(paths)
+    planes = _load_plane_metadata(paths)
+    imaging = _load_merged_dfof(paths, selected_blocks, fps_2p)
+    timing = _load_stimulus_timing(paths, selected_blocks, imaging["duration_2p_block_sec"])
+    return _assemble_experiment_bundle(paths, caches, planes, imaging, timing, fps_2p)
 
 
 def load_and_align_2p_experiment(

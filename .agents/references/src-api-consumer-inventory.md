@@ -20,7 +20,7 @@ This inventory was established on 2026-09-25 during Step 2 of `src-refactor-road
 - **Active compatibility facade:** external-active import path whose implementation has moved to a narrower owner. Preserve the import until consumers migrate.
 - **Active facade candidate:** external-active mixed-responsibility module whose implementation is scheduled to move.
 - **Documented, currently uncalled:** listed in `symbol-index.md` but not called by an active notebook/script. It is not dead merely because it is currently uncalled.
-- **Deprecation review candidate:** duplicated, accidentally re-exported, or unreferenced code that may be retired only through Step 11 evidence.
+- **Deprecation review candidate:** duplicated, accidentally re-exported, or unreferenced code requiring per-symbol evidence and a documented compatibility decision before retirement.
 - **Private implementation:** underscore-prefixed helper or a helper deliberately excluded from the stable notebook API.
 
 ## Audit coverage
@@ -149,7 +149,17 @@ Classification: active compatibility facade. S08 moved implementations to figure
 - `resolve_stimulus_set`
 - `save_analysis_report_run`
 
-Classification: active facade candidates. Step 9 may separate workflow, reporting, data preparation, and plotting, but notebooks need compatibility during migration.
+Classification: active import-only compatibility facade after S09. Active notebooks retain these imports until the S12 consumer migration.
+
+S09 step 1: `save_analysis_report_run` and `export_notebook_report` now belong to `src.several_fish_reporting`; `src.reusable_several_fish` re-exports both for active notebook callers. The report folder and return contracts below are unchanged.
+
+S09 step 2: `load_and_preflight_fish_raster_inputs` now belongs to `src.several_fish_loading`; `src.reusable_several_fish` re-exports it for active notebook callers. The returned bundle, path choices, fish/stimulus order, and all-or-error contract below are unchanged.
+
+S09 step 3: pure stimulus/control selection, response summary and keep-mask preparation, trace filtering, and active-matrix row/column selection now belong to `src.several_fish_selection`. `src.reusable_several_fish` re-exports the notebook-facing names. Pooled response-row ordering and summary return keys are unchanged.
+
+S09 step 4: response-window tables, high-sparseness raster inputs, mean traces, and overlap-diagnostic preparation now belong to `src.several_fish_diagnostics`. `src.reusable_several_fish` re-exports the notebook-facing names and former diagnostic subhelpers. Plotting and report dependencies are absent from the diagnostic owner; prepared arrays and row order are unchanged.
+
+S09 step 5: pooled raster inputs, lifetime-sparseness summaries, and motion active-count tables now also belong to `src.several_fish_diagnostics`. The five high-level figure functions belong to `src.several_fish_figures`; `src.reusable_several_fish` re-exports them. The historical public signatures, returned structures, figure data, and ordering are unchanged. No active notebook import was migrated.
 
 ### Significant traces
 
@@ -196,13 +206,15 @@ These are listed in `symbol-index.md` but have no active notebook/script call an
 - `stimuli_timeline.transform_stimuli_duration` as a direct notebook/script caller surface; it is now the canonical implementation used internally by `data_loading`.
 - `auxtrigger_extraction.extract_aux_trigger_frames`; this remains an intentional documented preprocessing API despite having no active repository caller.
 
-This classification does not authorize deletion. Step 11 requires stronger evidence and explicit compatibility review.
+This classification does not authorize deletion. S11 retained these documented
+helpers after its evidence review; any later change requires a new
+compatibility decision. See the [S11 completion record](../history/src-refactor-s11.md).
 
 ## Deprecation and boundary review candidates
 
 - `data_loading.transform_stimuli_duration` is a compatibility wrapper that delegates to the canonical timing owner; it contains no normalization logic.
-- `multifish_analysis.compute_stimulus_selectivity_metrics` is a compatibility re-export from `response_selectivity`; `reusable_several_fish.py` still accesses it through `mfa`. Migrate that internal caller deliberately during S09 or S12, with focused validation.
-- `analysis_tools.inspect_obj`, `analysis_tools.plot_venn_3stim`, and other public-looking but undocumented helpers remain Step 11 review candidates.
+- `multifish_analysis.compute_stimulus_selectivity_metrics` is a compatibility re-export from `response_selectivity`; S09 moved the several-fish calculation to `several_fish_diagnostics.py`, which imports `response_selectivity` directly. The `mfa` alias remains on `reusable_several_fish.py` for historical compatibility; review its export boundary during S12.
+- `analysis_tools.inspect_obj`, `analysis_tools.plot_venn_3stim`, and other public-looking helpers were retained in S11 because explicit exports or characterization contracts leave external use uncertain. Review facade exposure during S12.
 - `src.significant_traces` and `src.significant_traces_v2` are thin compatibility facades after S05. Their removal remains a later compatibility/deprecation decision; neither contains scientific array logic.
 - `analysis_tools.py` now has an explicit `__all__`; other transitional facades still expose historical imports. Review their export boundaries during S12 rather than treating every imported name as permanent API.
 
@@ -259,6 +271,10 @@ Its scientific thresholds remain explicit parameters. Output filenames are owned
 `build_all_fish_raster_figure` returns a dictionary containing the flat matrix, optional left-right index, neuron order, figure, axes, and image.
 
 `save_analysis_report_run` is intentionally stateful. When enabled it creates a timestamped report folder containing settings JSON, report-settings JSON, run metadata JSON, comments Markdown, optional CSV tables, and an optional notebook export. It returns `run_id`, `run_dir`, saved table paths, and export status; when saving is disabled it returns `None`.
+
+### Several-fish selection
+
+`build_selected_neuron_summary` returns `neuron_summary_table`, `neuron_summary_all_stimuli_table`, `left_right_index`, `plot_neuron_keep_mask`, `plot_neuron_keep_indices`, `resolved_preference_controls`, `selected_auc_response_matrix`, and `plot_filter_table`. The index, keep mask, selected responses, and filter table follow pooled response-row order; the summary-table owner sorts its rows by `global_neuron_id`. `build_fish_keep_masks` splits the pooled mask by fish without reordering rows; trace and active-matrix filtering then apply each fish's rows in their original order.
 
 ### Significant-trace detector
 

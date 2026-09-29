@@ -1,9 +1,9 @@
 """Extract auxiliary-trigger events from ScanImage TIFF metadata."""
 
 import re
-import numpy as np
-from ScanImageTiffReader import ScanImageTiffReader
 from pathlib import Path
+
+import numpy as np
 
 def extract_aux_trigger_frames(tiff_path: Path, n_channels: int = 2):
     """
@@ -16,6 +16,14 @@ def extract_aux_trigger_frames(tiff_path: Path, n_channels: int = 2):
     Returns:
         dict: Dictionary with trigger names as keys and lists of (frame, value) for nonzero triggers.
     """
+    try:
+        from ScanImageTiffReader import ScanImageTiffReader
+    except ImportError as exc:
+        raise ImportError(
+            "Aux-trigger extraction requires ScanImageTiffReader. Install the "
+            "scanimage-tiff-reader package before calling extract_aux_trigger_frames."
+        ) from exc
+
     trigger_frames = {f'auxTrigger{ch}': [] for ch in range(n_channels)}
 
     with ScanImageTiffReader(str(tiff_path)) as tif:

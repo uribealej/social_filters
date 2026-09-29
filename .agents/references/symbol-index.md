@@ -22,8 +22,17 @@ The active notebook/script evidence and compatibility classification for these s
 ### `src/dff_extraction.py`
 - `process_suite2p_fluorescence` - end-to-end per-plane Suite2p to filtered dFoF extraction and retained ROI indices.
 
+This is the documented notebook-facing gateway. The module's unprefixed
+loading, baseline, and ROI-filter helpers remain callable for compatibility,
+but have no active external repository consumer. S11 retained them because the
+extraction gateway and S10 tests use them; review their public names during S12.
+
 ### `src/auxtrigger_extraction.py`
 - `extract_aux_trigger_frames` - parse ScanImage TIFF metadata to recover aux-trigger events by frame.
+
+`ScanImageTiffReader` is required when this function runs and is imported at
+call time. The module itself must import without the TIFF reader installed;
+missing readers raise an actionable `ImportError` from the function.
 
 ### `src/data_loading.py`
 - `load_2p_experiment` - high-level experiment bundle loader that assembles dFoF, cache lookups, paths, stimulus traces, and plane metadata.
@@ -113,24 +122,66 @@ Compatibility facade: S07 moved scientific implementations into `src.multifish_m
 - `build_static_flicker_recruitment_analysis` - combine per-fish, per-position static--flicker metrics into category, shared-ΔAUC, and recruitment/amplification summaries.
 - `build_pooled_active_trace_diagnostic` - pool binary trial-aligned traces and active decisions across fish for strictness diagnostics.
 
-### `src/reusable_several_fish.py`
-- `resolve_stimulus_set` - resolve editable notebook stimulus sets against a reference fish.
+### `src/several_fish_reporting.py`
 - `save_analysis_report_run` - save a timestamped several-fish run folder with settings, comments, metadata, tables, and optional notebook export.
 - `export_notebook_report` - export a saved notebook to a report folder through nbconvert.
-- `build_response_window_validation` - build compact response-window validation tables for selected fish and stimuli.
-- `resolve_response_control_columns` - resolve left/right control IDs or names to response-matrix columns.
-- `build_selected_neuron_summary` - build selected/all-stimulus summary tables plus response-index filter outputs.
-- `build_high_sparseness_raster_data` - prepare high lifetime-sparseness raster matrices and row order.
-- `build_pooled_mean_trace_by_stimulus` - build per-fish mean traces for pooled time-course plots.
-- `build_fish_keep_masks` - split a pooled neuron keep mask into per-fish masks in response-row order.
-- `build_filtered_trial_aligned_traces_for_fish` - subset one fish's selected trial-aligned traces by preprocessing and optional pooled-filter rows.
-- `build_overlap_diagnostic_data` - prepare active-neuron overlap matrices and pooled trace diagnostics for reusable notebooks.
-- `load_and_preflight_fish_raster_inputs` - load and validate a configured several-fish raster cohort.
-- `build_all_fish_raster_figure` - build an all-fish raster with configurable labels and sorting.
+
+### `src/several_fish_loading.py`
+- `load_and_preflight_fish_raster_inputs` - load and validate an ordered several-fish raster cohort and return its notebook bundle.
+
+### `src/several_fish_selection.py`
+- `resolve_stimulus_set` - resolve ordered stimulus IDs or names against a reference fish.
+- `resolve_response_control_columns` - resolve left/right controls to response-matrix columns.
+- `build_selected_neuron_summary` - prepare row-aligned summary tables, preference index, keep mask, and selected responses.
+- `build_fish_keep_masks` - split a pooled neuron keep mask into per-fish response-row masks.
+- `build_filtered_trial_aligned_traces_for_fish` - select one fish's filtered neuron-by-time-by-trial traces.
+- `subset_active_matrices` - subset per-fish active matrices to ordered stimulus columns.
+- `filter_active_matrices_by_keep_mask` - apply a pooled keep mask to per-fish active-matrix rows.
+
+### `src/several_fish_diagnostics.py`
+- `build_all_fish_raster_inputs` - prepare pooled raster matrix, optional left-right index, and stable neuron ordering.
+- `build_lifetime_sparseness_summary` - prepare selected response matrix, per-neuron selectivity metrics, and sparseness summary.
+- `build_motion_active_counts` - prepare ordered per-fish active-neuron counts.
+- `build_response_window_validation` - prepare ordered response-window rows across fish and stimuli.
+- `build_high_sparseness_raster_data` - prepare a sorted high-sparseness raster matrix and row order.
+- `build_pooled_mean_trace_by_stimulus` - prepare per-fish mean traces for each selected stimulus.
+- `build_diagnostic_trace_source_data` - align z-score diagnostic traces to active-matrix rows.
+- `apply_diagnostic_keep_mask` - filter pooled diagnostic trace, decision, and metadata rows.
+- `build_decision_then_mean_sort_order` - order diagnostic rows by active decisions and mean trace.
+- `build_metric_sort_order` - order diagnostic rows by a per-neuron summary metric.
+- `build_overlap_diagnostic_data` - prepare overlap matrices and pooled trace diagnostics.
+
+### `src/several_fish_figures.py`
+- `build_all_fish_raster_figure` - orchestrate the pooled raster figure with configured labels and sorting.
 - `build_plot_all_fish_mean_zscore_traces` - render mean z-score traces for an ordered stimulus set.
 - `plot_left_right_active_overlap_diagnostics` - render left/right active-neuron overlap and raster diagnostics.
-- `plot_motion_active_neuron_counts` - render ordered per-stimulus active counts with one point per fish and no fish legend.
-- `plot_lifetime_sparseness_analysis` - render lifetime sparseness and a high-sparseness raster with an optional analysis label.
+- `plot_motion_active_neuron_counts` - render ordered per-stimulus active counts.
+- `plot_lifetime_sparseness_analysis` - render lifetime sparseness and high-sparseness raster figures.
+
+### `src/reusable_several_fish.py`
+- `resolve_stimulus_set` - historical notebook import; implementation in `src/several_fish_selection.py`.
+- `save_analysis_report_run` - historical notebook import; implementation in `src/several_fish_reporting.py`.
+- `export_notebook_report` - historical notebook import; implementation in `src/several_fish_reporting.py`.
+- `build_response_window_validation` - historical notebook import; implementation in `src/several_fish_diagnostics.py`.
+- `resolve_response_control_columns` - historical import; implementation in `src/several_fish_selection.py`.
+- `build_selected_neuron_summary` - historical notebook import; implementation in `src/several_fish_selection.py`.
+- `build_high_sparseness_raster_data` - historical notebook import; implementation in `src/several_fish_diagnostics.py`.
+- `build_pooled_mean_trace_by_stimulus` - historical notebook import; implementation in `src/several_fish_diagnostics.py`.
+- `build_fish_keep_masks` - historical notebook import; implementation in `src/several_fish_selection.py`.
+- `build_filtered_trial_aligned_traces_for_fish` - historical notebook import; implementation in `src/several_fish_selection.py`.
+- `subset_active_matrices` - historical import; implementation in `src/several_fish_selection.py`.
+- `filter_active_matrices_by_keep_mask` - historical import; implementation in `src/several_fish_selection.py`.
+- `build_overlap_diagnostic_data` - historical notebook import; implementation in `src/several_fish_diagnostics.py`.
+- `build_diagnostic_trace_source_data` - historical import; implementation in `src/several_fish_diagnostics.py`.
+- `apply_diagnostic_keep_mask` - historical import; implementation in `src/several_fish_diagnostics.py`.
+- `build_decision_then_mean_sort_order` - historical import; implementation in `src/several_fish_diagnostics.py`.
+- `build_metric_sort_order` - historical import; implementation in `src/several_fish_diagnostics.py`.
+- `load_and_preflight_fish_raster_inputs` - historical notebook import; implementation in `src/several_fish_loading.py`.
+- `build_all_fish_raster_figure` - historical notebook import; implementation in `src/several_fish_figures.py`.
+- `build_plot_all_fish_mean_zscore_traces` - historical notebook import; implementation in `src/several_fish_figures.py`.
+- `plot_left_right_active_overlap_diagnostics` - historical notebook import; implementation in `src/several_fish_figures.py`.
+- `plot_motion_active_neuron_counts` - historical notebook import; implementation in `src/several_fish_figures.py`.
+- `plot_lifetime_sparseness_analysis` - historical notebook import; implementation in `src/several_fish_figures.py`.
 
 ### `src/lme_feature_decomposition.py`
 - `build_lme_response_table` - convert per-fish neuron-by-stimulus response matrices plus editable stimulus metadata into a long LME response table.

@@ -29,6 +29,7 @@ dependencies:
 
   # Specialized TIFF preprocessing and stimulus playback
   - pip:
+      # Needed when extracting aux triggers; src imports without this reader.
       - scanimage-tiff-reader
       - psychopy
       - pyglet

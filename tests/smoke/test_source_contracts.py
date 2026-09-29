@@ -12,9 +12,6 @@ from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_ROOT = REPOSITORY_ROOT / "src"
-OPTIONAL_IMPORTS = {
-    "src.auxtrigger_extraction": "ScanImageTiffReader",
-}
 MATPLOTLIB_CONFIG_ROOT = REPOSITORY_ROOT / ".test_cache" / "matplotlib"
 
 
@@ -26,22 +23,6 @@ def _source_modules() -> list[str]:
         for path in sorted(SOURCE_ROOT.glob("*.py"))
         if path.name != "__init__.py"
     ]
-
-
-def _import_in_subprocess(module_name: str) -> subprocess.CompletedProcess[str]:
-    """Import one module in an isolated process and capture its result."""
-
-    MATPLOTLIB_CONFIG_ROOT.mkdir(parents=True, exist_ok=True)
-    environment = os.environ.copy()
-    environment["MPLCONFIGDIR"] = str(MATPLOTLIB_CONFIG_ROOT)
-    return subprocess.run(
-        [sys.executable, "-c", f"import {module_name}"],
-        cwd=REPOSITORY_ROOT,
-        env=environment,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
 
 
 def _import_many_in_subprocess(module_names: list[str]) -> subprocess.CompletedProcess[str]:
@@ -88,14 +69,9 @@ class SourceContractTests(unittest.TestCase):
         self.assertEqual([], failures, "Source compilation failures:\n" + "\n".join(failures))
 
     def test_required_modules_import(self) -> None:
-        """Import every module that has no documented optional dependency."""
+        """Import every source module, including optional-workflow modules."""
 
-        module_names = [
-            module_name
-            for module_name in _source_modules()
-            if module_name not in OPTIONAL_IMPORTS
-        ]
-        result = _import_many_in_subprocess(module_names)
+        result = _import_many_in_subprocess(_source_modules())
         marker_lines = [
             line
             for line in result.stdout.splitlines()
@@ -104,19 +80,6 @@ class SourceContractTests(unittest.TestCase):
         self.assertTrue(marker_lines, result.stderr.strip() or result.stdout.strip())
         failures = json.loads(marker_lines[-1].split("=", 1)[1])
         self.assertEqual({}, failures, "Required module import failures")
-
-    def test_optional_module_import_failure_is_narrow(self) -> None:
-        """Allow only the documented missing dependency for optional modules."""
-
-        for module_name, dependency_name in OPTIONAL_IMPORTS.items():
-            with self.subTest(module=module_name):
-                result = _import_in_subprocess(module_name)
-                if result.returncode == 0:
-                    continue
-
-                detail = result.stderr.strip() or result.stdout.strip()
-                self.assertIn("ModuleNotFoundError", detail)
-                self.assertIn(dependency_name, detail)
 
 
 if __name__ == "__main__":

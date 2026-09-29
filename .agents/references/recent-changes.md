@@ -11,7 +11,9 @@ Use this file when
 
 ## Current handoff
 
-No active handoff. For the next `src/` refactor slice, consult `src-refactor-roadmap.md`.
+No active handoff. S11 is complete; see its
+[completion record](../history/src-refactor-s11.md). S12 is next in the
+[roadmap](src-refactor-roadmap.md).
 
 ## Maintenance rule
 

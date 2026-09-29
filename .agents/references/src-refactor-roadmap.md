@@ -37,9 +37,9 @@ Allowed status values are `not started`, `in progress`, `blocked`, and `complete
 | S06 | Split `analysis_tools` by scientific responsibility | complete | S00-S01 |
 | S07 | Split `multifish_analysis` by scientific domain | complete | S06 |
 | S08 | Split plotting by figure family | complete | S00-S01, S06-S07 as applicable |
-| S09 | Separate several-fish workflow, reporting, and pure transforms | not started | S06-S08 |
-| S10 | Review loaders, extraction modules, and optional dependencies | not started | S00-S03 |
-| S11 | Perform evidence-based dead-code retirement | not started | S03-S10 |
+| S09 | Separate several-fish workflow, reporting, and pure transforms | complete | S06-S08 |
+| S10 | Review loaders, extraction modules, and optional dependencies | complete | S00-S03 |
+| S11 | Perform evidence-based dead-code retirement | complete | S03-S10 |
 | S12 | Migrate consumers and reduce compatibility facades | not started | S03-S11 |
 | S13 | Adopt the permanent `src` organization policy | not started | S03-S12 |
 | S14 | Run final end-to-end validation and close the refactor | not started | S13 |
@@ -57,7 +57,7 @@ Allowed status values are `not started`, `in progress`, `blocked`, and `complete
 
 ## Completed slices
 
-S00-S08 are complete. Their original plans and completion records are preserved in [S00-S08 history](../history/src-refactor-s00-s08.md), outside normal startup reading.
+S00-S11 are complete. The earlier plans and completion records are preserved in [S00-S08 history](../history/src-refactor-s00-s08.md), the [S09 completion record](../history/src-refactor-s09.md), the [S10 completion record](../history/src-refactor-s10.md), and the [S11 completion record](../history/src-refactor-s11.md), outside normal startup reading.
 
 ## S09 - Separate several-fish workflow and reporting
 
@@ -73,6 +73,8 @@ Recommended order
 4. Diagnostic data preparation.
 5. High-level figure orchestration.
 
+Complete. Reporting, cohort loading, pure selection, pure diagnostic and figure-input preparation, and high-level figure orchestration now belong to `src/several_fish_reporting.py`, `src/several_fish_loading.py`, `src/several_fish_selection.py`, `src/several_fish_diagnostics.py`, and `src/several_fish_figures.py`, respectively. `src/reusable_several_fish.py` remains an import-only compatibility facade for active notebooks. See the [S09 completion record](../history/src-refactor-s09.md) for validation and limits.
+
 Validation
 
 - Report folder contents and JSON/CSV schema checks.
@@ -87,30 +89,21 @@ Exit criteria
 
 ## S10 - Review loaders, extraction modules, and optional dependencies
 
-Objective
-
-Finish the smaller owner modules after the large-module boundaries are stable.
-
-Work
-
-1. Split `load_2p_experiment` into private lookup/load/assembly stages without changing its public return contract.
-2. Add tests for optional merged-map behavior and cache discovery.
-3. Confirm `dff_extraction.py` public/private boundaries and add known-output tests for baseline and ROI filtering.
-4. Decide and document whether `ScanImageTiffReader` is mandatory for the supported environment or lazily imported only when aux extraction is called.
-5. Keep `lme_feature_decomposition.py` cohesive unless tests reveal a clear independent boundary.
-6. Leave `stimulus_visualization.py` largely intact unless a real ownership issue appears.
-
-Validation
-
-- Loader fixture tests cover missing optional files and canonical path choices.
-- One-plane preprocessing smoke validation where data are available.
-- Import smoke checks pass under the documented dependency policy.
-
-Exit criteria
-
-- Smaller modules have clear contracts and no accidental cross-layer dependencies.
+Complete. Loader internals have private stages and fixture contracts;
+per-plane extraction has known-output tests; aux-trigger TIFF loading is lazy;
+LME and stimulus visualization remain cohesive owners. See the
+[S10 completion record](../history/src-refactor-s10.md) for validation and
+the real-plane data limit.
 
 ## S11 - Evidence-based dead-code retirement
+
+Complete. The standalone dFoF example runner and two unreferenced,
+undocumented timing functions were retired after owner and downstream checks.
+Documented, tested, and intentional public helpers remain available for S12's
+consumer and facade review. The full suite passed 98 tests, including active
+notebook import and code-cell checks. No experimental dataset was rerun. See
+the [S11 completion record](../history/src-refactor-s11.md) for candidate
+decisions, validation, and external-use uncertainty.
 
 Objective
 
@@ -231,4 +224,5 @@ Exit criteria
 
 ## Recommended next action
 
-S09 is next: separate several-fish workflow, reporting, and pure transforms. S00-S08 are complete; S09 has not started.
+Start S12: migrate active consumers one workflow at a time, then decide which
+compatibility facades remain supported.

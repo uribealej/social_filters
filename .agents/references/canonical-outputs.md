@@ -17,7 +17,7 @@ Use this file when
   - `{prefix}_filtered_roi_indices.npy`
   - `{prefix}_dFoF_outputs.npz`
   - `metadata.json`
-- The standalone `__main__` block in `src/dff_extraction.py` writes unprefixed example files. Those names are not the batch notebook's per-plane output contract; review that standalone path during S10 of `src-refactor-roadmap.md`.
+- The historical standalone runner in `src/dff_extraction.py` was retired in S11. The batch notebook is the sole supported per-plane writer; its prefixed file names and metadata contract are unchanged.
 - Experiment-level merge writer stage: `DeltaFF_batch_pipeline.ipynb`.
 - Canonical merged folder:
   - `03_analysis/functional/suite2P/merged_dFoF`
@@ -38,6 +38,12 @@ Use this file when
   - `filtered_neurons_by_stimuli/{prefix}_kept_neuron_indices.npy`
   - `merged_dFoF/` for merge-side plot exports and sort-order CSVs written during validation notebooks
 - `src/data_loading.py` is the loader-side authority for how these outputs are discovered and reused.
+
+## Several-fish reviewed-run reports
+- `src/several_fish_reporting.py` writes optional reports when `REPORT_SETTINGS['save_report']` is enabled. Active notebooks still call it through `src.reusable_several_fish`.
+- Report folder: `<analysis_path>/<experiment_name>/reports/<YYYY-MM-DD_HHMM>_<run_label>/`.
+- Each saved run contains `settings.json`, `report_settings.json`, `run_metadata.json`, `comments.md`, and `tables/`. Nonempty supplied tables become `<slugified_table_name>.csv` files under `tables/`.
+- When notebook export is requested, nbconvert writes `<report_name>.html` and/or `<report_name>.pdf` in the run folder. A failed PDF export may create an HTML fallback. The returned export status and paths report what succeeded.
 
 ## Stimulus authoring outputs
 - Stimulus asset writers live in `scripts/stimuli/generation/`; their JSON configuration inputs live in `configs/stimuli/`.

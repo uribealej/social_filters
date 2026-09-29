@@ -1,7 +1,9 @@
-"""Extract and filter dFoF traces from Suite2p fluorescence outputs."""
+"""Extract and filter dFoF traces from Suite2p fluorescence outputs.
 
-import json
-import time
+``process_suite2p_fluorescence`` is the supported per-plane notebook gateway.
+The other functions are its lower-level loading and calculation stages.
+"""
+
 from pathlib import Path
 from typing import Tuple
 
@@ -192,7 +194,7 @@ def filter_inactive_rois_by_std_or_z(
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Keep ROI if (std > min_std) OR (at least `min_event_frames` samples with z > z_event).
-    If min_event_frames is None, it's set to ceil(min_event_frac * T), min 1.
+    ``min_event_frames`` is ceil(min_event_frac * T), minimum 1.
     z = (dF/F - center) / std, per ROI. NaNs ignored.
 
     Returns:
@@ -255,6 +257,9 @@ def process_suite2p_fluorescence(
     - tau (float): Calcium decay constant (seconds).
     - percentile (int): Percentile for baseline estimation.
     - instability_ratio (float): Instability rejection threshold.
+    - min_window_s (float): Minimum baseline window in seconds.
+    - window_tau_multiplier (float): Baseline window multiplier of tau.
+    - min_std (float): Minimum dF/F standard deviation for active ROI retention.
 
     Returns:
     - np.ndarray: dF/F traces (T x N_final).
@@ -302,60 +307,3 @@ def process_suite2p_fluorescence(
     )
 
     return deltaF_F_active, final_indices
-
-
-if __name__ == "__main__":
-    base_data_path = Path("/Volumes/LAB-MATI/Lausanne/2p/speed_groupsize_thalamus_exp03")
-    fish_selected = np.arange(1, 3)
-
-    n_planes = 5
-    fps = 2.0
-    tau = 6.0
-    percentile = 8
-    instability_ratio = 0.1
-
-    for fish in fish_selected:
-        fish_id = f"f{fish:02d}"
-        segmented_path = base_data_path / fish_id / "04_segmented"
-        print(f"\nProcessing {fish_id} in {segmented_path}")
-
-        for i in range(n_planes):
-            print(f"\nProcessing plane {i}")
-            f_path = segmented_path / f"plane{i}"
-            if (f_path / "F.npy").exists():
-                deltaF_F, final_indices = process_suite2p_fluorescence(
-                    f_path,
-                    fps,
-                    tau,
-                    percentile=percentile,
-                    instability_ratio=instability_ratio,
-                )
-
-                out_dir = base_data_path / fish_id / "05_dFoF" / f"plane{i}"
-                out_dir.mkdir(parents=True, exist_ok=True)
-
-                np.save(out_dir / "dFoF.npy", deltaF_F)
-                np.save(out_dir / "roi_filtered.npy", final_indices)
-
-                meta = {
-                    "fish_id": fish_id,
-                    "plane_index": i,
-                    "source_folder": str(f_path),
-                    "params": {
-                        "fps": fps,
-                        "tau": tau,
-                        "percentile": percentile,
-                        "instability_ratio": instability_ratio,
-                    },
-                    "shapes": {
-                        "dFoF_TxN": [int(deltaF_F.shape[0]), int(deltaF_F.shape[1])],
-                        "roi_indices_len": int(len(final_indices)),
-                    },
-                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-                }
-                with (out_dir / "meta.json").open("w", encoding="utf-8") as f:
-                    json.dump(meta, f, indent=2)
-
-                print(f"Saved to {out_dir}")
-            else:
-                print(f"File not found: {f_path}")

@@ -28,6 +28,7 @@ Choose one row. A dash means no extra reference is needed before opening the own
 ## Ownership guidance
 - `src/dff_extraction.py` owns reusable fluorescence loading, filtering, baseline estimation, and dFoF extraction math.
 - `src/auxtrigger_extraction.py` owns reusable TIFF metadata extraction, even if preprocessing notebooks call it rarely.
+- Aux-trigger extraction loads `ScanImageTiffReader` when called; other preprocessing modules remain importable without that dependency.
 - `src/data_loading.py` owns reusable merged-output and per-plane output discovery semantics consumed downstream.
 - Preprocessing notebooks own batch orchestration, sweep setup, summary tables, and ad hoc migration utilities.
 - `2P_Experiment_FileOps.ipynb` is a file-ops surface, not the authority for scientific extraction semantics.

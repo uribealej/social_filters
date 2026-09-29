@@ -29,6 +29,11 @@ Choose one row. A dash means no extra reference is needed before opening the own
 | Sorted chunk plots, all-fish flat rasters, mean traces, raster styling, saved PNG behavior | — | Relevant `src/plotting_*` owner; use `src/plotting.py` to locate it if unclear |
 | Notebook helper duplication, notebook-local scientific logic, or notebook-to-module extraction | `refactor-rules.md` | Owning `src/` module before opening the notebook region |
 | Cache names, filtered neuron index naming, saved figure locations | `canonical-outputs.md` | `src/data_loading.py` or the relevant writer |
+| Several-fish report folder, JSON/CSV serialization, notebook export | `canonical-outputs.md` for saved names and layout | `src/several_fish_reporting.py`; check `src/reusable_several_fish.py` for the historical notebook import |
+| Several-fish cohort loading, data-root lookup, or stimulus preflight | `src-api-consumer-inventory.md` for the returned bundle | `src/several_fish_loading.py`; check `src/reusable_several_fish.py` for the historical notebook import |
+| Several-fish stimulus/control selection, response summaries, pooled keep masks, or filtered trace/active rows | `src-api-consumer-inventory.md` for the pooled-row contract | `src/several_fish_selection.py`; check `src/reusable_several_fish.py` for historical notebook imports |
+| Several-fish response-window tables, high-sparseness raster inputs, mean traces, or active-overlap diagnostics | `src-api-consumer-inventory.md` for pooled-row ordering | `src/several_fish_diagnostics.py`; check `src/reusable_several_fish.py` for historical notebook imports |
+| Several-fish pooled raster, sparseness, mean-trace, active-overlap, or active-count figure orchestration | `src-api-consumer-inventory.md` for figure return contracts | `src/several_fish_figures.py`; check `src/reusable_several_fish.py` for historical notebook imports |
 | Analysis stage order or smallest rerun chain | `calcium-analysis-stage-map.md` | Relevant owner and first consumer |
 | Helper name without a known owner, or stable public import path | `symbol-index.md` | Owner identified there |
 
@@ -38,4 +43,9 @@ Choose one row. A dash means no extra reference is needed before opening the own
 - `src/multifish_matrices.py` owns pure multi-fish matrix construction from already trial-aligned per-fish traces; `src/multifish_analysis.py` preserves historical imports for this and other S07 scientific owners.
 - `src/significant_trace_detection.py` owns the Romano-style noise-model and rasterization pipeline; the versioned significant-trace modules are compatibility facades.
 - The `src/plotting_*` modules own reusable figure families; `src/plotting.py` preserves historical imports. Inspect its imports to locate the exact owner.
+- `src/several_fish_reporting.py` owns several-fish report serialization and notebook export; `src/reusable_several_fish.py` keeps the existing notebook imports available until the S12 consumer migration.
+- `src/several_fish_loading.py` owns several-fish cohort loading and stimulus preflight; its existing notebook import remains available through `src/reusable_several_fish.py`.
+- `src/several_fish_selection.py` owns pure several-fish stimulus selection, response summaries, keep masks, and row filtering; `src/reusable_several_fish.py` preserves historical notebook imports.
+- `src/several_fish_diagnostics.py` owns pure several-fish diagnostic and figure-input preparation, including raster inputs, sparseness summaries, and active-count tables.
+- `src/several_fish_figures.py` owns high-level several-fish figure orchestration; `src/plotting_*` modules own the reusable figure primitives. `src/reusable_several_fish.py` is an import-only compatibility facade.
 - Analysis notebooks own experiment selection, scientific narration, style dictionaries, and orchestration across cached outputs.
