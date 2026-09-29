@@ -40,7 +40,7 @@ Allowed status values are `not started`, `in progress`, `blocked`, and `complete
 | S09 | Separate several-fish workflow, reporting, and pure transforms | complete | S06-S08 |
 | S10 | Review loaders, extraction modules, and optional dependencies | complete | S00-S03 |
 | S11 | Perform evidence-based dead-code retirement | complete | S03-S10 |
-| S12 | Migrate consumers and reduce compatibility facades | not started | S03-S11 |
+| S12 | Migrate consumers and reduce compatibility facades | in progress | S03-S11 |
 | S13 | Adopt the permanent `src` organization policy | not started | S03-S12 |
 | S14 | Run final end-to-end validation and close the refactor | not started | S13 |
 
@@ -224,5 +224,5 @@ Exit criteria
 
 ## Recommended next action
 
-Start S12: migrate active consumers one workflow at a time, then decide which
+Continue S12: migrate active consumers one workflow at a time, then decide which
 compatibility facades remain supported.
