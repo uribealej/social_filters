@@ -31,8 +31,8 @@ def get_motion_timing_simple(
     - end_frame   = last frame of the file (n_frames - 1)
 
     It can look at:
-      - x/y columns:   *_x, *_y  (include_xy=True)
-      - radius columns: *_radius (include_radius=True)
+    - x/y columns: x, y, *_x, *_y (include_xy=True)
+    - radius columns: radius, *_radius (include_radius=True)
 
     Returns a dict with fields compatible with your downstream code.
     """
@@ -44,15 +44,15 @@ def get_motion_timing_simple(
 
     cols = []
     if include_xy:
-        cols += [c for c in df.columns if c.endswith(("_x", "_y"))]
+        cols += [c for c in df.columns if c in {"x", "y"} or c.endswith(("_x", "_y"))]
     if include_radius:
-        cols += [c for c in df.columns if c.endswith("_radius")]
+        cols += [c for c in df.columns if c == "radius" or c.endswith("_radius")]
 
     # Remove duplicates while preserving order
     cols = list(dict.fromkeys(cols))
 
     if not cols:
-        raise ValueError("No relevant columns found (no *_x/*_y and/or *_radius).")
+        raise ValueError("No relevant columns found (expected x/y/radius or dot-prefixed columns).")
 
     start_candidates = []
     for c in cols:

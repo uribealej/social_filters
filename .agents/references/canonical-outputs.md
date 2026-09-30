@@ -27,6 +27,10 @@ Use this file when
   - `{prefix}_dFoF_merged_map.csv`
 - Loader-side authority for discovering merged outputs and compatibility variants:
   - `src/data_loading.py`
+- The loader requires a merged map to have one row per merged dFoF neuron. It
+  prefers the canonical map when consistent, otherwise selects the newest
+  matching timestamped map from the writer's locked-CSV fallback. It raises
+  when maps exist but none match; a missing map remains optional.
 - Preprocessing notebook helpers that search for experiments, planes, or per-plane files are wrapper logic, not canonical output contracts.
 
 ## Calcium analysis caches and plots

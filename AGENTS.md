@@ -36,6 +36,7 @@ This is a lookup list, not a required reading list. Read only the references nee
 - `.agents/references/current-state.md` - mixed-state caveats, legacy entrypoints, and practical warnings.
 - `.agents/references/code-authoring-checklist.md` - mandatory compact rules for Python and notebook changes.
 - `.agents/references/refactor-rules.md` - ownership and edit-scope rules for this repo.
+- [`.agents/references/src-organization-policy.md`](.agents/references/src-organization-policy.md) - permanent `src/` ownership, dependency, public API, and validation rules; read when placing or changing reusable behavior.
 - `.agents/references/refactor-loop-policy.md` - default slice size, keep-going rules, and handoff expectations.
 - `.agents/references/src-diagnosis.md` - dated factual baseline for the repository-wide `src/` architecture audit.
 - `.agents/references/src-refactor-roadmap.md` - ordered multi-session `src/` refactor slices, validation gates, and status tracker.

@@ -28,6 +28,8 @@ Use this file when
 - Mapping and package JSON files own experiment-specific configuration values.
 - `src/stimulus_visualization.py` owns reusable batch trajectory loading, visible-direction summaries, inspection figures, and report saving. `notebooks/stimuli/plots_stimuli_batch.ipynb` is its configuration/reporting wrapper.
 - `src/stimuli_timeline.py` owns reusable timing extraction and log-to-trace semantics consumed by analysis code.
+- Timing extraction accepts both plain `x,y,radius` and dot-prefixed trajectory
+  columns, matching the formats read by stimulus visualization.
 - `scripts/stimuli/playback/try_projection.py` owns playback wrapper behavior and timing-log capture.
 
 ## Navigation notes

@@ -162,7 +162,7 @@
     "plot_stimulus_means": "c8639906d348b3e3d01219330d9b77f842ff0df0d3dc481c3b931aa7b8b0d8e0",
     "summarize_durations": "f5e23c4717702eabed6303bc6954702e9db48d34309cb52808dbca0cc14bfaf0",
     "compute_move_lines_for_flat_matrix": "fd6922d7ff23f3d6ebfed6db5ebd0b680deed0b06cdfc686593a6d2618b52821",
-    "plot_allfish_flat_raster": "bb832e7edd8c6ac029a077de8f42fdceb444dda2688531d8e0adc2e01116ca9b",
+    "plot_allfish_flat_raster": "242ff4dca73f406ca7d1be1d125449b650183fd017acf9c79e79c5a429287d4c",
     "plot_accepted_rejected_rasters": "5cf86748d2f0c226d4af34cce6874f76561bb730043b5dcd81d1538abf438725",
     "plot_venn_3stim": "7df9786cbe2d38735ab6205a81ae97506b7dec8a47c51658ca1b92148543ff2a",
     "plot_reliability_diagnostics": "85a24c87a1d69f7b82f550dde9d92cc467959c47f7450bfad6a72a55ab0fa18f"
@@ -686,11 +686,11 @@
         },
         "figures": [
           {
-            "sha256": "9d48b8bf37fb6dbf8ec0ab33e758e6498ec9012b5bb036da73f9072d40f8a0e3",
+            "sha256": "20d521527082afa98aa7856a23ed705c9c0936f089b5931a2cdc7323954686e7",
             "axes": [
               {
                 "title": "all_fish - ordered by stimulus type | sort=max_intensity",
-                "xlabel": "Time (s)",
+                "xlabel": "",
                 "ylabel": "# Neuron",
                 "xscale": "linear",
                 "yscale": "linear",
@@ -807,11 +807,11 @@
         },
         "figures": [
           {
-            "sha256": "870979482132f5223ceb548bcdd128364b8da0971f4e532ac5e40008625b8728",
+            "sha256": "f3a669f80a2e84c561f199bf5ce3f5e89dd328f3c15c0e52ba7cc94678773802",
             "axes": [
               {
                 "title": "all_fish - ordered by stimulus type | sort=max_intensity",
-                "xlabel": "Time (s)",
+                "xlabel": "",
                 "ylabel": "# Neuron",
                 "xscale": "linear",
                 "yscale": "linear",

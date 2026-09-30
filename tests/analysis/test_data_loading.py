@@ -157,12 +157,30 @@ class ExperimentLoaderTests(unittest.TestCase):
     def test_compatibility_map_and_invalid_map_contract(self):
         np.save(self.dfof_dir / f"{self.prefix}_dFoF_merged.npy", self.dfof)
         map_file = self.dfof_dir / f"{self.prefix}_dFoF_merged_map_old.csv"
-        pd.DataFrame({"plane": ["plane0"]}).to_csv(map_file, index=False)
+        pd.DataFrame({"plane": ["plane0", "plane0"]}).to_csv(map_file, index=False)
         self.save_plane()
         self.assertEqual(map_file, self.load()["paths"]["merged_map_file"])
 
-        pd.DataFrame({"roi": [0]}).to_csv(map_file, index=False)
+        pd.DataFrame({"roi": [0, 1]}).to_csv(map_file, index=False)
         with self.assertRaisesRegex(ValueError, "missing required column.*plane"):
+            self.load()
+
+    def test_stale_canonical_map_uses_matching_timestamped_map(self):
+        np.save(self.dfof_dir / f"{self.prefix}_dFoF_merged.npy", self.dfof)
+        canonical = self.dfof_dir / f"{self.prefix}_dFoF_merged_map.csv"
+        fallback = self.dfof_dir / f"{self.prefix}_dFoF_merged_map_20251028.csv"
+        pd.DataFrame({"plane": ["plane0"]}).to_csv(canonical, index=False)
+        pd.DataFrame({"plane": ["plane0", "plane0"]}).to_csv(fallback, index=False)
+        self.save_plane()
+        result = self.load()
+        self.assertEqual(fallback, result["paths"]["merged_map_file"])
+        self.assertEqual(2, len(result["dFoF_merged_map"]))
+
+    def test_no_map_matching_merged_neurons_fails(self):
+        np.save(self.dfof_dir / f"{self.prefix}_dFoF_merged.npy", self.dfof)
+        canonical = self.dfof_dir / f"{self.prefix}_dFoF_merged_map.csv"
+        pd.DataFrame({"plane": ["plane0"]}).to_csv(canonical, index=False)
+        with self.assertRaisesRegex(ValueError, "matches the merged dFoF's 2 neuron columns"):
             self.load()
 
 

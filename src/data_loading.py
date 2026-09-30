@@ -59,16 +59,12 @@ def _resolve_merged_dfof_file(dfof_dir: Path, prefix: str) -> Path:
     return resolved
 
 
-def _resolve_merged_map_file(dfof_dir: Path, prefix: str):
+def _resolve_merged_map_file(dfof_dir: Path, prefix: str, expected_neurons: int):
     """
-    Resolve the merged map CSV using the canonical writer name first,
-    then fall back to compatibility variants in the canonical merged folder.
+    Resolve a merged map with one row per dFoF neuron. Prefer the canonical
+    writer name when it matches; a timestamped writer fallback may be newer.
     """
     preferred_path = dfof_dir / f"{prefix}_dFoF_merged_map.csv"
-    if preferred_path.exists():
-        print(f"Using canonical merged map file: {preferred_path}")
-        return preferred_path
-
     candidates = list(dfof_dir.glob(f"{prefix}_dFoF_merged_map*.csv"))
     if not candidates:
         print(
@@ -78,9 +74,25 @@ def _resolve_merged_map_file(dfof_dir: Path, prefix: str):
         )
         return None
 
-    resolved = _pick_latest_file(candidates)
-    print(f"Using compatibility merged map file: {resolved}")
-    return resolved
+    ordered = ([preferred_path] if preferred_path in candidates else []) + sorted(
+        (path for path in candidates if path != preferred_path),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    row_counts = {}
+    for path in ordered:
+        try:
+            row_counts[path.name] = len(pd.read_csv(path))
+        except Exception as exc:
+            raise ValueError(f"Could not read merged map CSV '{path}'.") from exc
+        if row_counts[path.name] == expected_neurons:
+            label = "canonical" if path == preferred_path else "compatibility"
+            print(f"Using {label} merged map file: {path}")
+            return path
+    raise ValueError(
+        f"No merged map CSV in {dfof_dir} matches the merged dFoF's "
+        f"{expected_neurons} neuron columns; map row counts: {row_counts}."
+    )
 
 
 def _load_merged_map(map_file: Path):
@@ -196,12 +208,12 @@ def _load_optional_caches(paths: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _load_plane_metadata(paths: Dict[str, Any]) -> Dict[str, Any]:
+def _load_plane_metadata(paths: Dict[str, Any], expected_neurons: int) -> Dict[str, Any]:
     """Load optional merged map and its Suite2p plane images and ROI records."""
     dfof_dir = paths["dfof_dir"]
     prefix = paths["prefix"]
     planes_dir = paths["planes_dir"]
-    merged_map_file = _resolve_merged_map_file(dfof_dir, prefix)
+    merged_map_file = _resolve_merged_map_file(dfof_dir, prefix, expected_neurons)
     dfof_merged_map = _load_merged_map(merged_map_file) if merged_map_file else None
 
     plane_ids = sorted(dfof_merged_map["plane"].unique()) if dfof_merged_map is not None else []
@@ -368,14 +380,16 @@ def load_2p_experiment(
     ``dfof`` is frames x neurons, ``stimuli_trace_60`` is sampled at 60 Hz,
     and ``duration_2p_block_sec`` is in seconds. Optional caches and the
     merged map are ``None`` when absent; their public keys remain present.
+    An available map must have one row per merged neuron. A matching timestamped
+    map is accepted when the canonical map is stale.
     """
     if selected_blocks is None:
         selected_blocks = [f"B{n}" for n in range(1, 3)]
 
     paths = _experiment_paths(fish_id, experiment_name, main_path, stimuli_main_path)
     caches = _load_optional_caches(paths)
-    planes = _load_plane_metadata(paths)
     imaging = _load_merged_dfof(paths, selected_blocks, fps_2p)
+    planes = _load_plane_metadata(paths, imaging["dfof"].shape[1])
     timing = _load_stimulus_timing(paths, selected_blocks, imaging["duration_2p_block_sec"])
     return _assemble_experiment_bundle(paths, caches, planes, imaging, timing, fps_2p)
 

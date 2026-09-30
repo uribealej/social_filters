@@ -10,7 +10,10 @@ Use this file when
 - A loader or notebook failure suggests partial migration state.
 
 ## Current notes
-- `src/data_loading.py` now treats the merged map CSV as optional for base experiment loading: core dFoF loading still works without it, while plane metadata is skipped unless a readable merged map with a `plane` column is available.
+- `src/data_loading.py` treats the merged map CSV as optional when absent. When
+  maps exist, it requires a readable map with a `plane` column and one row per
+  merged neuron, preferring a matching canonical map and accepting a matching
+  timestamped writer fallback when the canonical copy is stale.
 - `src/auxtrigger_extraction.py` imports without `ScanImageTiffReader`; only calls to `extract_aux_trigger_frames` require the package. The full `environment.yml` declares it for aux-trigger workflows.
 - `notebooks/calcium/preprocessing/2P_Experiment_FileOps.ipynb` is a utility and migration surface. It is not the authority for scientific extraction semantics or canonical output contracts.
 - Stimulus files use existing repo spellings such as `Trayectory_*`. Preserve current file names unless a task explicitly includes a naming migration.

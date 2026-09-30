@@ -35,7 +35,7 @@ call time. The module itself must import without the TIFF reader installed;
 missing readers raise an actionable `ImportError` from the function.
 
 ### `src/data_loading.py`
-- `load_2p_experiment` - high-level experiment bundle loader that assembles dFoF, cache lookups, paths, stimulus traces, and plane metadata.
+- `load_2p_experiment` - high-level experiment bundle loader that assembles dFoF, cache lookups, paths, stimulus traces, and plane metadata; verifies merged-map rows against dFoF neurons and accepts a matching timestamped fallback.
 - `load_and_align_2p_experiment` - load one fish and build aligned dFoF, raster, normalized, and z-score traces for several-fish notebooks.
 
 Compatibility entrypoint:
@@ -46,7 +46,7 @@ Not public here yet:
 - per-plane lookup helpers such as `load_dfof_for_plane` and `load_filtered_indices_for_plane` are still notebook-local duplication backlog until a later extraction slice moves them into an owner module.
 
 ### `src/stimuli_timeline.py`
-- `get_motion_timing_simple` - derive timing from trajectory CSVs using x, y, and radius changes.
+- `get_motion_timing_simple` - derive timing from trajectory CSVs using plain or dot-prefixed x, y, and radius changes.
 - `transform_stimuli_duration` - canonical owner for normalizing extracted timing dictionaries into the downstream-facing timing contract.
 - `get_angles_from_positions` - reverse rotated trajectory x/y coordinates into angle values for shared stimulus interpretation.
 - `make_stimulus_traces_2` - convert experiment logs plus stimulus durations into the numeric stimulus trace and table used downstream.

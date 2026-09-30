@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -114,6 +115,23 @@ class StimulusDurationNormalizationTests(unittest.TestCase):
             stimuli_timeline.transform_stimuli_duration(source),
             data_loading.transform_stimuli_duration(source),
         )
+
+    def test_plain_and_dot_prefixed_trajectories_have_the_same_timing(self) -> None:
+        frames = pd.DataFrame({
+            "x": [1, 1, 2, 2], "y": [0, 0, 0, 0],
+            "radius": [0.2, 0.2, 0.2, 0.2],
+        })
+        with tempfile.TemporaryDirectory() as folder:
+            plain = Path(folder) / "plain.csv"
+            prefixed = Path(folder) / "prefixed.csv"
+            frames.to_csv(plain, index=False)
+            frames.rename(columns={name: f"dot0_{name}" for name in frames}).to_csv(
+                prefixed, index=False
+            )
+            expected = stimuli_timeline.get_motion_timing_simple(prefixed, framerate=2)
+            self.assertEqual(expected, stimuli_timeline.get_motion_timing_simple(plain, framerate=2))
+        self.assertEqual(2, expected["motion_start_frame"])
+        self.assertEqual(2.0, expected["total_sec"])
 
 
 class TimingLoaderConsumerTests(unittest.TestCase):

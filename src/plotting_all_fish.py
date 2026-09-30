@@ -259,6 +259,7 @@ def plot_allfish_flat_raster(
 
         # Hide duplicated top x tick labels
         plt.setp(ax.get_xticklabels(), visible=False)
+        ax.set_xlabel("")
 
     # --- legend ---
     seen = set()

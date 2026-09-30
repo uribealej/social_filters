@@ -40,9 +40,9 @@ Allowed status values are `not started`, `in progress`, `blocked`, and `complete
 | S09 | Separate several-fish workflow, reporting, and pure transforms | complete | S06-S08 |
 | S10 | Review loaders, extraction modules, and optional dependencies | complete | S00-S03 |
 | S11 | Perform evidence-based dead-code retirement | complete | S03-S10 |
-| S12 | Migrate consumers and reduce compatibility facades | in progress | S03-S11 |
-| S13 | Adopt the permanent `src` organization policy | not started | S03-S12 |
-| S14 | Run final end-to-end validation and close the refactor | not started | S13 |
+| S12 | Migrate consumers and reduce compatibility facades | complete | S03-S11 |
+| S13 | Adopt the permanent `src` organization policy | complete | S03-S12 |
+| S14 | Run final end-to-end validation and close the refactor | complete | S13 |
 
 ## Global invariants for every slice
 
@@ -132,89 +132,51 @@ Exit criteria
 
 ## S12 - Migrate consumers and reduce compatibility facades
 
-Objective
-
-Move notebooks and scripts to the final public owners, then decide which old facades remain supported.
-
-Work
-
-1. Update consumers one workflow at a time.
-2. Keep notebook cells short and preserve their stage order and configuration names.
-3. Add deprecation warnings only when they are actionable and not disruptive to notebook output.
-4. Remove facade re-exports only after every active consumer has migrated and the public compatibility decision is documented.
-5. Update workflow routers, stage maps, and `symbol-index.md` alongside public changes.
-
-Validation
-
-- Compile every active notebook code cell.
-- Execute the smallest representative notebook chain for preprocessing, single-fish analysis, several-fish analysis, and stimulus visualization.
-- Render and inspect every affected figure.
-
-Exit criteria
-
-- Active consumers use the intended public owners.
-- Remaining facades are deliberate compatibility surfaces, not accidental leftovers.
+Complete. Active consumers use the intended public owners, and retained facades
+have a documented compatibility decision. The full test suite and representative
+real-data workflows passed. See the [S12 completion record](../history/src-refactor-s12.md)
+for validation and limits.
 
 ## S13 - Adopt the permanent `src` organization policy
 
-Objective
-
-Convert lessons from the completed refactor into enforceable repository guidance.
-
-Deliverable
-
-Create `.agents/references/src-organization-policy.md` and link it from `AGENTS.md` and the workflow routers.
-
-Minimum policy content
-
-- ownership map and dependency direction;
-- public API and facade rules;
-- one canonical implementation per calculation;
-- no version-suffixed implementation files;
-- computation/I/O/orchestration/plot separation;
-- function and module cohesion expectations;
-- array shape, unit, NaN, and ordering documentation;
-- testing and characterization requirements;
-- dead-code review and deprecation process;
-- notebook boundary rules;
-- canonical output preservation;
-- figure screenshot validation;
-- documentation update requirements when public behavior changes.
-
-Validation
-
-- The policy agrees with the final code structure rather than describing an aspirational layout that does not exist.
-- Router instructions lead future agents to the smallest relevant owner and reference.
-
-Exit criteria
-
-- Future additions have a clear placement and review policy.
+Complete. The [organization policy](src-organization-policy.md) is linked from
+`AGENTS.md` and the workflow routers and agrees with the post-S12 owners and
+compatibility decision. See the [S13 completion record](../history/src-refactor-s13.md)
+for the audit, routing checks, and limits.
 
 ## S14 - Final end-to-end validation and closure
+
+Complete. All seven checkpoints passed their available validation surfaces.
+See the [S14 completion record](../history/src-refactor-s14.md) for the real-data
+checks, resolved defects, figures, and execution limits.
 
 Objective
 
 Demonstrate that the reorganization preserved supported workflows.
 
-Validation matrix
+Validation checkpoints
 
-- source compile and import suite;
-- full unit and characterization suite;
-- preprocessing one-plane smoke run;
-- single-fish load, alignment, detector, and raster path;
-- several-fish matrix, selection, overlap, and summary path;
-- stimulus timing and visualization path;
-- LME table/model smoke path where dependencies and data permit;
-- notebook source-cell compilation;
-- representative rendered figures inspected for layout quality;
-- canonical output names and schemas checked.
+Keep S14 as one slice. Complete these checkpoints across sessions if needed;
+record the result and exact next breakpoint in `recent-changes.md`. If a check
+finds a code defect, fix it in the owning module and rerun the affected check.
 
-Closure work
-
-1. Update `symbol-index.md`, stage maps, and canonical-output documentation.
-2. Clear completed temporary handoffs from `recent-changes.md`.
-3. Move any purely historical completed plan material to `.agents/history/` only after the active policy and owner references are sufficient.
-4. Record environment or data limitations honestly.
+1. **Foundation:** Compile and import `src`, run the full unit and characterization
+   suite, and compile every active notebook code cell.
+2. **Preprocessing:** Run one-plane extraction on representative data; check
+   per-plane and merged names, shapes, and the first `data_loading` consumer.
+3. **Single fish:** Run loading, alignment, significant-trace detection, and
+   raster preparation; render and inspect the representative figure.
+4. **Several-fish analysis:** Check matrix construction, selection, active
+   overlap, and summaries, including fish, neuron-row, and stimulus order.
+5. **Several-fish figures and LME:** Render and inspect representative summary
+   figures; build the LME response table and smoke-test the model where its
+   dependencies and data permit.
+6. **Stimulus:** Check trajectory-to-timing interpretation and visualization;
+   render and inspect the stimulus figures.
+7. **Contracts and closure:** Check canonical filenames, folders, schemas, and
+   stage order; update `symbol-index.md`, stage maps, and output documentation
+   where needed. Clear completed handoffs, archive historical plan material
+   after active references are sufficient, and record any execution limits.
 
 Exit criteria
 
@@ -224,5 +186,6 @@ Exit criteria
 
 ## Recommended next action
 
-Continue S12: migrate active consumers one workflow at a time, then decide which
-compatibility facades remain supported.
+The repository-wide `src/` refactor is complete. Keep future owner changes
+scoped by the [organization policy](src-organization-policy.md) and their first
+downstream consumers.

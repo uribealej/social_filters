@@ -13,6 +13,9 @@ Use this file when
 ## Task routing table
 
 Choose one row. A dash means no extra reference is needed before opening the owner.
+For a new `src/` responsibility, dependency, or public contract decision, read
+[the organization policy](../references/src-organization-policy.md) and then
+use the matching row below to open the owner.
 
 | Task pattern | Reference if needed | Open next |
 | --- | --- | --- |
