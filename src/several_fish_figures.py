@@ -14,7 +14,7 @@ from src.several_fish_diagnostics import (
     build_lifetime_sparseness_summary, build_motion_active_counts,
     build_overlap_diagnostic_data, build_pooled_mean_trace_by_stimulus,
 )
-from src.several_fish_reporting import _slugify_label
+from src.several_fish_reporting import slugify_label
 
 
 def build_all_fish_raster_figure(
@@ -68,7 +68,7 @@ def build_all_fish_raster_figure(
         is_binary=False,
         show_mean_trace=True,
         figsize=figsize,
-        fish_id=f"all_fish_{_slugify_label(raster_settings.get('analysis_label', raster_settings.get('experiment_name', 'analysis')))}",
+        fish_id=f"all_fish_{slugify_label(raster_settings.get('analysis_label', raster_settings.get('experiment_name', 'analysis')))}",
     )
     return {
         "flat_matrix_all_fish": flat_matrix_all_fish,
@@ -163,7 +163,7 @@ def plot_lifetime_sparseness_analysis(
             is_binary=False,
             show_mean_trace=True,
             figsize=raster_figsize,
-            fish_id=f"all_fish_{_slugify_label(analysis_label or 'analysis')}_high_lifetime_sparseness_zscore",
+            fish_id=f"all_fish_{slugify_label(analysis_label or 'analysis')}_high_lifetime_sparseness_zscore",
             vmax=4,
         )
         plt.show()

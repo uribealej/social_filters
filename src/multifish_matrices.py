@@ -94,6 +94,10 @@ def _stim_key(trial_aligned_traces, stim):
     raise KeyError(stim)
 
 
+# Shared key lookup for segment similarity. Keep the historical name.
+resolve_stimulus_key = _stim_key
+
+
 def describe_matrix_widths(
     all_fish_data,
     stim_order,

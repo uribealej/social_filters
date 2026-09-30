@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 
-from src.trial_alignment import _stimulus_duration_entry, _trial_aligned_time_axis
+from src.trial_alignment import stimulus_duration_entry, trial_aligned_time_axis
 
 def _has_consecutive_true(bool_vec, min_run_frames):
     bool_vec = np.asarray(bool_vec, dtype=bool)
@@ -99,7 +99,7 @@ def build_active_neuron_matrix_from_trial_raster(
                 f"expected {expected_reps}."
             )
 
-        stim_name, duration = _stimulus_duration_entry(
+        stim_name, duration = stimulus_duration_entry(
             stim,
             stimuli_durations=stimuli_durations,
             stimuli_id_map=stimuli_id_map,
@@ -107,7 +107,7 @@ def build_active_neuron_matrix_from_trial_raster(
         )
         motion_duration_s = float(duration[motion_duration_key])
 
-        time_s = _trial_aligned_time_axis(n_time, fps_2p=fps_2p, t_pre_s=t_pre_s)
+        time_s = trial_aligned_time_axis(n_time, fps_2p=fps_2p, t_pre_s=t_pre_s)
         response_end_s = float(motion_onset_s) + motion_duration_s + tau_s * 2.0
         response_mask = (time_s >= float(motion_onset_s)) & (time_s < response_end_s)
         if not np.any(response_mask):

@@ -16,6 +16,13 @@ and stimulus-timing tools used by these analyses.
 - `docs/`: reproducibility and project documentation.
 - `archive/notebooks/calcium/`: historical notebooks that are not maintained.
 
+For new analysis code, import the focused owner in `src/`: `trial_alignment`
+for trial timing, `response_*` for response calculations, `multifish_matrices`
+and the other named analysis modules for pooled data, and `plotting_*` for
+figures. The [symbol index](.agents/references/symbol-index.md) lists the
+owners by helper. `analysis_tools`, `multifish_analysis`, `plotting`, and
+`reusable_several_fish` remain available for historical imports.
+
 ## Local data
 
 Data are not included in this repository. In the lab workspace, source imaging

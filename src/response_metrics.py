@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 
-from src.trial_alignment import _trial_aligned_time_axis, resolve_selected_stimuli
+from src.trial_alignment import resolve_selected_stimuli, trial_aligned_time_axis
 
 def compute_trial_mean_response_metrics(
     trial_aligned_traces,
@@ -298,7 +298,7 @@ def compute_static_flicker_trial_metrics(
                 raise ValueError(f"Missing static_before_sec timing for stimulus {stimulus_name!r}.")
             onset_s = float(duration["static_before_sec"])
             stimulus_offset_s = onset_s + float(duration.get("motion_sec", 0.0))
-            time_s = _trial_aligned_time_axis(zscore.shape[1], fps_2p=fps_2p, t_pre_s=t_pre_s)
+            time_s = trial_aligned_time_axis(zscore.shape[1], fps_2p=fps_2p, t_pre_s=t_pre_s)
             static_center_s = onset_s + float(static_center_offset_s)
             flicker_center_s = onset_s + float(flicker_center_offset_s)
             static_start_s = static_center_s - float(static_window_s) / 2.0

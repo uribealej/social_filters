@@ -108,6 +108,9 @@ Canonical implementation owners after S06:
 - `build_trial_aligned_traces` - build trial windows keyed by stimulus id; used directly by the shared single-fish notebook.
 - `resolve_selected_stimuli` - normalize ordered stimulus selections from names or IDs.
 - `compute_response_window_frames` - compute clipped aligned-trace response-window frame indices.
+- `id_to_stimulus_name` - resolve a stimulus ID to its display name; public alias of the historical `_id_to_stimulus_name` helper shared with motion metrics.
+- `stimulus_duration_entry` - resolve one stimulus's timing metadata; public alias of the historical `_stimulus_duration_entry` helper shared with response classification.
+- `trial_aligned_time_axis` - derive the aligned time axis in seconds; public alias of the historical `_trial_aligned_time_axis` helper shared with response metrics and classification.
 
 ### `src/response_normalization.py`
 - `zscore_dfof_from_prestim_baseline` - z-score dFoF using pre-stimulus baselines.
@@ -148,6 +151,7 @@ Supported compatibility facade: S07 moved scientific implementations into `src.m
 - `compute_motion_delta_peaks` - build per-trial motion-minus-fixed peak metrics.
 
 ### `src/multifish_matrices.py`
+- `resolve_stimulus_key` - find an ID or string stimulus key in trial-aligned traces; public alias of the historical `_stim_key` helper shared with stimulus similarity.
 - `build_matrix_all_fish` - stack per-fish matrices in fish and stimulus order.
 - `build_zscore_response_matrix_for_fish` - build one fish's neuron-by-stimulus response matrix.
 - `build_zscore_response_matrices_all_fish` - build per-fish and pooled response matrices with row metadata.
@@ -169,6 +173,7 @@ Supported compatibility facade: S07 moved scientific implementations into `src.m
 ### `src/several_fish_reporting.py`
 - `save_analysis_report_run` - save a timestamped several-fish run folder with settings, comments, metadata, tables, and optional notebook export.
 - `export_notebook_report` - export a saved notebook to a report folder through nbconvert.
+- `slugify_label` - make report and figure labels safe for filenames; public alias of the historical `_slugify_label` helper shared with several-fish figures.
 
 ### `src/several_fish_loading.py`
 - `load_and_preflight_fish_raster_inputs` - load and validate an ordered several-fish raster cohort and return its notebook bundle.

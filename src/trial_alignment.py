@@ -151,6 +151,10 @@ def _id_to_stimulus_name(stim_key, stimuli_id_map):
     return id_to_name.get(stim_int, str(stim_key))
 
 
+# Shared stimulus-name lookup for motion metrics. Keep the historical name.
+id_to_stimulus_name = _id_to_stimulus_name
+
+
 def _stimulus_duration_entry(
     stim_key,
     stimuli_durations,
@@ -183,6 +187,10 @@ def _stimulus_duration_entry(
         f"No stimulus timing metadata found for stimulus {stim_key!r} "
         f"(resolved name {stim_name!r})."
     )
+
+
+# Shared lookup for response-classification callers. Keep the historical name.
+stimulus_duration_entry = _stimulus_duration_entry
 
 def resolve_selected_stimuli(selected_stimuli, stimuli_id_map, available_stimuli=None):
     """
@@ -265,6 +273,10 @@ def _trial_aligned_time_axis(n_time, fps_2p, t_pre_s):
     if fps_2p <= 0:
         raise ValueError("fps_2p must be > 0")
     return np.arange(n_time, dtype=float) / float(fps_2p) - float(t_pre_s)
+
+
+# Shared time base for response metrics and classification. Keep the historical name.
+trial_aligned_time_axis = _trial_aligned_time_axis
 
 def compute_response_window_frames(
     n_time,

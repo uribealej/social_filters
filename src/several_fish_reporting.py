@@ -37,6 +37,10 @@ def _slugify_label(label):
     return clean or "run"
 
 
+# Shared filename-label conversion for several-fish figures. Keep the historical name.
+slugify_label = _slugify_label
+
+
 def export_notebook_report(
     notebook_path,
     output_dir,

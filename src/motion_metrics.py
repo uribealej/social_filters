@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 
 from src.trial_alignment import (
-    _id_to_stimulus_name,
-    _trial_aligned_time_axis,
+    id_to_stimulus_name,
+    trial_aligned_time_axis,
 )
 
 def _parse_side_segment(stimulus, segments):
@@ -54,7 +54,7 @@ def _iter_motion_delta_blocks(
     segments = tuple(segments)
 
     for stim_key, arr in trial_aligned_traces.items():
-        stimulus = _id_to_stimulus_name(stim_key, stimuli_id_map)
+        stimulus = id_to_stimulus_name(stim_key, stimuli_id_map)
         side, segment = _parse_side_segment(stimulus, segments)
         if side is None:
             side = "selected"
@@ -68,7 +68,7 @@ def _iter_motion_delta_blocks(
             )
 
         n_neurons, n_time, n_trials = arr.shape
-        time_s = _trial_aligned_time_axis(n_time, fps_2p=fps_2p, t_pre_s=t_pre_s)
+        time_s = trial_aligned_time_axis(n_time, fps_2p=fps_2p, t_pre_s=t_pre_s)
         motion_onset_s = _motion_onset_for_stimulus(
             stimulus=stimulus,
             stimuli_durations=stimuli_durations,

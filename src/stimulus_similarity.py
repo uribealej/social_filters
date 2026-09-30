@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 
-from src.multifish_matrices import _stim_key
+from src.multifish_matrices import resolve_stimulus_key
 from src.response_metrics import compute_trial_auc_by_neuron
 from src.trial_alignment import compute_response_window_frames
 
@@ -242,7 +242,7 @@ def build_segment_selectivity_permutation_summary(
         for resolved_label in resolved_segment_labels:
             display_label = segment_label_to_display[resolved_label]
             stim_id = segment_label_to_id[resolved_label]
-            stim_key = _stim_key(trial_aligned_z, stim_id)
+            stim_key = resolve_stimulus_key(trial_aligned_z, stim_id)
             arr = np.asarray(trial_aligned_z[stim_key], dtype=float)
             if arr.ndim != 3:
                 raise ValueError(
