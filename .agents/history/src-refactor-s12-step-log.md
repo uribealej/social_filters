@@ -14,7 +14,7 @@ Use this file when
 S12 is complete; see the [completion record](../history/src-refactor-s12.md).
 The following is its historical step log. Step 0 checkpointed completed S09-S11 work in commit
 `d35d0d6`. The consumer baseline is
-[`src-api-consumer-inventory.md`](src-api-consumer-inventory.md) and its exact
+[`src-api-consumer-inventory.md`](../references/src-api-consumer-inventory.md) and its exact
 machine contract is `tests/contracts/src_api_consumers.json` (11 active
 `src`-using notebooks and 4 scanned scripts).
 
@@ -63,7 +63,7 @@ the edited notebook kept its cell metadata and outputs. The output names are
 unchanged. `current-state.md` now records the corrected Exp 8 syntax and the
 outstanding block/timing comparison.
 
-Step 5 recorded the [S12 compatibility decision](src-compatibility-decision.md):
+Step 5 recorded the [S12 compatibility decision](../references/src-compatibility-decision.md):
 documented historical callable paths on the four broad facades, both
 significant-trace facades, and the data-loading timing wrapper remain supported
 without runtime warnings. Private helper and dependency aliases remain

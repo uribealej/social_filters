@@ -11,7 +11,7 @@ Use this file when
 - Checking whether a function is active, internal, documented-but-uncalled, or a retirement candidate.
 - Selecting the first downstream consumer for validation.
 
-This inventory was established on 2026-09-25 during Step 2 of `src-refactor-roadmap.md`. The exact machine-readable contract is `tests/contracts/src_api_consumers.json`, and `tests/contracts/test_src_api_consumers.py` fails when an active consumer or referenced symbol changes without review.
+This inventory was established on 2026-09-25 during S01 of the [completed refactor roadmap](../history/src-refactor-roadmap.md). The exact machine-readable contract is `tests/contracts/src_api_consumers.json`, and `tests/contracts/test_src_api_consumers.py` fails when an active consumer or referenced symbol changes without review.
 
 ## Classification language
 

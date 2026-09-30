@@ -44,7 +44,7 @@ and side-effect helpers when changing it, while preserving its public contract.
 Existing public gateways are not all pure calculations. `reliability.py` can
 plot and save selected indices, `stimulus_visualization.py` loads trajectories
 and saves an inspection report, and `several_fish_figures.py` imports
-`_slugify_label` from `several_fish_reporting.py`. These are current
+`slugify_label` from `several_fish_reporting.py`. These are current
 boundaries, not patterns to copy into new scientific functions. Changing them
 requires a separate owner-scoped change with consumer validation.
 

@@ -13,7 +13,7 @@ Use this file when
 ## Task routing table
 
 Choose one row. A dash means no extra reference is needed before opening the owner.
-For a new `src/` responsibility, dependency, or public contract decision, read
+For everyday preprocessing analysis or a new `src/` responsibility, dependency, or public contract decision, read
 [the organization policy](../references/src-organization-policy.md) and then
 use the matching row below to open the owner.
 
@@ -35,5 +35,5 @@ use the matching row below to open the owner.
 - `src/data_loading.py` owns reusable merged-output and per-plane output discovery semantics consumed downstream.
 - Preprocessing notebooks own batch orchestration, sweep setup, summary tables, and ad hoc migration utilities.
 - `2P_Experiment_FileOps.ipynb` is a file-ops surface, not the authority for scientific extraction semantics.
-- Diagnostic sweep plots such as `plot_raster_gray` stay notebook-local unless a later slice promotes them into shared plotting API.
+- Diagnostic sweep plots such as `plot_raster_gray` stay notebook-local until a separately scoped change promotes them into shared plotting API.
 - For extraction or writer behavior changes, rerun the affected stage on one experiment or plane when data are available; check written names and shapes with the first consumer when the output contract changes.

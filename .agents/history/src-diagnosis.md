@@ -2,16 +2,16 @@
 
 Purpose
 
-Preserve the read-only architecture audit of `src/` performed on 2026-09-24 so future refactor sessions can work from the same factual baseline without repeating the full inspection.
+Preserve the read-only architecture audit of `src/` performed on 2026-09-24 as historical evidence for the completed S00–S14 refactor.
 
 Use this file when
 
-- Planning or resuming a repository-wide `src/` refactor.
+- Reviewing the completed repository-wide `src/` refactor.
 - Reviewing why a module was originally selected for a refactor slice.
 - Reviewing duplicate, legacy, or apparently unused functions.
 - Checking the baseline risks that must be protected by tests before moving code.
 
-This is a dated baseline, not a current module inventory or ownership map. S00-S08 have since added tests and split several modules. Use `src-refactor-roadmap.md` for current status and inspect the current `src/` owner before editing.
+This is a dated baseline, not a current module inventory or ownership map. S00–S14 have since completed. Use the [organization policy](../references/src-organization-policy.md) and inspect the current `src/` owner before editing; the [completed roadmap](src-refactor-roadmap.md) records the historical status.
 
 ## Scope and method
 
@@ -206,4 +206,4 @@ Public or potentially interactive candidates requiring stronger confirmation:
 - Preserve current module entrypoints as compatibility facades while internals move.
 - Do not delete public or apparently unused scientific helpers until reference search, characterization, and downstream validation all agree.
 - Do not mix scientific behavior changes with structural moves. If behavior must change, isolate and document it as a separate slice.
-- Use `src-refactor-roadmap.md` as the ordered execution and handoff record.
+- The [completed roadmap](src-refactor-roadmap.md) preserves the ordered execution record; use the [organization policy](../references/src-organization-policy.md) for new work.

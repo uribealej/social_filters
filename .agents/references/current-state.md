@@ -7,7 +7,7 @@ Capture current caveats that can affect active workflows.
 Use this file when
 
 - A notebook and a `src/` module seem to disagree.
-- A loader or notebook failure suggests partial migration state.
+- A loader or notebook failure suggests a current contract or configuration mismatch.
 
 ## Current notes
 - `src/data_loading.py` treats the merged map CSV as optional when absent. When

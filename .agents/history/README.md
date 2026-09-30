@@ -12,3 +12,5 @@ Open these files only when the user requests historical inspection or when an ac
 - `recent-changes-calcium-analysis.md` - completed calcium-analysis handoff history.
 - `recent-changes-calcium-preprocessing.md` - completed preprocessing handoff history.
 - `recent-changes-stimulus-authoring.md` - completed stimulus-authoring handoff history.
+- `src-diagnosis.md` - dated architecture baseline before S00–S14.
+- `src-refactor-roadmap.md` - completed S00–S14 plan and status tracker; see `src-refactor-s00-s08.md` and `src-refactor-s09.md` through `src-refactor-s14.md` for validation records.

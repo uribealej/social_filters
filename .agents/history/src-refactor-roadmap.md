@@ -1,26 +1,19 @@
 # `src/` Refactor Roadmap
 
-Purpose
-
-Provide a durable, ordered, multi-session plan for reorganizing `src/` without losing scientific behavior, notebook compatibility, output contracts, or figure quality.
-
-Use this file when
-
-- Starting or resuming any repository-wide `src/` cleanup.
-- Choosing the next safe refactor slice.
-- Recording which slice is active or completed across chats and days.
-- Deciding what must be validated before a slice can close.
-
-Start with the status tracker and the relevant unfinished slice. Use `src-diagnosis.md` only for dated audit evidence, `refactor-loop-policy.md` for the structural work loop, and the relevant workflow router to locate an owner. Read `code-authoring-checklist.md` before editing Python or notebooks.
+Historical plan and status record for the completed S00–S14 reorganization.
+It is not the guide for new `src/` work. Use the current
+[organization policy](../references/src-organization-policy.md), a workflow
+router, and the present owner module for that work. This file preserves the
+original slice plan and validation gates; the [S14 completion record](src-refactor-s14.md)
+documents closure and its limits.
 
 ## How to use this roadmap
 
 - Work in the listed order unless a dependency-free slice is explicitly selected.
 - Complete one slice per coherent change. Do not combine unrelated owner modules merely to reduce the number of commits.
-- At the start of a session, identify the slice ID and confirm its prerequisites.
-- At the end of a session, update the status table below. Move completed slice plans and completion records into `.agents/history/`, keeping their status and a history link here.
-- If a slice stops incomplete, record the exact breakpoint in `recent-changes.md` according to `refactor-loop-policy.md`.
-- When a slice is complete, remove its temporary handoff from `recent-changes.md`; the durable result belongs in the appropriate reference, stage map, or symbol index.
+- At the start of a slice, identify its ID and confirm its prerequisites.
+- At the end of a slice, update the status table below and preserve its completion record.
+- Record incomplete work in the active handoff; remove its temporary handoff when complete.
 
 Allowed status values are `not started`, `in progress`, `blocked`, and `complete`.
 
@@ -57,7 +50,7 @@ Allowed status values are `not started`, `in progress`, `blocked`, and `complete
 
 ## Completed slices
 
-S00-S11 are complete. The earlier plans and completion records are preserved in [S00-S08 history](../history/src-refactor-s00-s08.md), the [S09 completion record](../history/src-refactor-s09.md), the [S10 completion record](../history/src-refactor-s10.md), and the [S11 completion record](../history/src-refactor-s11.md), outside normal startup reading.
+S00-S11 are complete. The earlier plans and completion records are preserved in [S00-S08 history](src-refactor-s00-s08.md), the [S09 completion record](src-refactor-s09.md), the [S10 completion record](src-refactor-s10.md), and the [S11 completion record](src-refactor-s11.md).
 
 ## S09 - Separate several-fish workflow and reporting
 
@@ -73,7 +66,7 @@ Recommended order
 4. Diagnostic data preparation.
 5. High-level figure orchestration.
 
-Complete. Reporting, cohort loading, pure selection, pure diagnostic and figure-input preparation, and high-level figure orchestration now belong to `src/several_fish_reporting.py`, `src/several_fish_loading.py`, `src/several_fish_selection.py`, `src/several_fish_diagnostics.py`, and `src/several_fish_figures.py`, respectively. `src/reusable_several_fish.py` remains an import-only compatibility facade for active notebooks. See the [S09 completion record](../history/src-refactor-s09.md) for validation and limits.
+Complete. Reporting, cohort loading, pure selection, pure diagnostic and figure-input preparation, and high-level figure orchestration now belong to `src/several_fish_reporting.py`, `src/several_fish_loading.py`, `src/several_fish_selection.py`, `src/several_fish_diagnostics.py`, and `src/several_fish_figures.py`, respectively. `src/reusable_several_fish.py` remains an import-only compatibility facade for historical callers. See the [S09 completion record](src-refactor-s09.md) for validation and limits.
 
 Validation
 
@@ -92,7 +85,7 @@ Exit criteria
 Complete. Loader internals have private stages and fixture contracts;
 per-plane extraction has known-output tests; aux-trigger TIFF loading is lazy;
 LME and stimulus visualization remain cohesive owners. See the
-[S10 completion record](../history/src-refactor-s10.md) for validation and
+[S10 completion record](src-refactor-s10.md) for validation and
 the real-plane data limit.
 
 ## S11 - Evidence-based dead-code retirement
@@ -102,7 +95,7 @@ undocumented timing functions were retired after owner and downstream checks.
 Documented, tested, and intentional public helpers remain available for S12's
 consumer and facade review. The full suite passed 98 tests, including active
 notebook import and code-cell checks. No experimental dataset was rerun. See
-the [S11 completion record](../history/src-refactor-s11.md) for candidate
+the [S11 completion record](src-refactor-s11.md) for candidate
 decisions, validation, and external-use uncertainty.
 
 Objective
@@ -134,20 +127,20 @@ Exit criteria
 
 Complete. Active consumers use the intended public owners, and retained facades
 have a documented compatibility decision. The full test suite and representative
-real-data workflows passed. See the [S12 completion record](../history/src-refactor-s12.md)
+real-data workflows passed. See the [S12 completion record](src-refactor-s12.md)
 for validation and limits.
 
 ## S13 - Adopt the permanent `src` organization policy
 
-Complete. The [organization policy](src-organization-policy.md) is linked from
+Complete. The [organization policy](../references/src-organization-policy.md) is linked from
 `AGENTS.md` and the workflow routers and agrees with the post-S12 owners and
-compatibility decision. See the [S13 completion record](../history/src-refactor-s13.md)
+compatibility decision. See the [S13 completion record](src-refactor-s13.md)
 for the audit, routing checks, and limits.
 
 ## S14 - Final end-to-end validation and closure
 
 Complete. All seven checkpoints passed their available validation surfaces.
-See the [S14 completion record](../history/src-refactor-s14.md) for the real-data
+See the [S14 completion record](src-refactor-s14.md) for the real-data
 checks, resolved defects, figures, and execution limits.
 
 Objective
@@ -187,5 +180,5 @@ Exit criteria
 ## Recommended next action
 
 The repository-wide `src/` refactor is complete. Keep future owner changes
-scoped by the [organization policy](src-organization-policy.md) and their first
+scoped by the [organization policy](../references/src-organization-policy.md) and their first
 downstream consumers.

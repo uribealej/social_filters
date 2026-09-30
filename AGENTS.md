@@ -3,7 +3,7 @@
 This repository uses a routed instruction system under `.agents/` so future agents can read the smallest repo-specific guidance first instead of scanning large notebooks. The goal is to route work by real ownership boundaries: reusable logic in `src/`, notebooks as orchestration and reporting, and stimulus scripts as asset-generation wrappers.
 
 ## Required startup order
-1. Open `.agents/workflows/social-filters-router.md` and select the matching workflow profile. For a repository-wide `src/` refactor, start with the status tracker and relevant slice in `.agents/references/src-refactor-roadmap.md`.
+1. Open `.agents/workflows/social-filters-router.md` and select the matching workflow profile. For everyday analysis and changes to reusable `src/` behavior, use `.agents/references/src-organization-policy.md` as the current ownership and contract guide.
 2. Use one matching row in the top router. For documentation-only or test-only work, open the target file directly. For scientific workflow work, open the selected profile, read its row's reference only when needed, then open the named owner or target file. Consult `.agents/references/recent-changes.md` only when resuming incomplete work.
 3. Before creating or modifying Python or notebook code, read `.agents/references/code-authoring-checklist.md`.
 4. For reusable behavior, inspect the owning `src/` implementation before the calling notebook or script region. For notebook configuration, reporting, or stimulus asset wrappers, inspect the target file directly. Open only the relevant regions of large files.
@@ -36,10 +36,8 @@ This is a lookup list, not a required reading list. Read only the references nee
 - `.agents/references/current-state.md` - mixed-state caveats, legacy entrypoints, and practical warnings.
 - `.agents/references/code-authoring-checklist.md` - mandatory compact rules for Python and notebook changes.
 - `.agents/references/refactor-rules.md` - ownership and edit-scope rules for this repo.
-- [`.agents/references/src-organization-policy.md`](.agents/references/src-organization-policy.md) - permanent `src/` ownership, dependency, public API, and validation rules; read when placing or changing reusable behavior.
-- `.agents/references/refactor-loop-policy.md` - default slice size, keep-going rules, and handoff expectations.
-- `.agents/references/src-diagnosis.md` - dated factual baseline for the repository-wide `src/` architecture audit.
-- `.agents/references/src-refactor-roadmap.md` - ordered multi-session `src/` refactor slices, validation gates, and status tracker.
+- [`.agents/references/src-organization-policy.md`](.agents/references/src-organization-policy.md) - current guide for everyday analysis, `src/` ownership, dependencies, public API, and validation.
+- `.agents/references/refactor-loop-policy.md` - working unit, validation, and handoff rules for a new owner-scoped refactor.
 - `.agents/references/src-api-consumer-inventory.md` - active notebook/script consumers and public compatibility contracts for `src`.
 - `.agents/references/src-compatibility-decision.md` - supported historical `src` imports and their migration boundary.
 - `.agents/references/recent-changes.md` - active incomplete-work handoff only.
@@ -49,4 +47,4 @@ This is a lookup list, not a required reading list. Read only the references nee
 When creating an analysis notebook for a new experiment from an existing notebook, keep the shared `src/` helper workflow and discover the new experiment's fish IDs, stimulus IDs/order, timing, controls, and paths from its data or configuration—never copy these values blindly. Keep figure-size controls beside their individual plotting calls, preserve the configured stimulus order in summary plots, and validate every code cell plus the smallest practical data-backed run. Do not alter the source experiment notebook.
 ## Scope note
 
-Keep this file short. The full rationale and publication guidance live in `docs/reproducibility_policy.md`; agents read it only for data-policy, architecture, or publication-level decisions. Operational coding rules, workflow routing, stage maps, output semantics, and current-state warnings live under `.agents/`. Completed plans and logs live under `.agents/history/` and are not part of normal startup.
+Keep this file short. The full rationale and publication guidance live in `docs/reproducibility_policy.md`; agents read it only for data-policy, architecture, or publication-level decisions. Operational coding rules, workflow routing, stage maps, output semantics, and current-state warnings live under `.agents/`. The completed S00–S14 roadmap, dated diagnosis, and validation records live under `.agents/history/` and are not part of normal startup.

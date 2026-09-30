@@ -2,7 +2,7 @@
 
 Original plans and completion records. Statements below describe the state at the time of each slice.
 
-Use the [active roadmap](../references/src-refactor-roadmap.md) for current work. This history is not part of normal startup.
+The [completed roadmap](src-refactor-roadmap.md) records the full S00–S14 status. This history is not part of normal startup; use the [organization policy](../references/src-organization-policy.md) for current work.
 
 ## S00 - Freeze contracts and create the test foundation
 
