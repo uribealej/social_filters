@@ -102,6 +102,25 @@
     ],
     "syntax_failure_raw_cells": []
   },
+  "notebooks/calcium/exp_07_trans_stat/01_all_fish_raster.ipynb": {
+    "imports": [
+      "src.plotting_common",
+      "src.several_fish_figures",
+      "src.several_fish_loading",
+      "src.several_fish_reporting"
+    ],
+    "symbols": [
+      "src.plotting_common.build_stimulus_style_maps",
+      "src.several_fish_figures.build_all_fish_raster_figure",
+      "src.several_fish_figures.build_plot_all_fish_mean_zscore_traces",
+      "src.several_fish_figures.plot_left_right_active_overlap_diagnostics",
+      "src.several_fish_figures.plot_lifetime_sparseness_analysis",
+      "src.several_fish_figures.plot_motion_active_neuron_counts",
+      "src.several_fish_loading.load_and_preflight_fish_raster_inputs",
+      "src.several_fish_reporting.save_analysis_report_run"
+    ],
+    "syntax_failure_raw_cells": []
+  },
   "notebooks/calcium/exp_08_accumulation_ev/01_all_fish_raster.ipynb": {
     "imports": [
       "src.multifish_matrices",

@@ -26,9 +26,9 @@ This inventory was established on 2026-09-25 during S01 of the [completed refact
 
 ## Audit coverage
 
-- 12 active notebooks were scanned cell-by-cell after IPython syntax transformation.
+- 13 active notebooks are covered by the consumer inventory, including the Exp 7 all-fish raster added on 2026-10-14.
 - 4 active Python scripts under `scripts/` were scanned with the Python AST.
-- 11 notebooks currently import or call `src`.
+- 12 notebooks currently import or call `src`.
 - `notebooks/calcium/preprocessing/2P_Experiment_FileOps.ipynb` currently has no `src` import.
 - None of the 4 stimulus generation/playback scripts currently imports `src`.
 - All active notebook code cells now compile after S12 step 3 corrected the pre-existing syntax error in raw cell 2 of `notebooks/calcium/exp_08_accumulation_ev/02_bout_flicker_position_onset.ipynb`.
@@ -53,6 +53,7 @@ machine-contract symbol changed in this audit.
 | Exp 1 static/flicker recruitment | `plotting_static_flicker`, `response_metrics`, `several_fish_loading`, `several_fish_reporting`, `static_flicker_analysis` | Recruitment calculation, validation, statistics, and figures |
 | Exp 5 all-fish raster | `active_neuron_analysis`, `multifish_matrices`, `plotting_common`, `plotting_diagnostics`, `several_fish_figures`, `several_fish_loading`, `several_fish_reporting`, `trial_alignment` | Response matrices, active decisions, pooled diagnostics, standard reports |
 | Exp 5 LME decomposition | `data_loading`, `lme_feature_decomposition`, `multifish_matrices`, `plotting_lme`, `trial_alignment` | Loader/alignment, response matrices, model fitting, and figures |
+| Exp 7 all-fish raster | `plotting_common`, `several_fish_figures`, `several_fish_loading`, `several_fish_reporting` | Exp 7 cohort/stimulus validation, shared raster/mean figures, activity diagnostics, sparseness, report saving |
 | Exp 8 all-fish raster | `multifish_matrices`, `plotting_common`, `plotting_diagnostics`, `several_fish_figures`, `several_fish_loading`, `several_fish_reporting`, `trial_alignment` | Response selection, response matrices, diagnostics, standard reports |
 | Exp 8 bout/flicker position | `bout_flicker_analysis`, `plotting_bout_position`, `several_fish_loading` | Same public bout-position surface as Exp 1 |
 | dFoF batch preprocessing | `dff_extraction` | Per-plane Suite2p-to-dFoF extraction entrypoint |
@@ -276,6 +277,8 @@ Its scientific thresholds remain explicit parameters. Output filenames are owned
 ### Several-fish workflow gateways
 
 `load_and_preflight_fish_raster_inputs` returns settings, timing, fish/stimulus order, resolved paths, `all_fish_data`, reference-fish identity/data, aligned z-score traces, the stimulus map, durations, and names. It raises if any configured fish or stimulus is unavailable rather than silently producing a partial cohort.
+
+`settings['data_base']=None` enables automatic path discovery in this order: `OneDriveCommercial`, `OneDrive`, university OneDrive folders under the current user's home, then those under `D:\Alejandro\Data`. Candidates are deduplicated and must contain both `Lab/Data/2p` and `Lab/Analysis`; the two returned roots always come from the same candidate. Explicit `data_base` values remain parent-folder overrides with the previous lookup and failure behavior, without automatic fallback. Exp 7 opts into discovery and displays the resolved roots after loading; existing experiment notebooks keep their explicit settings.
 
 `build_all_fish_raster_figure` returns a dictionary containing the flat matrix, optional left-right index, neuron order, figure, axes, and image.
 

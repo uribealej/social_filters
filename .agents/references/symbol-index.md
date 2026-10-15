@@ -176,7 +176,7 @@ Supported compatibility facade: S07 moved scientific implementations into `src.m
 - `slugify_label` - make report and figure labels safe for filenames; public alias of the historical `_slugify_label` helper shared with several-fish figures.
 
 ### `src/several_fish_loading.py`
-- `load_and_preflight_fish_raster_inputs` - load and validate an ordered several-fish raster cohort and return its notebook bundle.
+- `load_and_preflight_fish_raster_inputs` - load and validate an ordered several-fish raster cohort and return its notebook bundle; `data_base=None` discovers paired Lab roots from OneDrive environment variables, the user's home, then the legacy D-drive layout, while explicit parent paths keep their existing lookup behavior.
 
 ### `src/several_fish_selection.py`
 - `resolve_stimulus_set` - resolve ordered stimulus IDs or names against a reference fish.

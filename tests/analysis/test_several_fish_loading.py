@@ -148,5 +148,120 @@ class SeveralFishLoadingTests(unittest.TestCase):
                 rsf.load_and_preflight_fish_raster_inputs(self.settings)
 
 
+class AutomaticCohortPathTests(unittest.TestCase):
+    """Resolve both computer layouts without consulting the test host's folders."""
+
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+        self.root = Path(self.folder.name)
+        self.home = self.root / "Users" / "suribear"
+        self.home.mkdir(parents=True)
+        self.legacy = self.root / "legacy_drive" / "Alejandro" / "Data"
+        self.legacy.mkdir(parents=True)
+        environment = mock.patch.dict("os.environ", {}, clear=True)
+        environment.start()
+        self.addCleanup(environment.stop)
+        # Model the other machine's D: base without writing to a real drive.
+        constructor = mock.patch.object(
+            loading, "Path",
+            side_effect=lambda value: self.legacy if value == r"D:\Alejandro\Data" else Path(value),
+        )
+        self.path_class = constructor.start()
+        self.path_class.home.return_value = self.home
+        self.addCleanup(constructor.stop)
+
+    def make_lab(self, root):
+        """Create the two directories that define a complete auto-discovery root."""
+        paths = (root / "Lab" / "Data" / "2p", root / "Lab" / "Analysis")
+        for path in paths:
+            path.mkdir(parents=True)
+        return paths
+
+    def test_environment_priority_over_home_and_legacy(self):
+        commercial = self.make_lab(self.root / "commercial")
+        personal = self.make_lab(self.root / "personal")
+        self.make_lab(self.home / "OneDrive - Université de Lausanne")
+        self.make_lab(self.legacy / "OneDrive - Universite de Lausanne")
+        with mock.patch.dict("os.environ", {
+            "OneDriveCommercial": str(self.root / "commercial"),
+            "OneDrive": str(self.root / "personal"),
+        }):
+            self.assertEqual(loading._resolve_cohort_paths(None), commercial)
+        with mock.patch.dict("os.environ", {"OneDrive": str(self.root / "personal")}):
+            self.assertEqual(loading._resolve_cohort_paths(None), personal)
+
+    def test_home_supports_accented_and_unaccented_names_before_legacy(self):
+        self.make_lab(self.legacy / "OneDrive - Universite de Lausanne")
+        for name in ("OneDrive - Université de Lausanne", "OneDrive - Universite de Lausanne"):
+            with self.subTest(name=name):
+                home = self.home / name
+                self.path_class.home.return_value = home
+                expected = self.make_lab(home / name)
+                self.assertEqual(loading._resolve_cohort_paths(None), expected)
+
+    def test_legacy_layout_when_home_and_environment_have_no_lab(self):
+        expected = self.make_lab(self.legacy / "OneDrive - Université de Lausanne")
+        self.assertEqual(loading._resolve_cohort_paths(None), expected)
+
+    def test_incomplete_environment_root_is_skipped(self):
+        incomplete = self.root / "incomplete"
+        (incomplete / "Lab" / "Data" / "2p").mkdir(parents=True)
+        expected = self.make_lab(self.home / "OneDrive - Université de Lausanne")
+        with mock.patch.dict("os.environ", {"OneDriveCommercial": str(incomplete)}):
+            self.assertEqual(loading._resolve_cohort_paths(None), expected)
+
+    def test_data_and_analysis_are_never_combined_from_different_roots(self):
+        data_root = self.root / "data_only"
+        analysis_root = self.root / "analysis_only"
+        (data_root / "Lab" / "Data" / "2p").mkdir(parents=True)
+        (analysis_root / "Lab" / "Analysis").mkdir(parents=True)
+        with mock.patch.dict("os.environ", {
+            "OneDriveCommercial": str(data_root), "OneDrive": str(analysis_root),
+        }):
+            with self.assertRaisesRegex(FileNotFoundError, "containing both"):
+                loading._resolve_cohort_paths(None)
+
+    def test_missing_root_reports_unique_candidates_and_manual_override(self):
+        missing = self.root / "missing"
+        with mock.patch.dict("os.environ", {
+            "OneDriveCommercial": str(missing), "OneDrive": str(missing),
+        }):
+            with self.assertRaises(FileNotFoundError) as error:
+                loading._resolve_cohort_paths(None)
+        self.assertEqual(str(error.exception).count(str(missing)), 1)
+        self.assertIn("settings['data_base']", str(error.exception))
+        self.assertIn(str(self.home), str(error.exception))
+        self.assertIn(str(self.legacy), str(error.exception))
+
+    def test_explicit_base_overrides_discovery_and_does_not_fall_back(self):
+        self.make_lab(self.home / "OneDrive - Université de Lausanne")
+        base = self.root / "explicit"
+        expected = self.make_lab(base / "OneDrive - Universite de Lausanne")
+        self.assertEqual(loading._resolve_cohort_paths(base), expected)
+        with self.assertRaisesRegex(FileNotFoundError, "Could not find the OneDrive Lab folder below"):
+            loading._resolve_cohort_paths(self.root / "invalid_explicit")
+
+    def test_auto_discovery_preserves_cohort_loader_bundle(self):
+        expected = self.make_lab(self.home / "OneDrive - Université de Lausanne")
+        settings = {
+            "experiment_name": "example", "data_base": None,
+            "fish_ids": ["fish_b", "fish_a"], "selected_blocks": ["B1"],
+            "timing": {"fps_2p": 2.0, "t_pre_s": 5.0, "t_post_s": 25.0},
+            "stim_order": [8, 4],
+        }
+        with mock.patch.object(loading.exio, "load_and_align_2p_experiment",
+                               side_effect=lambda **kwargs: fish_bundle()) as loader:
+            result = loading.load_and_preflight_fish_raster_inputs(settings)
+        self.assertEqual((result["main_path"], result["analysis_path"]), expected)
+        self.assertEqual(list(result["all_fish_data"]), ["fish_b", "fish_a"])
+        self.assertEqual(result["stim_order"], [8, 4])
+        self.assertIsNone(settings["data_base"])
+        self.assertIsNone(result["settings"]["data_base"])
+        self.assertEqual(loader.call_count, 2)
+        self.assertEqual(loader.call_args.kwargs["main_path"], expected[0])
+        self.assertEqual(loader.call_args.kwargs["stimuli_main_path"], expected[1])
+
+
 if __name__ == "__main__":
     unittest.main()
