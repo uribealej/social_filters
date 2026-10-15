@@ -17,6 +17,104 @@ from src.several_fish_diagnostics import (
 from src.several_fish_reporting import slugify_label
 
 
+def _mirrored_fish_metric_figure(analysis, row_specs, title, figsize):
+    """Arrange paired per-fish measurements with common scales and cohort colors."""
+    fig, axes = plt.subplots(2, 2, figsize=figsize, sharey="row", squeeze=False)
+    for row, spec in enumerate(row_specs):
+        for column, side in enumerate(("left", "right")):
+            table = spec["table"].loc[spec["table"]["side"] == side]
+            if "summary_type" in spec:
+                table = table.loc[table["summary_type"] == spec["summary_type"]]
+            ax = axes[row, column]
+            plot_diagnostics.plot_paired_fish_values(
+                table, spec["value"], spec["order"], analysis["fish_ids"], ax, spec["ylabel"])
+            ax.set_title(f"{side.capitalize()} — {spec['title']}")
+            if spec.get("fraction", False):
+                ax.set_ylim(-0.025, 1.025)
+            else:
+                ax.axhline(0, color="0.7", linewidth=0.7, zorder=0)
+            if column:
+                ax.set_ylabel("")
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="lower center", ncol=min(6, len(labels)), frameon=False)
+    fig.suptitle(title)
+    fig.tight_layout(rect=(0, 0.075, 1, 0.96), h_pad=2.0)
+    return fig, axes
+
+
+def plot_recruitment_activity_summary(analysis, figsize=(14, 9)):
+    """Plot mirrored recruitment fractions and signed activity, with one dot per fish.
+
+    Args:
+        analysis (dict): Output of build_recruitment_containment_analysis.
+        figsize (tuple): Figure size in inches, kept beside the notebook call.
+
+    Returns:
+        tuple: Figure and 2-by-2 axes; rows share y limits across left/right.
+        No files are saved and no interactive display is forced.
+    """
+    table, order = analysis["tables"]["recruitment"], analysis["condition_labels"]
+    specs = [
+        {"table": table, "value": "active_fraction", "order": order, "fraction": True,
+         "title": "recruitment", "ylabel": "Fraction of kept neurons active"},
+        {"table": table, "value": "mean_normalized_auc", "order": order,
+         "title": "response-window activity", "ylabel": "Mean z-score\n(AUC / integration span)"},
+    ]
+    return _mirrored_fish_metric_figure(
+        analysis, specs, "Recruitment and activity — equal fish weight", figsize)
+
+
+def plot_recruitment_containment_matrices(analysis, figsize=(14, 12), cmap="viridis"):
+    """Plot equal-fish directional containment and Jaccard in mirrored columns.
+
+    Args:
+        analysis (dict): Output of build_recruitment_containment_analysis.
+        figsize (tuple): Figure size in inches.
+        cmap (str): Shared [0, 1] fraction color scale; missing cells are gray.
+
+    Returns:
+        tuple: Figure and 2-by-2 axes. Containment row A/column B is |A & B|/|A|.
+        No files are saved and no interactive display is forced.
+    """
+    fig, axes = plt.subplots(2, 2, figsize=figsize, layout="constrained", squeeze=False)
+    for row, metric in enumerate(("containment", "jaccard")):
+        for column, side in enumerate(("left", "right")):
+            image = plot_diagnostics.plot_fraction_matrix(
+                analysis["mean_matrices"][side][metric], axes[row, column],
+                title=f"{side.capitalize()} — {'directional containment' if row == 0 else 'Jaccard overlap'}",
+                xlabel="Target stimulus B" if row == 0 else "Stimulus B",
+                ylabel="Source stimulus A" if row == 0 else "Stimulus A", cmap=cmap)
+    fig.colorbar(image, ax=axes.ravel().tolist(), label="Fraction (equal-fish mean)", shrink=0.85)
+    fig.suptitle("Response overlap and containment")
+    return fig, axes
+
+
+def plot_recruitment_containment_summary(analysis, figsize=(14, 9)):
+    """Plot per-fish containment in control and in the intersection of rocking variants.
+
+    Args:
+        analysis (dict): Output of build_recruitment_containment_analysis.
+        figsize (tuple): Figure size in inches.
+
+    Returns:
+        tuple: Figure and 2-by-2 axes. Denominators are source-stimulus active
+        populations, not the whole cohort. Empty sources leave gaps. No saving.
+    """
+    table, labels = analysis["tables"]["containment_summary"], analysis["condition_labels"]
+    selection = analysis["side_selections"]["left"]
+    n_rocking = len(selection["groups"]["rocking"])
+    specs = [
+        {"table": table, "value": "fraction_contained", "order": labels[1:], "fraction": True,
+         "summary_type": "to_control", "title": "contained in control",
+         "ylabel": "Fraction also active to control"},
+        {"table": table, "value": "fraction_contained", "order": labels[1 + n_rocking:],
+         "fraction": True, "summary_type": "to_all_rocking", "title": "contained in all rocking variants",
+         "ylabel": "Fraction also active to every rocking variant"},
+    ]
+    return _mirrored_fish_metric_figure(
+        analysis, specs, "Containment within shared response populations", figsize)
+
+
 def build_all_fish_raster_figure(
     all_fish_data,
     fish_ids,

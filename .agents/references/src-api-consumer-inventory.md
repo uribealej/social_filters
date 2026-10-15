@@ -26,9 +26,9 @@ This inventory was established on 2026-09-25 during S01 of the [completed refact
 
 ## Audit coverage
 
-- 13 active notebooks are covered by the consumer inventory, including the Exp 7 all-fish raster added on 2026-10-14.
+- 14 active notebooks are covered by the consumer inventory, including the Exp 7 recruitment/containment notebook added on 2026-10-15.
 - 4 active Python scripts under `scripts/` were scanned with the Python AST.
-- 12 notebooks currently import or call `src`.
+- 13 notebooks currently import or call `src`.
 - `notebooks/calcium/preprocessing/2P_Experiment_FileOps.ipynb` currently has no `src` import.
 - None of the 4 stimulus generation/playback scripts currently imports `src`.
 - All active notebook code cells now compile after S12 step 3 corrected the pre-existing syntax error in raw cell 2 of `notebooks/calcium/exp_08_accumulation_ev/02_bout_flicker_position_onset.ipynb`.
@@ -54,6 +54,7 @@ machine-contract symbol changed in this audit.
 | Exp 5 all-fish raster | `active_neuron_analysis`, `multifish_matrices`, `plotting_common`, `plotting_diagnostics`, `several_fish_figures`, `several_fish_loading`, `several_fish_reporting`, `trial_alignment` | Response matrices, active decisions, pooled diagnostics, standard reports |
 | Exp 5 LME decomposition | `data_loading`, `lme_feature_decomposition`, `multifish_matrices`, `plotting_lme`, `trial_alignment` | Loader/alignment, response matrices, model fitting, and figures |
 | Exp 7 all-fish raster | `plotting_common`, `several_fish_figures`, `several_fish_loading`, `several_fish_reporting` | Exp 7 cohort/stimulus validation, shared raster/mean figures, activity diagnostics, sparseness, report saving |
+| Exp 7 response overlap/selectivity, stage 1 | `several_fish_diagnostics`, `several_fish_figures`, `several_fish_loading`, `several_fish_reporting` | Independent mirrored recruitment, signed response-window activity, directional containment, Jaccard, and control/all-rocking summaries |
 | Exp 8 all-fish raster | `multifish_matrices`, `plotting_common`, `plotting_diagnostics`, `several_fish_figures`, `several_fish_loading`, `several_fish_reporting`, `trial_alignment` | Response selection, response matrices, diagnostics, standard reports |
 | Exp 8 bout/flicker position | `bout_flicker_analysis`, `plotting_bout_position`, `several_fish_loading` | Same public bout-position surface as Exp 1 |
 | dFoF batch preprocessing | `dff_extraction` | Per-plane Suite2p-to-dFoF extraction entrypoint |
@@ -275,6 +276,12 @@ Its scientific thresholds remain explicit parameters. Output filenames are owned
 - `build_pooled_active_trace_diagnostic` returns `trace_matrix`, `decision_matrix`, `row_metadata`, `stim_order`, `stim_labels`, block width/time/repetition metadata, and `combine_mode`.
 
 ### Several-fish workflow gateways
+
+`build_recruitment_containment_analysis` is an additive stage-1 gateway. It calls the existing active-decision, AUC, and timing owners, requiring filtered raster rows in the same kept-neuron order used to select continuous responses. Time/trial axes and row counts must match; failures are explicit. All existing function bodies, defaults, and notebook 01 behavior are unchanged.
+
+Its result contains `fish_ids`, `condition_labels`, `side_selections`, `active_matrices`, `responses` (including source-neuron metadata), `per_fish_matrices`, `mean_matrices`, and `tables`. Tables include `neuron_responses`, `recruitment`, `response_windows`, `window_summary`, `pairwise`, `matrix_summary`, and `containment_summary`. Raw signed AUC is in z-score seconds; normalized AUC divides by the actual trapezoidal integration timespan (one frame period for a single sample), not the requested window duration. Requested/observed bounds and clipping remain visible.
+
+Containment row A/column B is `|A intersection B| / |A|`; Jaccard is intersection over union. Matrix summaries weight fish equally, skip undefined values, and record valid-fish counts. Empty sources remain NaN. Control and all-rocking summary rows retain contained/non-contained counts and fractions; all-rocking means the intersection, never the union. Figures always mirror left/right using the same functional order, scales, and fish colors. Reporting uses the existing optional writer and remains disabled by default.
 
 `load_and_preflight_fish_raster_inputs` returns settings, timing, fish/stimulus order, resolved paths, `all_fish_data`, reference-fish identity/data, aligned z-score traces, the stimulus map, durations, and names. It raises if any configured fish or stimulus is unavailable rather than silently producing a partial cohort.
 

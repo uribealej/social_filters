@@ -13,6 +13,74 @@ from src.plotting_common import (
 )
 
 
+def plot_paired_fish_values(table, value_column, condition_order, fish_ids, ax, ylabel):
+    """Plot one value per fish/condition and its equally weighted fish mean.
+
+    Args:
+        table (DataFrame): fish_id, condition, and numeric value_column; one row
+            per fish/condition. Missing values leave gaps rather than zeros.
+        value_column (str): Measurement column, with units supplied by ylabel.
+        condition_order (sequence): Explicit x-axis order.
+        fish_ids (sequence): Stable cohort/color order across mirrored panels.
+        ax (Axes): Destination axes.
+        ylabel (str): Measurement name and units.
+
+    Returns:
+        Axes: The populated axes. Inputs are not mutated; no files are saved.
+    """
+    x = np.arange(len(condition_order), dtype=float)
+    colors = plt.get_cmap("tab10")
+    values = []
+    offsets = np.linspace(-0.10, 0.10, len(fish_ids)) if len(fish_ids) > 1 else [0.0]
+    for index, (fid, offset) in enumerate(zip(fish_ids, offsets)):
+        rows = table.loc[table["fish_id"] == fid].set_index("condition")
+        y = rows[value_column].reindex(condition_order).to_numpy(dtype=float)
+        values.append(y)
+        ax.plot(x + offset, y, "o-", color=colors(index % 10), markersize=4,
+                linewidth=0.8, alpha=0.65, label=str(fid))
+    mean = np.asarray(values, dtype=float)
+    valid = np.isfinite(mean)
+    totals = np.where(valid, mean, 0).sum(axis=0)
+    counts = valid.sum(axis=0)
+    average = np.full(len(condition_order), np.nan)
+    np.divide(totals, counts, out=average, where=counts > 0)
+    ax.plot(x, average, "D-", color="black", markersize=5, linewidth=1.7, label="Fish mean")
+    ax.set(xticks=x, xticklabels=condition_order, ylabel=ylabel, xlim=(-0.5, len(x) - 0.5))
+    ax.tick_params(axis="x", labelrotation=40)
+    for label in ax.get_xticklabels():
+        label.set_ha("right")
+    ax.spines[["top", "right"]].set_visible(False)
+    return ax
+
+
+def plot_fraction_matrix(matrix, ax, title, xlabel, ylabel, cmap="viridis"):
+    """Draw an annotated [0, 1] fraction matrix with missing cells shown gray.
+
+    Args:
+        matrix (DataFrame): Rows/columns in the desired display order.
+        ax (Axes): Destination axes.
+        title, xlabel, ylabel (str): Explicit measurement and direction labels.
+        cmap (str): Shared fraction color map.
+
+    Returns:
+        AxesImage: Image suitable for a shared colorbar. No files are saved.
+    """
+    values = matrix.to_numpy(dtype=float)
+    palette = plt.get_cmap(cmap).with_extremes(bad="0.9")
+    image = ax.imshow(np.ma.masked_invalid(values), vmin=0, vmax=1, cmap=palette, aspect="equal")
+    ax.set(title=title, xlabel=xlabel, ylabel=ylabel,
+           xticks=np.arange(matrix.shape[1]), xticklabels=matrix.columns,
+           yticks=np.arange(matrix.shape[0]), yticklabels=matrix.index)
+    ax.tick_params(axis="x", labelrotation=45)
+    for label in ax.get_xticklabels():
+        label.set_ha("right")
+    for i, j in np.ndindex(values.shape):
+        value = values[i, j]
+        ax.text(j, i, f"{value:.2f}" if np.isfinite(value) else "—", ha="center", va="center",
+                fontsize=8, color="black" if not np.isfinite(value) or value > 0.55 else "white")
+    return image
+
+
 def plot_motion_delta_distribution(
     delta_df,
     value_col="delta_integral",

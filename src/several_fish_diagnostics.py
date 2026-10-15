@@ -18,6 +18,244 @@ from src.several_fish_selection import (
     subset_active_matrices,
 )
 from src.trial_alignment import compute_response_window_frames, resolve_selected_stimuli
+from src.active_neuron_analysis import (
+    build_active_neuron_matrices_all_fish, compute_active_neuron_containment,
+    compute_active_neuron_jaccard_overlap,
+)
+from src.several_fish_selection import build_active_group_masks
+
+
+def _resolve_recruitment_groups(all_fish_data, fish_ids, side_groups, condition_labels):
+    """Resolve mirrored, disjoint groups and check every fish's ID/name contract."""
+    if set(side_groups) != {"left", "right"}:
+        raise ValueError("side_groups must contain exactly left and right.")
+    reference = all_fish_data[fish_ids[0]]
+    resolved = {}
+    all_labels = []
+    group_sizes = None
+    for side in ("left", "right"):
+        groups = side_groups[side]
+        if set(groups) != {"control", "rocking", "flicker"}:
+            raise ValueError(f"{side}: configure control, rocking, and flicker groups.")
+        names = [groups["control"], *groups["rocking"], *groups["flicker"]]
+        sizes = (1, len(groups["rocking"]), len(groups["flicker"]))
+        if min(sizes) < 1 or (group_sizes is not None and sizes != group_sizes):
+            raise ValueError("Left/right groups must have matching, nonempty sizes.")
+        group_sizes = sizes
+        if len(names) != len(set(names)) or len(names) != len(condition_labels):
+            raise ValueError("Each side needs unique stimuli matching condition_labels.")
+        selection = resolve_selected_stimuli(
+            names, reference["stimuli_id_map"], reference["trial_aligned_traces_z_core"].keys())
+        ids = selection["stimulus_ids"]
+        labels = selection["stimulus_labels"]
+        for fid in fish_ids:
+            fish = all_fish_data[fid]
+            actual = resolve_selected_stimuli(
+                names, fish["stimuli_id_map"], fish["trial_aligned_traces_z_core"].keys())
+            if actual["stimulus_ids"] != ids or actual["stimulus_labels"] != labels:
+                raise ValueError(f"{fid}: stimulus mapping differs from the reference fish.")
+        resolved[side] = {
+            **selection, "condition_labels": list(condition_labels),
+            "groups": {"control": ids[:1], "rocking": ids[1:1 + sizes[1]],
+                       "flicker": ids[1 + sizes[1]:]},
+        }
+        all_labels.extend(labels)
+    if len(set(all_labels)) != len(all_labels):
+        raise ValueError("Left and right stimulus groups must be disjoint.")
+    return resolved, all_labels
+
+
+def _check_recruitment_row_alignment(all_fish_data, fish_ids, stimulus_ids):
+    """Require filtered raster rows to follow kept-neuron order and shared time/trial axes."""
+    for fid in fish_ids:
+        fish = all_fish_data[fid]
+        kept = fish.get("kept_neuron_indices")
+        if kept is not None:
+            kept = np.asarray(kept)
+            if kept.ndim != 1 or not kept.size or len(np.unique(kept)) != kept.size:
+                raise ValueError(f"{fid}: kept_neuron_indices must be a nonempty unique vector.")
+        for stimulus in stimulus_ids:
+            z_key = stimulus if stimulus in fish["trial_aligned_traces_z_core"] else str(stimulus)
+            r_key = stimulus if stimulus in fish["trial_aligned_traces_raster"] else str(stimulus)
+            z = np.asarray(fish["trial_aligned_traces_z_core"][z_key])
+            raster = np.asarray(fish["trial_aligned_traces_raster"][r_key])
+            if z.ndim != 3 or raster.ndim != 3:
+                raise ValueError(f"{fid}, stimulus {stimulus}: expected (neurons, time, trials).")
+            n_kept = z.shape[0] if kept is None else kept.size
+            if raster.shape[0] != n_kept or raster.shape[1:] != z.shape[1:]:
+                raise ValueError(
+                    f"{fid}, stimulus {stimulus}: raster {raster.shape} must have {n_kept} "
+                    f"kept rows in kept-neuron order and time/trial axes {z.shape[1:]}.")
+
+
+def _build_recruitment_activity_tables(all_fish_data, fish_ids, selections, responses, active, timing):
+    """Summarize canonical signed AUCs, integration spans, and neuron identities."""
+    neuron_tables, window_rows, summary_rows = [], [], []
+    metadata = responses["row_metadata"]
+    for fid in fish_ids:
+        fish = all_fish_data[fid]
+        fish_metadata = metadata.loc[metadata["fish_id"] == fid].reset_index(drop=True)
+        n_neurons = len(fish_metadata)
+        if not n_neurons or len(active[fid]) != n_neurons:
+            raise ValueError(f"{fid}: active, response, and metadata rows must match and be nonempty.")
+        for side, selection in selections.items():
+            for index, (stimulus, label, condition) in enumerate(zip(
+                selection["stimulus_ids"], selection["stimulus_labels"], selection["condition_labels"],
+            )):
+                key = stimulus if stimulus in fish["trial_aligned_traces_z_core"] else str(stimulus)
+                trace = fish["trial_aligned_traces_z_core"][key]
+                window = compute_response_window_frames(
+                    n_time=trace.shape[1], stimulus=stimulus,
+                    stimuli_durations=fish["stimuli_durations"],
+                    stimuli_id_map=fish["stimuli_id_map"], **timing)
+                times = window["time_s"][window["frame_indices"]]
+                span = float(times[-1] - times[0]) if len(times) > 1 else 1 / timing["fps_2p"]
+                raw_auc = responses["response_matrices"][fid][label].to_numpy(dtype=float)
+                normalized = raw_auc / span
+                decisions = active[fid][stimulus].to_numpy(dtype=int)
+                info = {"fish_id": fid, "side": side, "stimulus_id": stimulus,
+                        "stimulus": label, "condition": condition, "condition_index": index}
+                rows = fish_metadata.copy()
+                for column, value in info.items():
+                    rows[column] = value
+                rows["active"] = decisions
+                rows["raw_auc"] = raw_auc
+                rows["normalized_auc"] = normalized
+                neuron_tables.append(rows)
+                window_rows.append({
+                    **info, "start_s": window["start_s"],
+                    "requested_end_s": window["requested_end_s"], "observed_end_s": window["end_s"],
+                    "requested_duration_s": window["requested_end_s"] - window["start_s"],
+                    "observed_duration_s": window["end_s"] - window["start_s"],
+                    "integration_span_s": span, "first_sample_s": float(times[0]),
+                    "last_sample_s": float(times[-1]), "n_response_frames": window["n_frames"],
+                    "n_repetitions": trace.shape[2],
+                    "window_clipped": window["requested_end_s"] > window["end_s"] + 1e-9,
+                })
+                summary_rows.append({
+                    **info, "n_neurons": n_neurons, "n_active": int(decisions.sum()),
+                    "active_fraction": float(decisions.mean()),
+                    "n_finite_responses": int(np.isfinite(raw_auc).sum()),
+                    "mean_raw_auc": pd.Series(raw_auc).mean(),
+                    "mean_normalized_auc": pd.Series(normalized).mean(),
+                })
+    return {"neuron_responses": pd.concat(neuron_tables, ignore_index=True),
+            "response_windows": pd.DataFrame(window_rows),
+            "recruitment": pd.DataFrame(summary_rows)}
+
+
+def _build_recruitment_containment_tables(active, fish_ids, selections):
+    """Prepare per-fish pair matrices and control/all-rocking containment counts."""
+    pair_rows, summary_rows, per_fish = [], [], {}
+    for fid in fish_ids:
+        per_fish[fid] = {}
+        for side, selection in selections.items():
+            ids, labels = selection["stimulus_ids"], selection["condition_labels"]
+            containment = compute_active_neuron_containment(active[fid], ids, labels)
+            jaccard = compute_active_neuron_jaccard_overlap(active[fid], ids, labels)
+            per_fish[fid][side] = {"containment": containment, "jaccard": jaccard}
+            values = active[fid].loc[:, ids].to_numpy(dtype=bool)
+            for i, source in enumerate(ids):
+                for j, target in enumerate(ids):
+                    pair_rows.append({
+                        "fish_id": fid, "side": side, "source_id": source, "target_id": target,
+                        "source_condition": labels[i], "target_condition": labels[j],
+                        "n_source": int(values[:, i].sum()), "n_target": int(values[:, j].sum()),
+                        "n_shared": int((values[:, i] & values[:, j]).sum()),
+                        "n_union": int((values[:, i] | values[:, j]).sum()),
+                        "containment": containment.iloc[i, j], "jaccard": jaccard.iloc[i, j],
+                    })
+            masks = build_active_group_masks(active[fid], selection["groups"])
+            for index, (stimulus, label, condition) in enumerate(zip(
+                ids, selection["stimulus_labels"], labels,
+            )):
+                if stimulus in selection["groups"]["control"]:
+                    continue
+                source = values[:, index]
+                targets = {"to_control": masks["control"]["all"]}
+                if stimulus in selection["groups"]["flicker"]:
+                    targets["to_all_rocking"] = masks["rocking"]["all"]
+                for summary_type, target in targets.items():
+                    count = int(source.sum())
+                    shared = int((source & target).sum())
+                    fraction = shared / count if count else np.nan
+                    summary_rows.append({
+                        "fish_id": fid, "side": side, "stimulus_id": stimulus,
+                        "stimulus": label, "condition": condition, "summary_type": summary_type,
+                        "n_source": count, "n_contained": shared, "n_not_contained": count - shared,
+                        "fraction_contained": fraction, "fraction_not_contained": 1 - fraction,
+                    })
+    return pd.DataFrame(pair_rows), pd.DataFrame(summary_rows), per_fish
+
+
+def build_recruitment_containment_analysis(
+    all_fish_data, fish_ids, side_groups, timing, active_settings, condition_labels,
+):
+    """Prepare mirrored recruitment, signed activity, and containment without plotting.
+
+    Args:
+        all_fish_data (dict): Aligned fish bundles. Continuous traces have shape
+            (all neurons, time, trials); raster rows must already follow the
+            unique kept_neuron_indices order, as in canonical detector caches.
+        fish_ids (sequence): Nonempty, unique cohort order; each fish has equal
+            weight in matrix summaries, independent of its neuron count.
+        side_groups (dict): left/right mappings with control (one ID/name),
+            rocking and flicker (nonempty ID/name lists). Groups are disjoint.
+        timing (dict): fps_2p, t_pre_s, motion_onset_s, tau_s; seconds except fps.
+        active_settings (dict): Explicit canonical fraction/epoch/repetition rules.
+        condition_labels (sequence): Unique common labels, ordered control,
+            rocking variants, flicker variants; both sides have matching sizes.
+
+    Returns:
+        dict: Identity-aligned response/active matrices, per-fish and equal-fish
+        mean matrices, resolved groups, and report-ready tables. Raw AUC is in
+        z-score seconds; normalized AUC divides by the actual trapezoid span
+        (one frame period for single-frame windows), preserving signed values.
+        NaN responses remain missing with finite-response counts recorded;
+        empty source populations yield NaN containment. Inputs are not mutated.
+    """
+    fish_ids, condition_labels = list(fish_ids), list(condition_labels)
+    if not fish_ids or len(set(fish_ids)) != len(fish_ids):
+        raise ValueError("fish_ids must be a nonempty unique cohort.")
+    if not condition_labels or len(set(condition_labels)) != len(condition_labels):
+        raise ValueError("condition_labels must be nonempty and unique.")
+    selections, selected_labels = _resolve_recruitment_groups(
+        all_fish_data, fish_ids, side_groups, condition_labels)
+    selected_ids = [stimulus for selection in selections.values() for stimulus in selection["stimulus_ids"]]
+    _check_recruitment_row_alignment(all_fish_data, fish_ids, selected_ids)
+    scientific_timing = {key: timing[key] for key in ("fps_2p", "t_pre_s", "motion_onset_s", "tau_s")}
+    required = {"active_fraction_threshold", "min_epoch_s", "min_active_reps",
+                "expected_reps", "require_expected_reps"}
+    if set(active_settings) != required:
+        raise ValueError(f"active_settings must explicitly configure {sorted(required)}.")
+    responses = build_zscore_response_matrices_all_fish(
+        all_fish_data, selected_labels, fish_ids=fish_ids, **scientific_timing)
+    active = build_active_neuron_matrices_all_fish(
+        all_fish_data, fish_ids=fish_ids, stim_order=selected_ids, **scientific_timing, **active_settings)
+    tables = _build_recruitment_activity_tables(
+        all_fish_data, fish_ids, selections, responses, active, scientific_timing)
+    pairs, summaries, per_fish = _build_recruitment_containment_tables(active, fish_ids, selections)
+    tables.update(pairwise=pairs, containment_summary=summaries)
+    matrix_summary = pairs.groupby(
+        ["side", "source_condition", "target_condition"], sort=False,
+    ).agg(containment=("containment", "mean"), jaccard=("jaccard", "mean"),
+          containment_valid_fish=("containment", "count"), jaccard_valid_fish=("jaccard", "count")).reset_index()
+    tables["matrix_summary"] = matrix_summary
+    tables["window_summary"] = tables["response_windows"].groupby(
+        ["side", "condition"], sort=False,
+    ).agg(requested_duration_s=("requested_duration_s", "max"),
+          observed_duration_s=("observed_duration_s", "min"),
+          integration_span_s=("integration_span_s", "min"),
+          fish_with_clipped_window=("window_clipped", "sum")).reset_index()
+    means = {}
+    for side in selections:
+        rows = matrix_summary.loc[matrix_summary["side"] == side]
+        means[side] = {metric: rows.pivot(
+            index="source_condition", columns="target_condition", values=metric,
+        ).reindex(index=condition_labels, columns=condition_labels) for metric in ("containment", "jaccard")}
+    return {"fish_ids": fish_ids, "condition_labels": condition_labels,
+            "side_selections": selections, "active_matrices": active, "responses": responses,
+            "per_fish_matrices": per_fish, "mean_matrices": means, "tables": tables}
 
 
 def build_all_fish_raster_inputs(

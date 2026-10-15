@@ -121,6 +121,23 @@
     ],
     "syntax_failure_raw_cells": []
   },
+  "notebooks/calcium/exp_07_trans_stat/02_response_overlap_and_selectivity.ipynb": {
+    "imports": [
+      "src.several_fish_diagnostics",
+      "src.several_fish_figures",
+      "src.several_fish_loading",
+      "src.several_fish_reporting"
+    ],
+    "symbols": [
+      "src.several_fish_diagnostics.build_recruitment_containment_analysis",
+      "src.several_fish_figures.plot_recruitment_activity_summary",
+      "src.several_fish_figures.plot_recruitment_containment_matrices",
+      "src.several_fish_figures.plot_recruitment_containment_summary",
+      "src.several_fish_loading.load_and_preflight_fish_raster_inputs",
+      "src.several_fish_reporting.save_analysis_report_run"
+    ],
+    "syntax_failure_raw_cells": []
+  },
   "notebooks/calcium/exp_08_accumulation_ev/01_all_fish_raster.ipynb": {
     "imports": [
       "src.multifish_matrices",

@@ -37,6 +37,7 @@ Use this file when
 - Analysis notebooks own configuration, orchestration, and interpretation around those shared helpers.
 
 ## Navigation notes
+- Exp 7 notebook 02 is an independent stage-6 consumer: load/preflight; prepare kept-row-aligned active decisions and signed AUCs; record requested/observed windows; render mirrored recruitment/activity, containment/Jaccard matrices, and control/all-rocking summaries; optionally call the existing reviewed-run report writer. All-rocking uses intersection and fish have equal summary weight. It does not run notebook 01 or change its stages, and later similarity/selectivity work is deferred.
 - Consult `current-state.md` for a known loader caveat or suspected notebook migration drift.
 - Consult `canonical-outputs.md` when cache names or downstream file contracts matter.
 - Consult `symbol-index.md` when locating a helper or checking its stable public import path.

@@ -34,6 +34,8 @@ use the matching row below to open the owner.
 | Cache names, filtered neuron index naming, saved figure locations | `canonical-outputs.md` | `src/data_loading.py` or the relevant writer |
 | Several-fish report folder, JSON/CSV serialization, notebook export | `canonical-outputs.md` for saved names and layout | `src/several_fish_reporting.py` |
 | Several-fish cohort loading, data-root lookup, or stimulus preflight | `src-api-consumer-inventory.md` for the returned bundle | `src/several_fish_loading.py` |
+| Directional active-neuron containment or empty-source overlap behavior | `src-api-consumer-inventory.md` for fraction semantics | `src/active_neuron_analysis.py` |
+| Mirrored recruitment, observed-window activity, control/all-rocking containment summaries | `src-api-consumer-inventory.md` for neuron identity and equal-fish contracts | `src/several_fish_diagnostics.py`, then `src/several_fish_figures.py` |
 | Several-fish stimulus/control selection, response summaries, pooled keep masks, or filtered trace/active rows | `src-api-consumer-inventory.md` for the pooled-row contract | `src/several_fish_selection.py` |
 | Several-fish response-window tables, high-sparseness raster inputs, mean traces, or active-overlap diagnostics | `src-api-consumer-inventory.md` for pooled-row ordering | `src/several_fish_diagnostics.py` |
 | Several-fish pooled raster, sparseness, mean-trace, active-overlap, or active-count figure orchestration | `src-api-consumer-inventory.md` for figure return contracts | `src/several_fish_figures.py` |

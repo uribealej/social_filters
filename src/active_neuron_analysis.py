@@ -95,6 +95,35 @@ def _active_columns_as_bool(active_matrix, stim_order, labels):
     return pd.DataFrame(columns)
 
 
+def compute_active_neuron_containment(
+    active_matrix, stim_order, labels=None, empty_source_value=np.nan,
+):
+    """Return directional containment: row A, column B is |A & B| / |A|.
+
+    Args:
+        active_matrix (DataFrame or array): Neuron-by-stimulus decisions. Arrays
+            follow the stimulus-index convention of the existing overlap helper.
+            Finite nonzero values mean active; missing decisions raise.
+        stim_order (sequence): Stimulus keys in requested row/column order.
+        labels (sequence or None): Display labels paired with the keys.
+        empty_source_value (float): Value for an empty source population.
+
+    Returns:
+        DataFrame: Fractions in [0, 1], with undefined source rows NaN by default.
+            The input and neuron order are unchanged.
+    """
+    if not np.isfinite(np.asarray(active_matrix, dtype=float)).all():
+        raise ValueError("Containment requires finite active decisions.")
+    labels = list(stim_order) if labels is None else list(labels)
+    active = _active_columns_as_bool(active_matrix, list(stim_order), labels)
+    values = active.to_numpy(dtype=np.int64)
+    intersections = values.T @ values
+    counts = values.sum(axis=0)
+    fractions = np.full(intersections.shape, empty_source_value, dtype=float)
+    np.divide(intersections, counts[:, None], out=fractions, where=counts[:, None] > 0)
+    return pd.DataFrame(fractions, index=labels, columns=labels)
+
+
 def compute_active_neuron_jaccard_overlap(
     active_matrix,
     stim_order,

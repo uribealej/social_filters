@@ -157,6 +157,7 @@ Supported compatibility facade: S07 moved scientific implementations into `src.m
 - `build_zscore_response_matrices_all_fish` - build per-fish and pooled response matrices with row metadata.
 
 ### `src/active_neuron_analysis.py`
+- `compute_active_neuron_containment` - directional row-A/column-B active-neuron intersection divided by A's size; empty sources are NaN.
 - `build_active_neuron_matrices_all_fish` - build per-fish active-neuron decisions.
 - `build_pooled_active_trace_diagnostic` - align pooled binary traces with active decisions and row metadata.
 
@@ -179,6 +180,7 @@ Supported compatibility facade: S07 moved scientific implementations into `src.m
 - `load_and_preflight_fish_raster_inputs` - load and validate an ordered several-fish raster cohort and return its notebook bundle; `data_base=None` discovers paired Lab roots from OneDrive environment variables, the user's home, then the legacy D-drive layout, while explicit parent paths keep their existing lookup behavior.
 
 ### `src/several_fish_selection.py`
+- `build_active_group_masks` - prepare any/all response masks for explicit stimulus groups without changing neuron row order.
 - `resolve_stimulus_set` - resolve ordered stimulus IDs or names against a reference fish.
 - `resolve_response_control_columns` - resolve left/right controls to response-matrix columns.
 - `build_selected_neuron_summary` - prepare row-aligned summary tables, preference index, keep mask, and selected responses.
@@ -188,6 +190,7 @@ Supported compatibility facade: S07 moved scientific implementations into `src.m
 - `filter_active_matrices_by_keep_mask` - apply a pooled keep mask to per-fish active-matrix rows.
 
 ### `src/several_fish_diagnostics.py`
+- `build_recruitment_containment_analysis` - prepare aligned kept-neuron activity/AUC tables, window metadata, per-fish containment/Jaccard matrices, equal-fish means, and control/all-rocking containment summaries.
 - `build_all_fish_raster_inputs` - prepare pooled raster matrix, optional left-right index, and stable neuron ordering.
 - `build_lifetime_sparseness_summary` - prepare selected response matrix, per-neuron selectivity metrics, and sparseness summary.
 - `build_motion_active_counts` - prepare ordered per-fish active-neuron counts.
@@ -201,6 +204,9 @@ Supported compatibility facade: S07 moved scientific implementations into `src.m
 - `build_overlap_diagnostic_data` - prepare overlap matrices and pooled trace diagnostics.
 
 ### `src/several_fish_figures.py`
+- `plot_recruitment_activity_summary` - mirrored per-fish recruitment fractions and signed AUC normalized by observed integration span.
+- `plot_recruitment_containment_matrices` - mirrored directional-containment and Jaccard heatmaps with equal fish weighting and shared fraction scales.
+- `plot_recruitment_containment_summary` - mirrored per-fish containment in control and the intersection of rocking variants.
 - `build_all_fish_raster_figure` - orchestrate the pooled raster figure with configured labels and sorting.
 - `build_plot_all_fish_mean_zscore_traces` - render mean z-score traces for an ordered stimulus set.
 - `plot_left_right_active_overlap_diagnostics` - render left/right active-neuron overlap and raster diagnostics.
@@ -293,6 +299,8 @@ Supported compatibility facade: S08 moved figure construction into the `src.plot
 - `plot_allfish_flat_raster` - render pooled flattened matrices with optional mean panels.
 
 ### `src/plotting_diagnostics.py`
+- `plot_paired_fish_values` - ordered paired fish measurements and an equal-fish mean, leaving missing values as gaps.
+- `plot_fraction_matrix` - annotated fraction heatmap with missing cells masked and a fixed zero-to-one scale.
 - `plot_active_trace_decision_diagnostic` - plot pooled trace and strict active-decision diagnostics.
 - `plot_motion_delta_distribution` - plot motion-minus-fixed metric distributions.
 

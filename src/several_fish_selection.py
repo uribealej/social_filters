@@ -291,6 +291,35 @@ def subset_active_matrices(active_matrices, fish_ids, stim_order):
     return subset
 
 
+def build_active_group_masks(active_matrix, stimulus_groups):
+    """Select neurons responding to any/all stimuli in each explicit group.
+
+    Args:
+        active_matrix (DataFrame): Finite neuron-by-stimulus decisions, already
+            aligned to the response rows. Finite nonzero values mean active.
+        stimulus_groups (dict): Group names mapped to nonempty stimulus-key lists.
+
+    Returns:
+        dict: Each group maps to ``any`` and ``all`` boolean vectors of shape
+        (n_neurons,), preserving input row order. Inputs are not mutated.
+    """
+    active = pd.DataFrame(active_matrix)
+    masks = {}
+    for group, stimuli in stimulus_groups.items():
+        stimuli = list(stimuli)
+        if not stimuli or len(set(stimuli)) != len(stimuli):
+            raise ValueError(f"Group {group!r} must contain nonempty, unique stimuli.")
+        missing = [stimulus for stimulus in stimuli if stimulus not in active.columns]
+        if missing:
+            raise ValueError(f"Group {group!r} has missing stimuli: {missing}")
+        values = active.loc[:, stimuli].to_numpy(dtype=float)
+        if not np.isfinite(values).all():
+            raise ValueError(f"Group {group!r} contains missing active decisions.")
+        values = values != 0
+        masks[group] = {"any": values.any(axis=1), "all": values.all(axis=1)}
+    return masks
+
+
 def filter_active_matrices_by_keep_mask(active_matrices, response_row_metadata, keep_mask, fish_ids):
     """Apply a pooled neuron keep mask to fish active matrices.
 
