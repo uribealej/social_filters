@@ -23,6 +23,409 @@ from src.active_neuron_analysis import (
     compute_active_neuron_jaccard_overlap,
 )
 from src.several_fish_selection import build_active_group_masks
+from src.stimulus_similarity import build_stimulus_vector_similarity
+from src.stimulus_specificity import build_active_membership_table, build_family_responsive_membership_fractions
+from src.neuron_ordering import build_response_profile_sort_order
+
+
+def _family_sparseness_neurons(panel, memberships, labels, fid, side, family, population):
+    """Reuse the canonical positive-response metric only for complete profiles."""
+    vectors = panel["responses"].loc[:, labels]
+    rows = panel["row_metadata"].copy().reset_index(drop=True)
+    if vectors.index.tolist() != rows["global_neuron_id"].tolist():
+        raise ValueError(f"{fid}, {side}, {population}: response and metadata identities differ.")
+    lookup = memberships.loc[
+        (memberships["fish_id"] == fid) & (memberships["side"] == side)
+        & (memberships["family"] == family)
+    ].set_index("global_neuron_id")
+    if lookup.index.has_duplicates or not vectors.index.isin(lookup.index).all():
+        raise ValueError(f"{fid}, {side}, {family}: membership identities do not match profiles.")
+    rows["family"], rows["population"] = family, population
+    rows["n_active_variants"] = lookup.loc[vectors.index, "n_active_stimuli"].to_numpy(dtype=int)
+    values = vectors.to_numpy(dtype=float)
+    for index, label in enumerate(labels):
+        rows[f"signed_response_{label}"] = values[:, index]
+        rows[f"positive_response_{label}"] = np.maximum(values[:, index], 0)
+    complete = np.isfinite(values).all(axis=1)
+    rows["n_finite_variants"] = np.isfinite(values).sum(axis=1)
+    rows["n_negative_variants"] = (values < 0).sum(axis=1)
+    rows["lifetime_sparseness"] = [
+        np.clip(compute_stimulus_selectivity_metrics(value, labels)["lifetime_sparseness"], 0, 1)
+        if valid else np.nan for value, valid in zip(values, complete)
+    ]
+    rows["sparseness_status"] = np.where(
+        ~complete, "incomplete_profile",
+        np.where(np.isfinite(rows["lifetime_sparseness"]), "defined", "no_positive_response"))
+    return rows
+
+
+def build_family_lifetime_sparseness(breadth_profiles, cdf_grid):
+    """Describe positive-response concentration separately within each family.
+
+    Args:
+        breadth_profiles (dict): Output of build_response_breadth_profiles,
+            with identity-aligned signed normalized AUC and membership tables.
+        cdf_grid (sequence): Strictly increasing finite evaluation points from
+            exactly 0 through 1, including both endpoints.
+
+    Returns:
+        dict: Fish/family/population order and report-ready neuron, per-fish,
+        cohort, per-fish CDF, and equal-fish CDF tables. The canonical metric
+        clips negative responses at zero for this calculation only. Complete
+        family profiles are required; nonfinite entries are not imputed as zero.
+        Zero/nonpositive profiles have NaN metrics. Metric roundoff is bounded
+        to [0, 1]; signed inputs are retained.
+        Per-fish means and CDFs use defined neurons; cohort means/CDFs weight
+        defined fish equally and record valid counts. Activity flags remain
+        descriptive; neither population receives an extra activity filter.
+        Values near 0 indicate equal positive activity and 1 indicates activity
+        confined to one tested variant. No reliability validation is implied.
+        No loading, normalization, mutation, plotting, or file I/O occurs.
+    """
+    grid = np.asarray(cdf_grid, dtype=float)
+    if (grid.ndim != 1 or len(grid) < 2 or not np.isfinite(grid).all()
+            or grid[0] != 0 or grid[-1] != 1 or not (np.diff(grid) > 0).all()):
+        raise ValueError("cdf_grid must increase strictly from 0 to 1, including endpoints.")
+    neurons, summaries, cdfs = [], [], []
+    memberships = breadth_profiles["tables"]["response_memberships"]
+    for fid in breadth_profiles["fish_ids"]:
+        for side in ("left", "right"):
+            for population in breadth_profiles["populations"]:
+                panel = breadth_profiles["profiles"][fid][side][population]
+                for family in breadth_profiles["families"]:
+                    labels = breadth_profiles["family_labels"][family]
+                    rows = _family_sparseness_neurons(
+                        panel, memberships, labels, fid, side, family, population)
+                    neurons.append(rows)
+                    values = rows["lifetime_sparseness"].to_numpy(dtype=float)
+                    defined = np.sort(values[np.isfinite(values)])
+                    n_defined = len(defined)
+                    keys = {"fish_id": fid, "side": side, "family": family, "population": population}
+                    summaries.append({
+                        **keys, "n_population_neurons": len(rows), "n_defined_neurons": n_defined,
+                        "n_incomplete_neurons": int((rows["sparseness_status"] == "incomplete_profile").sum()),
+                        "n_no_positive_neurons": int((rows["sparseness_status"] == "no_positive_response").sum()),
+                        "n_active_family_neurons": int((rows["n_active_variants"] > 0).sum()),
+                        "n_defined_active_neurons": int(((rows["n_active_variants"] > 0) & np.isfinite(values)).sum()),
+                        "n_neurons_with_negative_values": int((rows["n_negative_variants"] > 0).sum()),
+                        "mean_sparseness": float(np.mean(defined)) if n_defined else np.nan,
+                        "median_sparseness": float(np.median(defined)) if n_defined else np.nan,
+                    })
+                    cumulative = (np.searchsorted(defined, grid, side="right") / n_defined
+                                  if n_defined else np.full(len(grid), np.nan))
+                    cdfs.extend({**keys, "sparseness": float(x), "cumulative_fraction": float(y),
+                                 "n_defined_neurons": n_defined} for x, y in zip(grid, cumulative))
+    summary, cdf = pd.DataFrame(summaries), pd.DataFrame(cdfs)
+    keys = ["population", "side", "family"]
+    counts = [name for name in summary.columns if name.startswith("n_")]
+    cohort = summary.groupby(keys, sort=False).agg(
+        mean_sparseness=("mean_sparseness", "mean"), valid_fish=("mean_sparseness", "count"),
+        **{name: (name, "sum") for name in counts},
+    ).reset_index()
+    mean_cdf = cdf.groupby(keys + ["sparseness"], sort=False).agg(
+        cumulative_fraction=("cumulative_fraction", "mean"), valid_fish=("cumulative_fraction", "count"),
+    ).reset_index()
+    return {
+        **{key: list(breadth_profiles[key]) for key in ("fish_ids", "families", "populations")},
+        "population_labels": dict(breadth_profiles["population_labels"]),
+        "family_labels": dict(breadth_profiles["family_labels"]), "cdf_grid": grid.copy(),
+        "tables": {"family_sparseness_neurons": pd.concat(neurons, ignore_index=True),
+                   "family_sparseness_per_fish": summary, "family_sparseness_summary": cohort,
+                   "family_sparseness_cdf": cdf, "family_sparseness_mean_cdf": mean_cdf},
+    }
+
+
+def _prepare_breadth_profile_panel(analysis, similarity, fid, side, population, metadata):
+    """Check cached population identities and retain the sorted display rows."""
+    active = analysis["active_matrices"][fid]
+    mask = (np.ones(len(active), dtype=bool) if population == "all_kept" else
+            build_active_group_masks(active, analysis["side_selections"][side]["groups"])["rocking"]["all"])
+    expected = metadata.loc[mask].reset_index(drop=True)
+    cached = similarity["row_metadata"][fid][side][population].reset_index(drop=True)
+    vectors = similarity["response_vectors"][fid][side][population]
+    identities = ["fish_id", "neuron_id", "source_neuron_id", "global_neuron_id"]
+    if (not expected[identities].equals(cached[identities])
+            or list(vectors.columns) != list(analysis["condition_labels"])
+            or vectors.index.tolist() != expected["global_neuron_id"].tolist()):
+        raise ValueError(f"{fid}, {side}, {population}: cached response identities/order differ.")
+    if len(metadata):
+        prepared = _prepare_similarity_response_vectors(analysis, fid, side, metadata)
+        if not vectors.equals(prepared.iloc[np.flatnonzero(mask)]):
+            raise ValueError(f"{fid}, {side}, {population}: cached response values differ.")
+    else:
+        source = analysis["tables"]["neuron_responses"]
+        if ((source["fish_id"] == fid) & (source["side"] == side)).any():
+            raise ValueError(f"{fid}, {side}: empty metadata has nonempty responses.")
+    order = build_response_profile_sort_order(vectors, analysis["condition_labels"][1:])
+    rows = expected.iloc[order].copy().reset_index(drop=True)
+    rows["side"], rows["population"] = side, population
+    rows["display_row"] = np.arange(len(rows))
+    return {"responses": vectors.iloc[order].copy(), "row_metadata": rows}
+
+
+def build_response_breadth_profiles(analysis, similarity):
+    """Prepare family memberships and signed response profiles from cached inputs.
+
+    Args:
+        analysis (dict): Prepared recruitment/containment bundle; kept-neuron
+            decisions and identity metadata must remain aligned.
+        similarity (dict): Matching response-similarity bundle, containing
+            signed normalized AUC for all_kept and side-specific all_rocking.
+
+    Returns:
+        dict: Identity-preserving neuron memberships, complete per-fish breadth
+        and combination tables, equal-fish summaries with counts/valid_fish,
+        and profiles[fish][side][population] with sorted response DataFrames
+        (neurons by conditions) and display-row metadata. profile_color_limit
+        is the largest absolute finite response across both populations, or 1
+        if no nonzero finite responses exist. Units remain z-score activity.
+        Original fractions use all kept neurons. Additional response_breadth_family_responsive
+        and response_combinations_family_responsive tables condition on any family
+        response per fish/side, excluding zero-active categories. Empty denominators
+        are NaN. No loading,
+        classification, normalization, plotting, or input mutation occurs.
+    """
+    fish_ids, labels = list(analysis["fish_ids"]), list(analysis["condition_labels"])
+    if fish_ids != list(similarity["fish_ids"]) or labels != list(similarity["condition_labels"]):
+        raise ValueError("Analysis and similarity fish/condition orders differ.")
+    families = ["rocking", "flicker"]
+    populations = ["all_kept", "all_rocking"]
+    memberships, breadth, combinations, profile_rows = [], [], [], []
+    profiles, family_labels, category_orders = {}, {}, {}
+    color_limit = 0.0
+    for fid in fish_ids:
+        active = analysis["active_matrices"][fid]
+        metadata = analysis["responses"]["row_metadata"]
+        metadata = metadata.loc[metadata["fish_id"] == fid].reset_index(drop=True)
+        if len(active) != len(metadata) or not np.array_equal(metadata["neuron_id"], np.arange(len(active))):
+            raise ValueError(f"{fid}: active rows differ from kept-neuron metadata.")
+        profiles[fid] = {}
+        for side in ("left", "right"):
+            selection = analysis["side_selections"][side]
+            for family in families:
+                ids = selection["groups"][family]
+                selected_labels = [labels[selection["stimulus_ids"].index(key)] for key in ids]
+                result = build_active_membership_table(active, ids, selected_labels)
+                family_labels.setdefault(family, selected_labels)
+                if family_labels[family] != selected_labels:
+                    raise ValueError("Mirrored families must have matching condition labels.")
+                category_orders[family] = result["combinations"]["membership"].tolist()
+                neurons = pd.concat([metadata, result["neurons"].reset_index(drop=True)], axis=1)
+                neurons["side"], neurons["family"] = side, family
+                memberships.append(neurons)
+                for key, destination in (("breadth", breadth), ("combinations", combinations)):
+                    table = result[key].copy()
+                    table["fish_id"], table["side"], table["family"] = fid, side, family
+                    destination.append(table)
+            profiles[fid][side] = {}
+            for population in populations:
+                panel = _prepare_breadth_profile_panel(analysis, similarity, fid, side, population, metadata)
+                profiles[fid][side][population] = panel
+                values = panel["responses"].to_numpy(dtype=float)
+                finite = np.abs(values[np.isfinite(values)])
+                if finite.size:
+                    color_limit = max(color_limit, float(finite.max()))
+                wide = panel["row_metadata"].copy()
+                for condition in labels:
+                    wide[f"response_{condition}"] = panel["responses"][condition].to_numpy()
+                profile_rows.append(wide)
+    breadth, combinations = pd.concat(breadth, ignore_index=True), pd.concat(combinations, ignore_index=True)
+    summaries = {}
+    for name, table, category in (("breadth", breadth, "n_active_stimuli"),
+                                   ("combinations", combinations, "membership")):
+        summaries[f"response_{name}_summary"] = table.groupby(
+            ["side", "family", category], sort=False,
+        ).agg(fraction_kept=("fraction_kept", "mean"), valid_fish=("fraction_kept", "count"),
+              n_neurons=("n_neurons", "sum"), n_kept_neurons=("n_kept_neurons", "sum")).reset_index()
+    responsive_tables = {
+        "response_breadth_family_responsive": build_family_responsive_membership_fractions(breadth),
+        "response_combinations_family_responsive": build_family_responsive_membership_fractions(combinations),
+    }
+    return {
+        "fish_ids": fish_ids, "condition_labels": labels, "families": families,
+        "populations": populations, "population_labels": dict(similarity["population_labels"]),
+        "family_labels": family_labels, "combination_orders": category_orders,
+        "profiles": profiles, "profile_color_limit": color_limit or 1.0,
+        "tables": {"response_memberships": pd.concat(memberships, ignore_index=True),
+                   "response_breadth": breadth, "response_combinations": combinations,
+                   "response_profile_rows": pd.concat(profile_rows, ignore_index=True), **summaries,
+                   **responsive_tables},
+    }
+
+
+def build_pooled_response_profiles(breadth_profiles, sort_mode="pearson"):
+    """Pool all-kept neurons and align both sides with one joint display order.
+
+    Args:
+        breadth_profiles (dict): Prepared profile bundle. Each fish/side's all_kept
+            responses are (neurons, conditions), with identity-aligned row_metadata.
+        sort_mode (str): pearson, euclidean, or preferred, delegated to the ordering
+            owner. Sorting concatenates left/right non-control response features.
+
+    Returns:
+        dict: responses[left/right] retain raw signed normalized-AUC values in
+        condition order, with identical neuron rows. row_metadata maps pooled
+        display_row to fish/source/global identities. The existing shared full-range
+        profile_color_limit is preserved. This is one row per neuron, not a fish mean;
+        no clustering cut, response normalization, missing-value filling, or mutation.
+    """
+    labels = list(breadth_profiles["condition_labels"])
+    sorting_conditions = labels[1:]
+    responses, metadata = {}, {}
+    identities = ["fish_id", "neuron_id", "source_neuron_id", "global_neuron_id"]
+    for side in ("left", "right"):
+        matrices, rows = [], []
+        for fid in breadth_profiles["fish_ids"]:
+            panel = breadth_profiles["profiles"][fid][side]["all_kept"]
+            source = panel["row_metadata"]
+            if (list(panel["responses"].columns) != labels
+                    or panel["responses"].index.tolist() != source["global_neuron_id"].tolist()
+                    or not (source["fish_id"] == fid).all()):
+                raise ValueError(f"{fid}, {side}: pooled profile values and identities are not aligned.")
+            ordered = source.sort_values("neuron_id", kind="stable")
+            matrices.append(panel["responses"].loc[ordered["global_neuron_id"]])
+            rows.append(ordered[identities])
+        responses[side] = pd.concat(matrices)
+        metadata[side] = pd.concat(rows, ignore_index=True)
+        if responses[side].index.has_duplicates:
+            raise ValueError("Pooled response profiles need unique global neuron IDs.")
+    if not metadata["left"].equals(metadata["right"]):
+        raise ValueError("Left and right all-kept profiles must contain the same neuron identities.")
+    joint = pd.concat([responses[side][sorting_conditions] for side in ("left", "right")],
+                      axis=1, keys=["left", "right"])
+    order = build_response_profile_sort_order(joint, joint.columns.tolist(), sort_mode=sort_mode)
+    rows = metadata["left"].iloc[order].copy().reset_index(drop=True)
+    rows["display_row"] = np.arange(len(rows))
+    return {"responses": {side: values.iloc[order].copy() for side, values in responses.items()},
+            "row_metadata": rows, "sort_mode": sort_mode, "sorting_conditions": sorting_conditions,
+            "profile_color_limit": breadth_profiles["profile_color_limit"],
+            "fish_ids": list(breadth_profiles["fish_ids"])}
+
+
+def _prepare_similarity_response_vectors(analysis, fid, side, metadata):
+    """Pivot existing normalized responses without losing source-neuron identities."""
+    labels = analysis["condition_labels"]
+    table = analysis["tables"]["neuron_responses"]
+    rows = table.loc[(table["fish_id"] == fid) & (table["side"] == side)]
+    keys = ["global_neuron_id", "condition"]
+    if rows.duplicated(keys).any() or len(rows) != len(metadata) * len(labels):
+        raise ValueError(f"{fid}, {side}: need exactly one response per neuron/condition.")
+    identities = rows[["global_neuron_id", "source_neuron_id", "neuron_id"]].drop_duplicates()
+    identities = identities.set_index("global_neuron_id").reindex(metadata["global_neuron_id"])
+    if not np.array_equal(identities[["source_neuron_id", "neuron_id"]].to_numpy(),
+                          metadata[["source_neuron_id", "neuron_id"]].to_numpy()):
+        raise ValueError(f"{fid}, {side}: source-neuron identities differ from response metadata.")
+    vectors = rows.pivot(index="global_neuron_id", columns="condition", values="normalized_auc")
+    if set(vectors.columns) != set(labels) or set(vectors.index) != set(metadata["global_neuron_id"]):
+        raise ValueError(f"{fid}, {side}: response neurons/conditions do not match metadata.")
+    return vectors.reindex(index=metadata["global_neuron_id"], columns=labels)
+
+
+def _response_similarity_pair_rows(matrices, vectors, fid, side, population):
+    """Record every ordered pair, including diagonal and valid-neuron counts."""
+    finite = np.isfinite(vectors.to_numpy(dtype=float)).astype(np.int64)
+    valid_counts = finite.T @ finite
+    rows = []
+    for i, source in enumerate(vectors.columns):
+        for j, target in enumerate(vectors.columns):
+            rows.append({
+                "fish_id": fid, "side": side, "population": population,
+                "source_condition": source, "target_condition": target,
+                "n_population_neurons": len(vectors),
+                "n_valid_response_neurons": int(valid_counts[i, j]),
+                **{metric: matrix.iloc[i, j] for metric, matrix in matrices.items()},
+            })
+    return rows
+
+
+def build_response_similarity_comparison(analysis):
+    """Compare prepared response patterns in all kept neurons and the all-rocking core.
+
+    Args:
+        analysis (dict): Output of build_recruitment_containment_analysis. Uses
+            its identity-aligned signed normalized_auc values and existing
+            active decisions, without loading or reclassifying data.
+
+    Returns:
+        dict: Per-fish and equal-fish mean Jaccard/Pearson/cosine matrices for
+        each side/population, ordered response vectors and neuron metadata, and
+        report-ready pairs, matrix summaries, and population-size tables.
+        Pearson/cosine delegate to the existing stimulus-vector helper and keep
+        its pairwise finite-value/undefined-value semantics. Empty cores remain
+        empty, with NaN similarities. Means are arithmetic over defined fish,
+        with valid-fish counts; they are not pooled or Fisher transformed.
+        Inputs and all existing stage-1 results are left unchanged.
+    """
+    populations = ["all_kept", "all_rocking"]
+    metrics = ["jaccard", "pearson", "cosine"]
+    fish_ids, labels = list(analysis["fish_ids"]), list(analysis["condition_labels"])
+    metadata = analysis["responses"]["row_metadata"]
+    per_fish, response_vectors, selected_metadata = {}, {}, {}
+    pair_rows, population_rows = [], []
+    for fid in fish_ids:
+        fish_metadata = metadata.loc[metadata["fish_id"] == fid].reset_index(drop=True)
+        active = analysis["active_matrices"][fid]
+        if len(active) != len(fish_metadata) or not np.array_equal(
+            fish_metadata["neuron_id"], np.arange(len(fish_metadata)),
+        ):
+            raise ValueError(f"{fid}: active decisions must follow kept-neuron metadata order.")
+        per_fish[fid], response_vectors[fid], selected_metadata[fid] = {}, {}, {}
+        for side in ("left", "right"):
+            selection = analysis["side_selections"][side]
+            vectors = _prepare_similarity_response_vectors(analysis, fid, side, fish_metadata)
+            masks = build_active_group_masks(active, selection["groups"])
+            population_masks = {"all_kept": np.ones(len(active), dtype=bool),
+                                "all_rocking": masks["rocking"]["all"]}
+            per_fish[fid][side], response_vectors[fid][side], selected_metadata[fid][side] = {}, {}, {}
+            for population, mask in population_masks.items():
+                selected = vectors.iloc[np.flatnonzero(mask)].copy()
+                similarity = build_stimulus_vector_similarity(selected, labels)
+                jaccard = (
+                    analysis["per_fish_matrices"][fid][side]["jaccard"].copy()
+                    if population == "all_kept" else compute_active_neuron_jaccard_overlap(
+                        active.iloc[np.flatnonzero(mask)], selection["stimulus_ids"], labels)
+                )
+                matrices = {"jaccard": jaccard, "pearson": similarity["pearson_similarity_matrix"],
+                            "cosine": similarity["cosine_similarity_matrix"]}
+                per_fish[fid][side][population] = matrices
+                response_vectors[fid][side][population] = selected
+                selected_metadata[fid][side][population] = fish_metadata.loc[mask].copy()
+                pair_rows.extend(_response_similarity_pair_rows(matrices, selected, fid, side, population))
+                population_rows.append({
+                    "fish_id": fid, "side": side, "population": population,
+                    "n_kept_neurons": len(active), "n_population_neurons": int(mask.sum()),
+                    "n_all_finite_response_neurons": int(np.isfinite(selected.to_numpy(dtype=float)).all(axis=1).sum()),
+                    "n_rocking_variants": len(selection["groups"]["rocking"]),
+                })
+    pairs, counts = pd.DataFrame(pair_rows), pd.DataFrame(population_rows)
+    aggregation = {metric: (metric, "mean") for metric in metrics}
+    aggregation.update({f"{metric}_valid_fish": (metric, "count") for metric in metrics})
+    summary = pairs.groupby(
+        ["population", "side", "source_condition", "target_condition"], sort=False,
+    ).agg(**aggregation).reset_index()
+    means = {}
+    for population in populations:
+        means[population] = {}
+        for side in ("left", "right"):
+            rows = summary.loc[(summary["population"] == population) & (summary["side"] == side)]
+            means[population][side] = {
+                metric: rows.pivot(index="source_condition", columns="target_condition", values=metric)
+                .reindex(index=labels, columns=labels) for metric in metrics
+            }
+    count_summary = counts.pivot(index=["fish_id", "side"], columns="population", values="n_population_neurons")
+    count_summary = count_summary.reindex(
+        index=pd.MultiIndex.from_product([fish_ids, ["left", "right"]], names=["fish_id", "side"]),
+        columns=populations,
+    ).rename_axis(columns=None).reset_index()
+    return {
+        "fish_ids": fish_ids, "condition_labels": labels, "populations": populations,
+        "population_labels": {"all_kept": "All kept neurons", "all_rocking": "All-rocking responsive core"},
+        "per_fish_matrices": per_fish, "mean_matrices": means,
+        "response_vectors": response_vectors, "row_metadata": selected_metadata,
+        "tables": {"response_similarity_pairs": pairs, "response_similarity_summary": summary,
+                   "response_similarity_population_counts": counts,
+                   "response_similarity_population_summary": count_summary},
+    }
 
 
 def _resolve_recruitment_groups(all_fish_data, fish_ids, side_groups, condition_labels):

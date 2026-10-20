@@ -111,6 +111,7 @@
     ],
     "symbols": [
       "src.plotting_common.build_stimulus_style_maps",
+      "src.plotting_common.save_publication_figure",
       "src.several_fish_figures.build_all_fish_raster_figure",
       "src.several_fish_figures.build_plot_all_fish_mean_zscore_traces",
       "src.several_fish_figures.plot_left_right_active_overlap_diagnostics",
@@ -123,16 +124,32 @@
   },
   "notebooks/calcium/exp_07_trans_stat/02_response_overlap_and_selectivity.ipynb": {
     "imports": [
+      "src.neuron_ordering",
+      "src.plotting_common",
+      "src.plotting_diagnostics",
+      "src.plotting_specificity",
       "src.several_fish_diagnostics",
       "src.several_fish_figures",
       "src.several_fish_loading",
-      "src.several_fish_reporting"
+      "src.several_fish_reporting",
+      "src.stimulus_specificity"
     ],
     "symbols": [
+      "src.plotting_common.save_publication_figure",
+      "src.several_fish_diagnostics.build_family_lifetime_sparseness",
+      "src.several_fish_diagnostics.build_pooled_response_profiles",
       "src.several_fish_diagnostics.build_recruitment_containment_analysis",
+      "src.several_fish_diagnostics.build_response_breadth_profiles",
+      "src.several_fish_diagnostics.build_response_similarity_comparison",
+      "src.several_fish_figures.plot_family_lifetime_sparseness",
+      "src.several_fish_figures.plot_family_sparseness_summary",
+      "src.several_fish_figures.plot_pooled_response_profiles",
       "src.several_fish_figures.plot_recruitment_activity_summary",
       "src.several_fish_figures.plot_recruitment_containment_matrices",
       "src.several_fish_figures.plot_recruitment_containment_summary",
+      "src.several_fish_figures.plot_response_breadth_summary",
+      "src.several_fish_figures.plot_response_profile_panels",
+      "src.several_fish_figures.plot_response_similarity_comparison",
       "src.several_fish_loading.load_and_preflight_fish_raster_inputs",
       "src.several_fish_reporting.save_analysis_report_run"
     ],

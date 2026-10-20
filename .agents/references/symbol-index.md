@@ -164,6 +164,14 @@ Supported compatibility facade: S07 moved scientific implementations into `src.m
 ### `src/stimulus_similarity.py`
 - `build_stimulus_vector_similarity` - compute selected stimulus-vector similarity and pairwise summaries.
 
+### `src/stimulus_specificity.py`
+- `build_family_responsive_membership_fractions` - exclude zero-active categories and divide mutually exclusive membership counts by any-family-responsive neurons separately per fish/side/family; empty responsive populations yield NaN.
+- `build_active_membership_table` - preserve neuron rows and summarize every binary membership and breadth category, with kept-neuron denominators and missing fractions for empty populations.
+
+### `src/neuron_ordering.py`
+- `build_response_profile_sort_order(..., sort_mode="pearson"|"euclidean")` - average-linkage leaf order with stable trailing unclusterable rows; default `preferred` retains the existing largest-response order.
+- `build_response_profile_sort_order` - display neurons by largest signed selected response, descending magnitude, and stable source-order ties; missing profiles last.
+
 ### `src/bout_flicker_analysis.py`
 - `build_bout_flicker_position_analysis` - derive trajectory-matched bout/flicker position responses and neuron ordering.
 
@@ -190,6 +198,10 @@ Supported compatibility facade: S07 moved scientific implementations into `src.m
 - `filter_active_matrices_by_keep_mask` - apply a pooled keep mask to per-fish active-matrix rows.
 
 ### `src/several_fish_diagnostics.py`
+- `build_pooled_response_profiles` - concatenate all-kept neurons in configured fish/source order, align left/right identities, and derive one display order from joint non-control response features without changing response values.
+- `build_family_lifetime_sparseness` - reuse prepared signed profiles for positive-response sparseness within rocking/flicker; retain complete-profile exclusions, activity flags, identities, per-fish summaries, and equal-fish CDFs.
+- `build_response_breadth_profiles` - reuse aligned activity/similarity bundles for family memberships, equal-fish breadth/combination summaries, signed profile panels, and retained display-row identities.
+- `build_response_similarity_comparison` - reuse prepared signed normalized responses for all-kept and side-specific all-rocking populations; return per-fish/equal-fish Jaccard, Pearson, cosine, identities, and valid-count tables.
 - `build_recruitment_containment_analysis` - prepare aligned kept-neuron activity/AUC tables, window metadata, per-fish containment/Jaccard matrices, equal-fish means, and control/all-rocking containment summaries.
 - `build_all_fish_raster_inputs` - prepare pooled raster matrix, optional left-right index, and stable neuron ordering.
 - `build_lifetime_sparseness_summary` - prepare selected response matrix, per-neuron selectivity metrics, and sparseness summary.
@@ -204,6 +216,14 @@ Supported compatibility facade: S07 moved scientific implementations into `src.m
 - `build_overlap_diagnostic_data` - prepare overlap matrices and pooled trace diagnostics.
 
 ### `src/several_fish_figures.py`
+- `plot_pooled_response_profiles` - separate left/right all-fish heatmaps with matched neuron rows and a common raw signed-response color scale; optional explicit color saturation preserves values and marks colorbar extensions.
+- `plot_response_breadth_summary(..., denominator="family_responsive")` selects the prepared conditional tables and omits 0/None/000; the default `all_kept` view remains supported.
+- Summary helpers `plot_recruitment_activity_summary`, `plot_recruitment_containment_summary`, `plot_response_breadth_summary`, `plot_family_lifetime_sparseness`, and `plot_family_sparseness_summary` accept `separate=True` to return an ordered dictionary of panel names to `(Figure, Axes)` pairs (row order, then left/right). `figsize` sizes each separate panel. `individual_style="anonymous_points"` uses gray fish dots, a black equal-fish mean, and Fish/Mean legends; existing grid/identified defaults remain supported.
+- `plot_family_lifetime_sparseness` - mirror family cumulative distributions for a fixed population, showing individual fish and equal-fish mean CDFs.
+- `plot_family_sparseness_summary` - mirror per-fish mean lifetime sparseness with population rows and rocking/flicker comparisons.
+- `plot_response_breadth_summary` - mirror family breadth or exact membership fractions with paired fish and equal-fish means.
+- `plot_response_profile_panels` - mirror per-fish signed continuous profiles with shared full-range color limits across populations; optional ordered `fish_ids` subsets produce compact blocks without rescaling.
+- `plot_response_similarity_comparison` - mirror left/right stimulus similarity with all-kept/core population rows and fixed metric color limits.
 - `plot_recruitment_activity_summary` - mirrored per-fish recruitment fractions and signed AUC normalized by observed integration span.
 - `plot_recruitment_containment_matrices` - mirrored directional-containment and Jaccard heatmaps with equal fish weighting and shared fraction scales.
 - `plot_recruitment_containment_summary` - mirrored per-fish containment in control and the intersection of rocking variants.
@@ -286,6 +306,7 @@ Supported compatibility facade: S08 moved figure construction into the `src.plot
 - `raster_with_stimuli` - render a single-fish raster with stimulus timing annotations.
 
 ### `src/plotting_common.py`
+- `save_publication_figure` - export PDF/SVG/PNG at the configured physical canvas size, preserving editable vector text and explicit raster DPI.
 - `list_stimulus_names` - discover stimulus names from trajectory files.
 - `build_stimulus_style_maps` - build stimulus color and linestyle dictionaries.
 
@@ -295,16 +316,21 @@ Supported compatibility facade: S08 moved figure construction into the `src.plot
 - `plot_sorted_chunks_single_mode` - build and plot one sorted stimulus-chunk raster.
 
 ### `src/plotting_all_fish.py`
-- `plot_stimulus_means` - plot per-stimulus mean traces with optional save behavior.
+- `plot_stimulus_means` - plot per-stimulus mean traces with optional save behavior and configurable `ylabel` units (default ΔF/F).
 - `plot_allfish_flat_raster` - render pooled flattened matrices with optional mean panels.
 
 ### `src/plotting_diagnostics.py`
+- `plot_paired_fish_values(..., individual_style="anonymous_points")` hides fish identities and connections while preserving per-fish values, deterministic offsets, missing values, and equal-fish means.
 - `plot_paired_fish_values` - ordered paired fish measurements and an equal-fish mean, leaving missing values as gaps.
 - `plot_fraction_matrix` - annotated fraction heatmap with missing cells masked and a fixed zero-to-one scale.
 - `plot_active_trace_decision_diagnostic` - plot pooled trace and strict active-decision diagnostics.
 - `plot_motion_delta_distribution` - plot motion-minus-fixed metric distributions.
 
 ### `src/plotting_specificity.py`
+- `plot_family_sparseness_cdf(..., individual_style="anonymous_points")` shows gray per-fish CDF evaluation dots and the unchanged black mean CDF.
+- `plot_family_sparseness_cdf` - render prepared fish and mean lifetime-sparseness CDFs with fixed axes and explicit missing-distribution annotation.
+- `plot_signed_response_profiles` - render ordered signed neuron-by-condition activity with symmetric color limits, masked missing values, and explicit empty panels.
+- `plot_stimulus_similarity_matrix` - annotated Jaccard or signed Pearson/cosine matrix with fixed metric limits and masked undefined cells.
 - `plot_similarity_heatmaps` - plot Pearson and cosine stimulus-vector similarity heatmaps.
 - `plot_similarity_by_distance` - plot selected-order distance summaries.
 - `plot_stimulus_specificity_sparseness` - plot lifetime sparseness and response strength.

@@ -2,11 +2,91 @@
 
 import numpy as np
 import pandas as pd
+from itertools import combinations
 
 from src.response_selectivity import (
     classify_stimulus_specificity_neuron,
     compute_stimulus_selectivity_metrics,
 )
+
+
+def build_active_membership_table(active_matrix, stimulus_ids, stimulus_labels):
+    """Summarize exact binary memberships without changing neuron row order.
+
+    Args:
+        active_matrix (DataFrame): Neuron-by-stimulus decisions. Selected values
+            must be finite; nonzero means active, matching group-mask semantics.
+        stimulus_ids (sequence): Unique selected column keys, in display order.
+        stimulus_labels (sequence): Unique corresponding display labels.
+
+    Returns:
+        dict: ``neurons`` preserves the input index and has active_<label>,
+        n_active_stimuli, and membership columns. ``breadth`` and ``combinations``
+        contain every category, n_neurons, n_kept_neurons, and fraction_kept.
+        Combination order is none, singletons, pairs, and so on in configured
+        order. Empty populations have zero counts and NaN fractions. No mutation.
+    """
+    ids, labels = list(stimulus_ids), list(stimulus_labels)
+    if (not ids or len(ids) != len(labels) or len(set(ids)) != len(ids)
+            or len(set(labels)) != len(labels)):
+        raise ValueError("Need nonempty, unique stimulus IDs and matching unique labels.")
+    if any(key not in active_matrix.columns for key in ids):
+        raise ValueError("Selected stimuli are missing from active decisions.")
+    values = active_matrix.loc[:, ids].to_numpy(dtype=float)
+    if not np.isfinite(values).all():
+        raise ValueError("Selected active decisions must be finite.")
+    decisions = values != 0
+    categories = [tuple(group) for size in range(len(ids) + 1)
+                  for group in combinations(range(len(ids)), size)]
+    names = {group: " + ".join(str(labels[i]) for i in group) if group else "None"
+             for group in categories}
+    neurons = pd.DataFrame(decisions.astype(int), index=active_matrix.index,
+                           columns=[f"active_{label}" for label in labels])
+    neurons["n_active_stimuli"] = decisions.sum(axis=1)
+    neurons["membership"] = [names[tuple(np.flatnonzero(row))] for row in decisions]
+    n_kept = len(neurons)
+    common = {"n_kept_neurons": n_kept}
+    breadth, memberships = [], []
+    for count in range(len(ids) + 1):
+        n = int((neurons["n_active_stimuli"] == count).sum())
+        breadth.append({"n_active_stimuli": count, "n_neurons": n, **common,
+                        "fraction_kept": n / n_kept if n_kept else np.nan})
+    for group in categories:
+        name = names[group]
+        n = int((neurons["membership"] == name).sum())
+        memberships.append({"membership": name, "n_active_stimuli": len(group),
+                            "n_neurons": n, **common,
+                            "fraction_kept": n / n_kept if n_kept else np.nan})
+    return {"neurons": neurons, "breadth": pd.DataFrame(breadth),
+            "combinations": pd.DataFrame(memberships)}
+
+
+def build_family_responsive_membership_fractions(table):
+    """Condition membership fractions on any response within each stimulus family.
+
+    Args:
+        table (DataFrame): Complete breadth or combination counts, with fish_id,
+            side, family, n_active_stimuli and n_neurons. Each fish/side/family
+            describes mutually exclusive categories of the same population.
+
+    Returns:
+        DataFrame: Copy containing only n_active_stimuli > 0 categories, adding
+        n_family_responsive_neurons and fraction_family_responsive. Denominators
+        are the sum of responsive category counts separately per fish/side/family;
+        zero denominators give NaN fractions. Counts and original columns remain
+        intact. No input mutation or pooling across fish/families occurs.
+    """
+    required = {"fish_id", "side", "family", "n_active_stimuli", "n_neurons"}
+    if not required.issubset(table.columns):
+        raise ValueError(f"Membership table is missing columns: {sorted(required - set(table.columns))}")
+    counts = table[["n_active_stimuli", "n_neurons"]].to_numpy(dtype=float)
+    if not np.isfinite(counts).all() or (counts < 0).any():
+        raise ValueError("Membership counts must be finite and nonnegative.")
+    responsive = table.loc[table["n_active_stimuli"] > 0].copy()
+    totals = responsive.groupby(["fish_id", "side", "family"], sort=False)["n_neurons"].transform("sum")
+    responsive["n_family_responsive_neurons"] = totals
+    responsive["fraction_family_responsive"] = responsive["n_neurons"] / totals.where(totals > 0)
+    return responsive
 
 
 def _active_column_values(active_matrix, stim):

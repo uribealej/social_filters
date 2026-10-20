@@ -5,6 +5,35 @@ from pathlib import Path
 import re
 
 
+def save_publication_figure(figure, output_stem, formats=("pdf", "svg", "png"), dpi=600):
+    """Export a figure at its configured physical size without cropping the canvas.
+
+    Args:
+        figure (Figure): Finished Matplotlib figure, sized in inches by the caller.
+        output_stem (str or Path): Destination folder and basename without extension.
+        formats (sequence): PDF/SVG for editable vectors and/or PNG for raster output.
+        dpi (int): Raster resolution in dots per inch, including embedded images.
+
+    Returns:
+        list[Path]: Written files in requested order. The figure is not modified.
+    """
+    formats = tuple(formats)
+    if not formats or any(fmt not in {"pdf", "svg", "png"} for fmt in formats):
+        raise ValueError("formats must contain only pdf, svg, or png.")
+    if dpi <= 0:
+        raise ValueError("dpi must be positive.")
+    stem = Path(output_stem)
+    stem.parent.mkdir(parents=True, exist_ok=True)
+    paths = []
+    # Tight bounding boxes change the exported dimensions and final text size.
+    with plt.rc_context({"savefig.bbox": None, "pdf.fonttype": 42, "svg.fonttype": "none"}):
+        for fmt in formats:
+            path = stem.parent / f"{stem.name}.{fmt}"
+            figure.savefig(path, format=fmt, dpi=dpi, bbox_inches=None, facecolor="white")
+            paths.append(path)
+    return paths
+
+
 def _natural_sort_key(value):
     return [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", value)]
 

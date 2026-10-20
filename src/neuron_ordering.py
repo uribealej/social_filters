@@ -7,6 +7,54 @@ from scipy.spatial.distance import pdist
 import numpy as np
 
 
+def build_response_profile_sort_order(response_matrix, selected_conditions, sort_mode="preferred"):
+    """Order neuron profiles by preferred response or hierarchical similarity.
+
+    Args:
+        response_matrix (DataFrame): Neurons by conditions, in source row order.
+        selected_conditions (sequence): Nonempty unique sorting columns, in
+            tie-breaking order; the control can be excluded by the caller.
+        sort_mode (str): preferred preserves largest-signed-response grouping;
+            pearson or euclidean uses average-linkage hierarchical leaf order.
+
+    Returns:
+        ndarray: Permutation grouped by the largest-response condition, then
+        descending largest signed response, then original row position. Rows
+        without any finite selected responses go last. Missing values are never
+        treated as zero. Clustering requires complete rows; Pearson also needs
+        nonconstant profiles and at least two selected conditions. Unclusterable
+        rows follow in stable source order, including the zero/one-valid-row case.
+        This display ordering does not validate preference or cluster identities.
+    """
+    conditions = list(selected_conditions)
+    if not conditions or len(set(conditions)) != len(conditions):
+        raise ValueError("selected_conditions must be nonempty and unique.")
+    if sort_mode not in {"preferred", "pearson", "euclidean"}:
+        raise ValueError("sort_mode must be preferred, pearson, or euclidean.")
+    values = response_matrix.loc[:, conditions].to_numpy(dtype=float)
+    finite = np.isfinite(values)
+    if sort_mode != "preferred":
+        if sort_mode == "pearson" and len(conditions) < 2:
+            raise ValueError("Pearson ordering needs at least two selected conditions.")
+        valid = finite.all(axis=1)
+        if sort_mode == "pearson":
+            # Constants have undefined correlation; do not fill missing responses.
+            valid &= np.ptp(np.where(finite, values, 0), axis=1) > 0
+        good, other = np.flatnonzero(valid), np.flatnonzero(~valid)
+        if len(good) < 2:
+            return np.concatenate([good, other])
+        distances = pdist(values[good], metric="correlation" if sort_mode == "pearson" else "euclidean")
+        if not np.isfinite(distances).all():
+            raise ValueError("Response-profile distances must be finite.")
+        tree = linkage(np.maximum(distances, 0), method="average")
+        return np.concatenate([good[leaves_list(tree)], other])
+    safe = np.where(finite, values, -np.inf)
+    maximum = safe.max(axis=1)
+    largest_column = safe.argmax(axis=1)
+    largest_column[~finite.any(axis=1)] = len(conditions)
+    return np.lexsort((np.arange(len(values)), -maximum, largest_column))
+
+
 def _first_post_onset_raster_time(raster_trace, time_s):
     """Return the first displayed significant-raster time at/after stimulus onset."""
     trace = np.asarray(raster_trace, dtype=float)

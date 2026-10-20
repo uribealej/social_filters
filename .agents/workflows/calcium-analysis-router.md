@@ -36,6 +36,9 @@ use the matching row below to open the owner.
 | Several-fish cohort loading, data-root lookup, or stimulus preflight | `src-api-consumer-inventory.md` for the returned bundle | `src/several_fish_loading.py` |
 | Directional active-neuron containment or empty-source overlap behavior | `src-api-consumer-inventory.md` for fraction semantics | `src/active_neuron_analysis.py` |
 | Mirrored recruitment, observed-window activity, control/all-rocking containment summaries | `src-api-consumer-inventory.md` for neuron identity and equal-fish contracts | `src/several_fish_diagnostics.py`, then `src/several_fish_figures.py` |
+| Mirrored all-kept/shared-rocking response-pattern similarity | `src-api-consumer-inventory.md` for conditional-population and valid-count semantics | `src/several_fish_diagnostics.py`, then `src/several_fish_figures.py`; `src/stimulus_similarity.py` owns Pearson/cosine calculations |
+| Family response breadth, exact memberships, or signed per-neuron response profiles | `src-api-consumer-inventory.md` for kept-neuron denominators and profile order | `src/stimulus_specificity.py` for memberships; `src/neuron_ordering.py` for display order; `src/several_fish_diagnostics.py` and `src/several_fish_figures.py` for orchestration |
+| Within-family lifetime sparseness from prepared response profiles | `src-api-consumer-inventory.md` for positive-response and missing-profile semantics | `src/response_selectivity.py` owns the metric; `src/several_fish_diagnostics.py` and `src/several_fish_figures.py` own mirrored population summaries |
 | Several-fish stimulus/control selection, response summaries, pooled keep masks, or filtered trace/active rows | `src-api-consumer-inventory.md` for the pooled-row contract | `src/several_fish_selection.py` |
 | Several-fish response-window tables, high-sparseness raster inputs, mean traces, or active-overlap diagnostics | `src-api-consumer-inventory.md` for pooled-row ordering | `src/several_fish_diagnostics.py` |
 | Several-fish pooled raster, sparseness, mean-trace, active-overlap, or active-count figure orchestration | `src-api-consumer-inventory.md` for figure return contracts | `src/several_fish_figures.py` |
@@ -44,6 +47,10 @@ use the matching row below to open the owner.
 | Historical facade import or removal question | `src-compatibility-decision.md` | Canonical owner named in the decision |
 
 ## Ownership guidance
+- Pooled left/right response-profile heatmaps: `build_pooled_response_profiles` in `src/several_fish_diagnostics.py`; `build_response_profile_sort_order` in `src/neuron_ordering.py` owns preferred/Pearson/Euclidean ordering; `plot_pooled_response_profiles` in `src/several_fish_figures.py` owns the two figures.
+- Family-responsive breadth/combination denominators: `src/stimulus_specificity.py::build_family_responsive_membership_fractions`; prepared tables are assembled by `build_response_breadth_profiles`, and selected by the figure helper's `denominator` option.
+- Compact independent summary panels are owned by `src/several_fish_figures.py` (`separate=True`, `individual_style="anonymous_points"`); anonymous categorical dots and CDF dots belong to `plotting_diagnostics.py` and `plotting_specificity.py`. Exp 7 notebook 02 owns their dimensions, fonts and export selection.
+- Publication canvas sizes and font settings stay beside notebook plots; `src/plotting_common.py::save_publication_figure` exports fixed-size PDF/SVG/PNG. Exp 7 notebooks 01/02 use compact A4-compatible blocks; profile subsets are selected by `plot_response_profile_panels(..., fish_ids=...)` in `src/several_fish_figures.py`.
 - `src/data_loading.py` owns experiment bundle assembly and output lookup semantics.
 - Narrow modules own alignment, metrics, reliability, classification, selectivity, and normalization; `src.analysis_tools` preserves the established import surface as a facade.
 - `src/multifish_matrices.py` owns pure multi-fish matrix construction from already trial-aligned per-fish traces; `src/multifish_analysis.py` preserves historical imports for this and other scientific owners.

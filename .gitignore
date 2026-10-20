@@ -17,3 +17,4 @@ dist/
 
 # Jupyter temporary files
 .ipynb_checkpoints/
+notebooks/calcium/exp_07_trans_stat/publication_figures/

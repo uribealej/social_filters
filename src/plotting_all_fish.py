@@ -38,10 +38,12 @@ def plot_stimulus_means(
         kept_cells = None,  # optional: indices of cells to include
         comment="all_stimuli",  # for saving
         figsize=(7, 4.5),
+        ylabel="ΔF/F",
 ):
     """
     Plots mean ± SEM per stimulus.
     Styles are looked up by stimulus *name* in `stimuli_colors` and `stimuli_linestyles`.
+    Set ``ylabel`` to the units of the supplied traces (default: ΔF/F).
     """
     # defaults if not provided
     if stimuli_colors is None:     stimuli_colors = {}
@@ -104,7 +106,7 @@ def plot_stimulus_means(
     # cosmetics
     ax.set(title=f"{title_prefix}",
            xlabel="Time (s) relative to onset",
-           ylabel="ΔF/F")
+           ylabel=ylabel)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.legend(frameon=False, loc="center left", bbox_to_anchor=(1.02, 0.5), borderaxespad=0.0)
@@ -252,9 +254,8 @@ def plot_allfish_flat_raster(
         for pos_s, color, ls in zip(move_starts_s, move_colors, move_styles):
             ax_mean.axvline(pos_s / fps_2p, color=color, linestyle=ls, alpha=0.9, linewidth=1.0)
 
-        ax_mean.set_ylabel(mean_ylabel, fontsize=12)
-        ax_mean.set_xlabel("Time (s)", fontsize=12)
-        ax_mean.tick_params(labelsize=10)
+        ax_mean.set_ylabel(mean_ylabel)
+        ax_mean.set_xlabel("Time (s)")
         ax_mean.spines["top"].set_visible(False)
 
         # Hide duplicated top x tick labels
@@ -277,26 +278,30 @@ def plot_allfish_flat_raster(
         handles.append(line)
         labels.append(name)
 
-    ax.legend(
+    compact = figsize[0] <= 7.5
+    legend_style = (
+        {"loc": "lower center", "ncol": min(7, len(labels))}
+        if compact else {"bbox_to_anchor": (1.18, 1), "loc": "upper left"}
+    )
+    legend_owner = fig if compact else ax
+    legend_owner.legend(
         handles=handles,
         labels=labels,
         title="Movement onset",
-        bbox_to_anchor=(1.18, 1),
-        loc="upper left",
         borderaxespad=0,
         frameon=False,
-        fontsize=12,
-        title_fontsize=14,
+        **legend_style,
     )
 
     # --- colorbar in dedicated axis ---
     if not is_binary:
         cbar = fig.colorbar(im, cax=cax)
-        cbar.set_label(r"$\Delta F/F$", fontsize=14)
-        cbar.ax.tick_params(labelsize=12)
+        cbar.set_label(r"$\Delta F/F$")
     else:
         cbar = fig.colorbar(im, cax=cax)
-        cbar.set_label("Significant activity (0/1)", fontsize=14)
-        cbar.ax.tick_params(labelsize=12)
+        cbar.set_label("Significant activity (0/1)")
+
+    if compact:
+        fig.subplots_adjust(left=0.10, right=0.90, bottom=0.28, top=0.87)
 
     return fig, ax, im, neuron_order

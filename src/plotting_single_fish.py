@@ -135,9 +135,9 @@ def raster_with_stimuli(
         interpolation=interpolation,
     )
 
-    ax.set_ylabel("# Neuron", fontsize=16)
-    ax.set_xlabel("Time (s)", fontsize=16)
-    ax.set_title(f"{fish_id} - {title_suffix}", fontsize=16)
+    ax.set_ylabel("# Neuron")
+    ax.set_xlabel("Time (s)")
+    ax.set_title(f"{fish_id} - {title_suffix}", wrap=True)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 

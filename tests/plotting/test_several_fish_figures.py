@@ -127,11 +127,13 @@ class SeveralFishFigureTests(unittest.TestCase):
         raster = run_notebook_assignment("raster_result", namespace)
         self.assertEqual(raster["flat_matrix_all_fish"].shape[0], 8)
         self.assertEqual(raster["neuron_order"].shape, (8,))
+        self.assertEqual(raster["image"].colorbar.ax.get_ylabel(), "Z-score")
 
         namespace["FIGSIZE"] = (5.5, 3)
         means = run_notebook_assignment("mean_trace_result", namespace)
         self.assertEqual(means["stimulus_labels"], STIM_LABELS)
         self.assertEqual(list(means["mean_traces"]), STIM_IDS)
+        self.assertEqual(means["axes"].get_ylabel(), "Mean z-score")
 
         before_overlap = set(plt.get_fignums())
         overlap = run_notebook_assignment("overlap_results", namespace)

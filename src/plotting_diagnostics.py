@@ -13,7 +13,8 @@ from src.plotting_common import (
 )
 
 
-def plot_paired_fish_values(table, value_column, condition_order, fish_ids, ax, ylabel):
+def plot_paired_fish_values(table, value_column, condition_order, fish_ids, ax, ylabel,
+                            individual_style="identified"):
     """Plot one value per fish/condition and its equally weighted fish mean.
 
     Args:
@@ -24,10 +25,15 @@ def plot_paired_fish_values(table, value_column, condition_order, fish_ids, ax, 
         fish_ids (sequence): Stable cohort/color order across mirrored panels.
         ax (Axes): Destination axes.
         ylabel (str): Measurement name and units.
+        individual_style (str): identified retains colored paired fish lines;
+            anonymous_points uses gray dots and a black mean, labeled Fish/Mean.
 
     Returns:
         Axes: The populated axes. Inputs are not mutated; no files are saved.
     """
+    if individual_style not in {"identified", "anonymous_points"}:
+        raise ValueError("individual_style must be identified or anonymous_points.")
+    anonymous = individual_style == "anonymous_points"
     x = np.arange(len(condition_order), dtype=float)
     colors = plt.get_cmap("tab10")
     values = []
@@ -36,15 +42,18 @@ def plot_paired_fish_values(table, value_column, condition_order, fish_ids, ax, 
         rows = table.loc[table["fish_id"] == fid].set_index("condition")
         y = rows[value_column].reindex(condition_order).to_numpy(dtype=float)
         values.append(y)
-        ax.plot(x + offset, y, "o-", color=colors(index % 10), markersize=4,
-                linewidth=0.8, alpha=0.65, label=str(fid))
+        ax.plot(x + offset, y, "o" if anonymous else "o-",
+                color="0.6" if anonymous else colors(index % 10),
+                markersize=2 if anonymous else 4, linewidth=0.8, alpha=0.65,
+                label=("Fish" if index == 0 else "_nolegend_") if anonymous else str(fid))
     mean = np.asarray(values, dtype=float)
     valid = np.isfinite(mean)
     totals = np.where(valid, mean, 0).sum(axis=0)
     counts = valid.sum(axis=0)
     average = np.full(len(condition_order), np.nan)
     np.divide(totals, counts, out=average, where=counts > 0)
-    ax.plot(x, average, "D-", color="black", markersize=5, linewidth=1.7, label="Fish mean")
+    ax.plot(x, average, "D-", color="black", markersize=2.5 if anonymous else 5,
+            linewidth=0.75 if anonymous else 1.7, label="Mean" if anonymous else "Fish mean")
     ax.set(xticks=x, xticklabels=condition_order, ylabel=ylabel, xlim=(-0.5, len(x) - 0.5))
     ax.tick_params(axis="x", labelrotation=40)
     for label in ax.get_xticklabels():
@@ -77,7 +86,7 @@ def plot_fraction_matrix(matrix, ax, title, xlabel, ylabel, cmap="viridis"):
     for i, j in np.ndindex(values.shape):
         value = values[i, j]
         ax.text(j, i, f"{value:.2f}" if np.isfinite(value) else "—", ha="center", va="center",
-                fontsize=8, color="black" if not np.isfinite(value) or value > 0.55 else "white")
+                fontsize="small", color="black" if not np.isfinite(value) or value > 0.55 else "white")
     return image
 
 
@@ -252,7 +261,7 @@ def plot_active_trace_decision_diagnostic(
             width_ratios=[32, 1.0, 7, 0.8],
             height_ratios=[6, active_count_height_ratio],
             hspace=0.05,
-            wspace=0.15,
+            wspace=0.45 if figsize[0] <= 7.5 else 0.15,
         )
         ax_trace = fig.add_subplot(gs[0, 0])
         ax_active_count = fig.add_subplot(gs[1, 0], sharex=ax_trace)
@@ -264,7 +273,7 @@ def plot_active_trace_decision_diagnostic(
             1,
             4,
             width_ratios=[32, 1.0, 7, 0.8],
-            wspace=0.15,
+            wspace=0.45 if figsize[0] <= 7.5 else 0.15,
         )
         ax_trace = fig.add_subplot(gs[0, 0])
         ax_active_count = None
