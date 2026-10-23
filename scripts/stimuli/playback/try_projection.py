@@ -7,7 +7,7 @@ from psychopy import core, event, monitors, visual
 
 # === Parameters ===
 stimuli_path = Path(
-    r"\\nasdcsr.unil.ch\RECHERCHE\FAC\FBM\CIG\jlarsch\default\D2c\Alejandro\2p\Exp_6_mapping_positions_retina"
+    r"C:\Users\suribear\OneDrive - Université de Lausanne\Lab\Results\Paper\2p_derived\Exp_9_RF_memory_inhibition\stimuli"
 )
 screen_index = 0  # Adjust if needed
 physical_width_cm = 59.0

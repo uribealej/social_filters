@@ -181,13 +181,15 @@ Classification: stable canonical surface. The shared single-fish notebook uses t
 
 ### `src.stimulus_visualization`
 
+- `plot_stimulus_phase_timing`
 - `load_stimulus_trajectories`
 - `plot_stimulus_positions`
 - `plot_stimulus_traces`
-- `save_stimulus_report`
 - `summarize_stimuli`
 
 Classification: stable public stimulus-inspection workflow.
+
+The batch notebook targets Experiment 9, reads resolved settings and the timing summary, and saves only spatial/timing previews; standard traces and angle summaries remain notebook displays. The generic `save_stimulus_report` helper remains available for other callers. The phase helper preserves timing-table condition order and rejects mismatched stimuli/frame counts; it does not infer bout onset from motion. Experiment 9 generation remains a script-owned asset workflow reusing the unified generator's geometry.
 
 ## Important internal-active surface
 

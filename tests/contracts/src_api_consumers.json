@@ -290,18 +290,23 @@
   "notebooks/stimuli/plots_stimuli_batch.ipynb": {
     "imports": [
       "src.stimulus_visualization.load_stimulus_trajectories",
+      "src.stimulus_visualization.plot_stimulus_phase_timing",
       "src.stimulus_visualization.plot_stimulus_positions",
       "src.stimulus_visualization.plot_stimulus_traces",
-      "src.stimulus_visualization.save_stimulus_report",
       "src.stimulus_visualization.summarize_stimuli"
     ],
     "symbols": [
       "src.stimulus_visualization.load_stimulus_trajectories",
+      "src.stimulus_visualization.plot_stimulus_phase_timing",
       "src.stimulus_visualization.plot_stimulus_positions",
       "src.stimulus_visualization.plot_stimulus_traces",
-      "src.stimulus_visualization.save_stimulus_report",
       "src.stimulus_visualization.summarize_stimuli"
     ],
+    "syntax_failure_raw_cells": []
+  },
+  "scripts/stimuli/generation/Trajectory_exp_9_generator.py": {
+    "imports": [],
+    "symbols": [],
     "syntax_failure_raw_cells": []
   },
   "scripts/stimuli/generation/Trajectory_unified_generator.py": {

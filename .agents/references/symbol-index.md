@@ -56,6 +56,7 @@ Boundary note:
 - duplicated generator-side helpers such as `generate_circular_trajectory` are still backlog items under `scripts/stimuli/` and are not yet part of the public `src/` timing surface.
 
 ### `src/stimulus_visualization.py`
+- `plot_stimulus_phase_timing` - plot explicit preconditioning, blank-delay, and bout metadata with visible-frame pulses, in configured condition order; exclude external pauses.
 - `load_stimulus_trajectories` - load plain or multi-dot trajectory CSVs once into angle, dot-size, and visibility samples; uses the shared angle converter.
 - `summarize_stimuli` - one row per stimulus with unique visible angles rounded to 0.1 degree in `[-180, 180)`, angle count, and recorded dot count.
 - `plot_stimulus_traces` - per-stimulus angle/dot-size traces; unwrap angles only for plotting and retain off frames.

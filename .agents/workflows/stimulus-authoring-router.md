@@ -19,6 +19,7 @@ use the matching row below to open the owner.
 
 | Task pattern | Reference if needed | Open next |
 | --- | --- | --- |
+| RF-memory preconditioning, blank-delay/bout composition, or Experiment 9 reports | `canonical-outputs.md` for saved files | `scripts/stimuli/generation/Trajectory_exp_9_generator.py`; `configs/stimuli/trajectory_exp_9_left.json` and `trajectory_exp_9_right.json` |
 | Trajectory geometry, rocking pair logic, flicker cadence, repetitions, pauses, or CSV writer behavior | — | Target script in `scripts/stimuli/generation/` |
 | Mapping JSON, package JSON, experiment parameter content, or per-experiment stimulus config | — | Target JSON file, then generating script if its behavior matters |
 | Timing mismatch between generated CSVs and calcium-analysis interpretation | `canonical-outputs.md` if the file contract is involved | `src/stimuli_timeline.py`, then the generating script if the written trajectory is wrong |
@@ -37,4 +38,5 @@ use the matching row below to open the owner.
 - Shared geometry helpers that are only used by generator and inspection code may still live in `scripts/stimuli/generation/` until they become downstream timing authority.
 - `try_projection.py` owns display wrapper behavior and timing-log capture only; it should not redefine trajectory semantics.
 - Batch inspection helpers belong in the dedicated `src/stimulus_visualization.py`; the batch notebook contains only configuration and report calls. Spatial coverage uses visible directions, while time traces retain all frames.
+- `plot_stimulus_phase_timing` displays explicit generator phase metadata and visible-frame pulses; it does not infer bout onset from generic movement detection. The batch notebook currently targets Experiment 9 and reads archived effective settings.
 - For generator or timing behavior changes, regenerate the smallest affected CSV or parameter set, run timing extraction on that output, and check the downstream interpretation.

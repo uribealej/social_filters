@@ -1,0 +1,24 @@
+{
+  "_experiment": {
+    "output_path": "C:/Users/suribear/OneDrive - Université de Lausanne/Lab/Results/Paper/2p_derived/Exp_9_RF_memory_inhibition/stimuli",
+    "hemifield": "right",
+    "angle_ranges": [[30, 160]],
+    "radius_cm": 1.8,
+    "speed_cm_sec": 0.497,
+    "framerate": 60,
+    "update_interval_ms": 600,
+    "static_period_sec": 0,
+    "flicker_interval_ms": 300,
+    "dot_size_on": 0.2,
+    "rotation_angle_deg": 45,
+    "pause_before_sec": 12.5,
+    "pause_after_sec": 12.5,
+    "bout_positions": [7, 8, 9, 10, 11, 12],
+    "distant_positions": [0, 1, 2, 3, 4],
+    "bout_on_ms": 300,
+    "bout_off_ms": 300,
+    "preconditioning_duration_sec": 8,
+    "distant_delay_sec": 0.3,
+    "overlap_delays_sec": [0.3, 0.6, 2, 4, 8]
+  }
+}

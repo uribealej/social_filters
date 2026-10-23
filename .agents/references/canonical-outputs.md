@@ -50,8 +50,10 @@ Use this file when
 - When notebook export is requested, nbconvert writes `<report_name>.html` and/or `<report_name>.pdf` in the run folder. A failed PDF export may create an HTML fallback. The returned export status and paths report what succeeded.
 
 ## Stimulus authoring outputs
+- Experiment 9 also writes `experiment_9_timing.xlsx`, linked from `experiment_9_report.md`, with per-condition timings and formula totals on `Timing` plus frame boundaries/cadence on `Frames`. The Python generator calls `exp_9_timing_workbook.mjs` using Node.js and `@oai/artifact-tool` (the bundled Codex runtime is supported). Its cached Excel totals are checked against the generated records before export.
+- Experiment 9 uses `Trajectory_exp_9_generator.py` and left/right configs under `configs/stimuli/`. The default root is `<2p_derived>/Exp_9_RF_memory_inhibition/stimuli/`. Its compact output set is dot-prefixed trajectories, `parameters/base_position_table_left.csv` and `base_position_table_right.csv` (zero-based position_index plus legacy one-based position_id), `parameters/stimulus_time_summary.csv`, `parameters/resolved_settings.json`, one short `experiment_9_report.md` stimulus specification, and the Excel workbook. Source configs remain in the repository; the resolved JSON stores all effective settings. The generator removes only named superseded reports/CSV exports/config copies; it preserves playback logs and unrelated files. Initial static display is disabled. External before/after pauses are not embedded in CSVs. `preconditioning_offset_frame`, `bout_onset_frame`, and `bout_offset_frame` are explicit exclusive phase boundaries; generic movement timing is not test-bout onset. A partial-side rerun into a folder containing other trajectories is rejected rather than silently producing incomplete reports.
 - Stimulus asset writers live in `scripts/stimuli/generation/`; their JSON configuration inputs live in `configs/stimuli/`.
-- Canonical generated assets include:
+- Other established stimulus writers retain these canonical generated assets:
   - `*_trajectory.csv`
   - `parameters/experiment_parameters.csv`
   - `parameters/total_time_sec.csv`
@@ -59,7 +61,8 @@ Use this file when
 - Playback runs can write:
   - `stimulus_timing_log.csv`
 - Inspection figures from `notebooks/stimuli/plots_stimuli_batch.ipynb` are notebook outputs, not canonical writer-stage contracts.
-- The batch inspection report is saved by `src/stimulus_visualization.py` under the configured derived root, `<experiment>/stimuli/`: `stimuli_standard.png`, `stimuli_polar.png` (300 dpi), and `stimuli_summary.csv`. Reruns replace these report files. The CSV contains `stimulus_name`, `unique_angles_deg` (JSON lists), `n_unique_angles`, and `n_dots`; its visible spatial directions are rounded to 0.1 degree, whereas dot count includes all recorded identities. These reports do not alter generated trajectory or timing contracts.
+- The generic `src/stimulus_visualization.py::save_stimulus_report` helper remains available for earlier workflows, writing `stimuli_standard.png`, `stimuli_polar.png`, and `stimuli_summary.csv`. The CSV contains `stimulus_name`, `unique_angles_deg` (JSON lists), `n_unique_angles`, and `n_dots`; visible spatial directions are rounded to 0.1 degree, whereas dot count includes all recorded identities.
+- The Experiment 9 batch notebook saves only `stimuli_polar.png` and `stimuli_timing.png` at 300 dpi. Angle/dot-size traces and angle summaries are displayed in the notebook without creating redundant files. Timing phases use supplied metadata via `plot_stimulus_phase_timing`.
 
 ## Timing ownership
 - `src/stimuli_timeline.py` is the authority for turning trajectory CSVs and block logs into downstream timing semantics.

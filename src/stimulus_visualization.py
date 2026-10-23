@@ -11,6 +11,7 @@ import re
 
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 import numpy as np
 import pandas as pd
 
@@ -179,6 +180,67 @@ def plot_stimulus_positions(summary, *, cols=4, panel_size=(3.8, 3.8)):
         if not row.unique_angles_deg:
             ax.text(0.5, 0.25, "No visible directions", transform=ax.transAxes,
                     ha="center", fontsize=9)
+    return fig
+
+
+def plot_stimulus_phase_timing(samples, timings, *, figsize=(12, 8)):
+    """Show explicit phases with visible-frame pulses, preserving timing row order.
+
+    Args:
+        samples (DataFrame): Long frame/dot samples from load_stimulus_trajectories.
+        timings (DataFrame): One row per stimulus, with stimulus_key, framerate,
+            preconditioning_sec, delay_sec, bout_sec, and csv_duration_sec.
+            Seconds are relative to CSV frame zero, excluding external pauses.
+        figsize (tuple): Figure width and height in inches.
+
+    Returns:
+        Figure: Phase bars plus black intervals where any dot is visible. This
+        displays supplied phase metadata; it does not infer bout onset from motion.
+
+    Raises:
+        ValueError: For missing/duplicate stimuli or inconsistent phase durations.
+    """
+    if timings.empty or timings["stimulus_key"].duplicated().any():
+        raise ValueError("Timing rows must be nonempty with unique stimulus keys.")
+    if set(timings["stimulus_key"]) != set(samples["stimulus_name"]):
+        raise ValueError("Timing rows and trajectory samples must name the same stimuli.")
+    colors = {"Preconditioning": "#ccb9e5", "Blank delay": "#e5e7eb", "Test bout": "#7dcac4"}
+    fig, ax = plt.subplots(figsize=figsize, layout="constrained")
+    labels = []
+    for row_index, timing in enumerate(timings.itertuples(index=False)):
+        durations = np.array([timing.preconditioning_sec, timing.delay_sec, timing.bout_sec], dtype=float)
+        fps = float(timing.framerate)
+        if (not np.isfinite(durations).all() or np.any(durations < 0)
+                or not np.isfinite(fps) or fps <= 0
+                or not np.isclose(durations.sum(), timing.csv_duration_sec)):
+            raise ValueError("Phase durations must be finite, nonnegative, and sum to CSV duration.")
+        start = 0.0
+        for (phase, color), duration in zip(colors.items(), durations):
+            if duration:
+                ax.broken_barh([(start, duration)], (row_index - 0.34, 0.68),
+                               facecolors=color, edgecolors="white", linewidth=0.6)
+            start += duration
+        trace = samples.loc[samples["stimulus_name"] == timing.stimulus_key]
+        visible = trace.groupby("time_s", sort=True)["visible"].any()
+        expected_times = np.arange(len(visible)) / fps
+        if (not np.allclose(visible.index.to_numpy(), expected_times)
+                or not np.isclose(len(visible) / fps, timing.csv_duration_sec)):
+            raise ValueError("Sample times and frame count must agree with timing metadata.")
+        transitions = np.diff(np.r_[False, visible.to_numpy(), False].astype(int))
+        starts, ends = np.flatnonzero(transitions == 1), np.flatnonzero(transitions == -1)
+        intervals = [(a / fps, (b - a) / fps) for a, b in zip(starts, ends)]
+        ax.broken_barh(intervals, (row_index - 0.10, 0.20), facecolors="#252525")
+        labels.append(f"{timing.stimulus_key}  |  blank {timing.delay_sec:g} s")
+    ax.set_yticks(range(len(labels)), labels)
+    ax.set_ylim(len(labels) - 0.5, -0.7)
+    ax.set_xlim(0, float(timings["csv_duration_sec"].max()) + 0.2)
+    ax.set_xlabel("Time since CSV start (s); external pauses excluded")
+    ax.set_title("Stimulus phases and visible frames", pad=14)
+    ax.grid(axis="x", alpha=0.2)
+    ax.set_axisbelow(True)
+    ax.legend(handles=[*[Patch(facecolor=color, label=phase) for phase, color in colors.items()],
+                       Patch(facecolor="#252525", label="Any dot visible")],
+              loc="upper center", bbox_to_anchor=(0.5, -0.10), ncol=4, frameon=False)
     return fig
 
 
