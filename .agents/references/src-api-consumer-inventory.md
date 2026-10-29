@@ -46,6 +46,75 @@ machine-contract symbol changed in this audit.
 
 ## Consumer overview
 
+Exp 9 `02_population_analysis.ipynb` loads reviewed caches through the existing
+loading owners and preserves original retained-neuron IDs. Its phase adapters
+reuse `multifish_matrices` repetition/pooling, `neuron_ordering`, existing AUC
+and peak/mean helpers, the canonical fraction/epoch classifier and the existing
+paired-fish plots. Explicit native-time window selection supports different
+preconditioning/delay/bout phases without an implicit response tail. Invalid
+activity trials keep the selected denominator and yield missing fractions with
+valid counts. Scalar metrics are summarized repetitions -> neurons -> fish;
+across-fish means give each fish equal weight. The report writer's optional
+`figures`/`figure_dpi` and paired-fish plot's optional `x_values` preserve defaults.
+Single-ready-fish output is explicitly a preview. The machine contract lists
+the notebook's exact public calls.
+
+Cell 04's `build_phase_population_display` accepts `sort_scope="within_fish"`
+(default) or `"pooled"`, and `repetitions=None` (all) or unique one-based trial
+numbers. Selection applies to displayed z-score/raster matrices and equal-fish
+means only, without mutating the cohort or changing later metrics. Sorting uses
+all z-score trials so subsets and alignments share row order. Optional
+`sort_stimulus_keys`, `sort_alignment` and `sort_window_s` restrict the reference
+to selected conditions and nominal display samples in [start, stop) seconds;
+defaults preserve full sequence sorting. Exp 9 now uses left/right C1 only,
+bout-aligned 0-3.6 s, averaged over all four repetitions, without changing metrics.
+`displayed_row_metadata` preserves original fish/neuron identities for pooled
+ordering. `plot_phase_cohort_rasters` defaults to `raster_cmap="Greys"`, labels
+original trial numbers and omits fish boundaries/ticks for pooled sorting.
+Its optional `zscore_cmap` retains the magma default; the notebook selects Greys
+for z-score heatmaps as well, preserving shared z_limits.
+
+Cell 06b calls `build_phase_recruitment_analysis` with `analysis['trial_metrics']`,
+explicit C1/S1-S5 side lists, repetitions 2-4 and a 2/3 passing-trial rule.
+Existing native-window per-trial classifications are reused; C2 is excluded.
+Shared-C1 means both same-side C1 and condition bout-active; new-after-pre means
+condition bout-active and inactive in its own preconditioning. C1 preconditioning
+is not applicable. Missing required decisions yield missing counts/fractions with
+valid counts. A side's unique union counts each new-after-pre neuron once.
+The preconditioning display averages S1-S5/repetitions equally, while membership
+classification remains per condition. Neuron identities and grouped row order
+are retained for export. `plot_phase_recruitment_rasters` shows one preconditioning
+panel and six bouts; `plot_phase_recruitment_counts` shows equal-fish mean count
+bars and individual fish points. Other metric cells keep their original trials.
+The display's stable preconditioning pool now counts native passing trials
+across S1-S5 and selected repetitions: `pre_active_fraction=0.75` requires 12/15
+(ceil). Its exported `preconditioning_pool` table retains passing/valid/expected
+counts; missing trials give missing decisions. This pooled display criterion
+does not replace own-condition preconditioning in the recruitment counts.
+Display rows place the stable preconditioning pool first; the added
+`plot_phase_recruitment_decisions` reuses the Exp 7 primitive in
+`plotting_diagnostics` to show mean traces beside an actual 0/1 decision matrix
+(preconditioning 12/15, bouts 2/3); missing decisions use gray.
+
+The Exp 9 individual-fish notebook is an opt-in consumer of explicit phase loading,
+event-based trial alignment, phase-aware plots, existing baseline normalization,
+whole-sequence reliability and the canonical significant detector. It does not
+use generic motion inference or silently match logged-name prefixes. Its arrays
+retain `(neurons, time, trials)`; sequence lengths may differ by condition, while
+original neuron and trial identities remain available. Existing loader/alignment
+signatures and defaults are unchanged. See the machine contract for exact imports.
+
+Its significant-trace stage now adds display-only dFoF/centered/raster comparisons
+and original-ID trace inspection before an opt-in final save. The writer's optional
+`significant_run` and `review_figures` arguments protect current run provenance and
+export reviewed diagnostics without changing canonical cache names or columns.
+
+Exp 9 sequence/bout line panels use `trace_mode="population"`: average each
+neuron over trials, then average exactly the selected raster rows with equal
+neuron weights, omitting NaNs. All-neuron and reliability-filtered panels use
+their respective raster populations. The stacked individual-trace helper mode
+remains the backward-compatible default for other callers.
+
 | Consumer | Active `src` imports | Compatibility role |
 | --- | --- | --- |
 | Exp 1 all-fish raster | `plotting_common`, `several_fish_figures`, `several_fish_loading`, `several_fish_reporting` | Shared cohort loading, raster/mean figures, diagnostics, report saving |

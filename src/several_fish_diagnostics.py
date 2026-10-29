@@ -28,6 +28,481 @@ from src.stimulus_specificity import build_active_membership_table, build_family
 from src.neuron_ordering import build_response_profile_sort_order
 
 
+def _phase_sorting_profiles(fish, stimulus_keys, alignment, window_s):
+    """Return neuron-by-time reference profiles averaged over all saved trials.
+
+    Optional window bounds are seconds on the nominal display axis, [start,
+    stop). This selects display samples without changing native-time metrics.
+    Conditions are concatenated in requested order; no responses are rescaled.
+    """
+    from src.multifish_matrices import combine_reps_one_stim
+
+    reference = fish["aligned"][alignment]["zscore"]
+    ids = fish["stimuli_ids"] if stimulus_keys is None else [
+        fish["stimuli_id_map"][key] for key in stimulus_keys]
+    parts = []
+    for sid in ids:
+        values = combine_reps_one_stim(reference["trial_aligned_traces"][sid], "mean")
+        if window_s is not None:
+            times = reference["time_s"][sid]
+            mask = (times >= window_s[0]) & (times < window_s[1])
+            if not mask.any():
+                raise ValueError(f"Sorting window has no display samples for stimulus {sid}.")
+            values = values[:, mask]
+        parts.append(values)
+    return np.concatenate(parts, axis=1)
+
+
+def build_phase_population_display(cohort, alignment="bout", sort_mode="corravg",
+                                   sort_scope="within_fish", repetitions=None,
+                                   sort_stimulus_keys=None, sort_alignment="sequence",
+                                   sort_window_s=None):
+    """Adapt reviewed phase bundles to existing pooled-matrix/mean helpers.
+
+    Both trace types already contain retained neurons: positional indices are
+    local here, while row_metadata retains original fish/neuron identities.
+    sort_scope is 'within_fish' or 'pooled' (neurons may mix across fish).
+    repetitions is None (all) or unique one-based repetition numbers in display
+    order. Selection affects matrices (neurons, time), fish means (fish, time)
+    and reference traces (neurons, time, selected trials), without mutating
+    the cohort. Missing/out-of-range repetitions raise ValueError.
+    Sorting uses all z-score repetitions, independent of display repetitions.
+    sort_stimulus_keys optionally selects nonempty unique condition keys;
+    sort_alignment and sort_window_s select the reference axis and optional
+    nominal [start, stop) seconds. Defaults use every full sequence. A fixed
+    reference keeps row order identical across displayed subsets/alignments.
+    """
+    from src.multifish_matrices import build_matrix_all_fish
+    from src.neuron_ordering import compute_single_sort_order
+
+    fish_ids = cohort["fish_ids"]
+    if not fish_ids:
+        raise ValueError("No reviewed fish are ready. Inspect the readiness table.")
+    if sort_scope not in {"within_fish", "pooled"}:
+        raise ValueError("sort_scope must be 'within_fish' or 'pooled'.")
+    if sort_alignment not in {"sequence", "bout"}:
+        raise ValueError("sort_alignment must be 'sequence' or 'bout'.")
+    if sort_stimulus_keys is not None:
+        sort_stimulus_keys = list(sort_stimulus_keys)
+        if not sort_stimulus_keys or len(set(sort_stimulus_keys)) != len(sort_stimulus_keys):
+            raise ValueError("sort_stimulus_keys must be nonempty and unique.")
+        for fid in fish_ids:
+            missing = set(sort_stimulus_keys) - set(cohort["all_fish_data"][fid]["stimuli_id_map"])
+            if missing:
+                raise ValueError(f"Unknown sorting conditions for {fid}: {sorted(missing)}.")
+    if sort_window_s is not None:
+        bounds = np.asarray(sort_window_s, dtype=float)
+        if bounds.shape != (2,) or not np.isfinite(bounds).all() or bounds[1] <= bounds[0]:
+            raise ValueError("sort_window_s must contain finite increasing [start, stop) seconds.")
+        sort_window_s = tuple(bounds)
+    if repetitions is not None:
+        repetitions = list(repetitions)
+        if (not repetitions or any(isinstance(r, (bool, np.bool_)) or
+                not isinstance(r, (int, np.integer)) or r < 1 for r in repetitions)
+                or len(set(repetitions)) != len(repetitions)):
+            raise ValueError("repetitions must contain unique positive one-based integers.")
+    bundles, metadata, order, sorting_profiles = {}, [], [], []
+    repetition_numbers = {}
+
+    def selected_traces(traces):
+        selected = {}
+        for sid, values in traces.items():
+            numbers = list(range(1, values.shape[2] + 1)) if repetitions is None else repetitions
+            if max(numbers) > values.shape[2]:
+                raise ValueError(f"Requested repetitions {numbers} unavailable for stimulus {sid}.")
+            if sid in repetition_numbers and repetition_numbers[sid] != numbers:
+                raise ValueError("Included fish must have matching repetition counts.")
+            repetition_numbers[sid] = numbers
+            selected[sid] = values[:, :, np.asarray(numbers) - 1]
+        return selected
+
+    def sorted_rows(profiles):
+        usable = np.isfinite(profiles).all(axis=1) & (np.nanstd(profiles, axis=1) > 0)
+        result = (compute_single_sort_order(profiles.T, sort_mode)
+                  if usable.sum() >= 2 else None)
+        return np.arange(len(profiles)) if result is None else result
+
+    offset = 0
+    for fid in fish_ids:
+        fish = cohort["all_fish_data"][fid]
+        aligned = fish["aligned"][alignment]
+        ids = fish["kept_neuron_indices"]
+        bundles[fid] = dict(trial_aligned_traces_z_core=selected_traces(aligned["zscore"]["trial_aligned_traces"]),
+            trial_aligned_traces_raster=selected_traces(aligned["raster"]["trial_aligned_traces"]),
+            kept_neuron_indices=np.arange(len(ids)))
+        joined = _phase_sorting_profiles(fish, sort_stimulus_keys, sort_alignment, sort_window_s)
+        sorting_profiles.append(joined)
+        local_order = sorted_rows(joined) if sort_scope == "within_fish" else np.arange(len(ids))
+        order.extend((offset + local_order).tolist())
+        metadata.append(pd.DataFrame(dict(fish_id=fid, neuron_id=ids)))
+        offset += len(ids)
+    if sort_scope == "pooled":
+        order = sorted_rows(np.concatenate(sorting_profiles, axis=0)).tolist()
+    reference = cohort["all_fish_data"][fish_ids[0]]
+    matrices = {}
+    for kind in ("zscore", "raster"):
+        for mode in ("mean", "concat"):
+            matrices[kind, mode] = {sid: build_matrix_all_fish(bundles, [sid], fish_ids,
+                combine_mode=mode, trace_type=kind) for sid in reference["stimuli_ids"]}
+    means = build_pooled_mean_trace_by_stimulus(bundles, fish_ids, reference["stimuli_ids"], trace_type="zscore")
+    row_metadata = pd.concat(metadata, ignore_index=True)
+    aligned_reference = dict(reference["aligned"][alignment]["zscore"])
+    aligned_reference["trial_aligned_traces"] = bundles[fish_ids[0]]["trial_aligned_traces_z_core"]
+    for key in ("actual_time_s", "onsets_by_id", "alignment_error_s"):
+        aligned_reference[key] = {sid: values[..., np.asarray(repetition_numbers[sid]) - 1]
+                                  for sid, values in aligned_reference[key].items()}
+    trials = aligned_reference["trials"]
+    keep_trials = np.zeros(len(trials), dtype=bool)
+    for sid, numbers in repetition_numbers.items():
+        positions = np.flatnonzero(trials.stimulus_id.to_numpy() == sid)
+        keep_trials[positions[np.asarray(numbers) - 1]] = True
+    aligned_reference["trials"] = trials.iloc[np.flatnonzero(keep_trials)].copy()
+    return dict(matrices=matrices, fish_means=means, row_metadata=row_metadata,
+                displayed_row_metadata=row_metadata.iloc[order].reset_index(drop=True),
+                neuron_order=np.asarray(order), fish_ids=fish_ids, alignment=alignment,
+                reference=aligned_reference, sort_scope=sort_scope, sort_mode=sort_mode,
+                sort_reference=dict(stimulus_keys=sort_stimulus_keys,
+                    alignment=sort_alignment, window_s=sort_window_s, repetitions="all"),
+                repetition_numbers=repetition_numbers,
+                stimulus_keys=list(reference["stimuli_id_map"]), stimulus_ids=reference["stimuli_ids"])
+
+
+def _phase_trial_measurements(fid, fish, settings):
+    from src.trial_alignment import select_event_window
+    from src.response_metrics import compute_explicit_window_metrics
+    from src.response_classification import classify_trial_raster_activity
+
+    z = fish["aligned"]["sequence"]["zscore"]
+    raster = fish["aligned"]["sequence"]["raster"]
+    frames, rows = [], []
+    for sid, group in fish["trials"].groupby("stimulus_id", sort=False):
+        for rep, trial in enumerate(group.itertuples(index=False)):
+            times = z["actual_time_s"][sid][:, rep]
+            values = z["trial_aligned_traces"][sid][:, :, rep:rep + 1]
+            binary = raster["trial_aligned_traces"][sid][:, :, rep:rep + 1]
+            bout = trial.bout_onset_s - trial.onset_s
+            pre_end = trial.pre_end_s - trial.onset_s
+            pre_indices = select_event_window(times, bout - settings["pre_bout_s"], bout)["frame_indices"]
+            level = compute_explicit_window_metrics(values, pre_indices, times, fish["fps_2p"])["mean_z"]
+            windows = {label: (bout + bounds[0], bout + bounds[1]) for label, bounds in settings["bout_windows"].items()}
+            windows.update(preconditioning=(0, pre_end), preconditioning_early=(0, pre_end / 2),
+                           preconditioning_late=(pre_end / 2, pre_end),
+                           pre_bout=(bout - settings["pre_bout_s"], bout))
+            for label, (start, stop) in windows.items():
+                window = select_event_window(times, start, stop)
+                indices = window.pop("frame_indices")
+                metrics = compute_explicit_window_metrics(values, indices, times, fish["fps_2p"],
+                    baseline=level if label in settings["bout_windows"] else None)
+                active = classify_trial_raster_activity(binary[:, indices, :], fish["fps_2p"],
+                    settings["active_fraction_threshold"], settings["min_epoch_s"])
+                frame = pd.DataFrame({key: val[:, 0] for key, val in metrics.items()})
+                frame["neuron_id"] = fish["kept_neuron_indices"]
+                frame["active_trial"] = active[:, 0]
+                frame["measurement_valid"] = np.isfinite(metrics["auc_z_s"][:, 0])
+                frame["pre_bout_level_z"] = level[:, 0]
+                frame["fish_id"], frame["condition"], frame["stimulus_key"] = fid, trial.logged_name, trial.stimulus_key
+                frame["side"], frame["window"], frame["block"] = trial.hemifield, label, trial.block
+                frame["repetition"], frame["trial_index"] = rep, trial.trial_index
+                frame["applicable"] = stop > start
+                frame["delay_s"] = trial.bout_onset_s - trial.pre_end_s
+                frames.append(frame)
+                rows.append(dict(fish_id=fid, condition=trial.logged_name, side=trial.hemifield,
+                    window=label, block=trial.block, repetition=rep, applicable=stop > start, **window))
+    return pd.concat(frames, ignore_index=True), pd.DataFrame(rows)
+
+
+def build_phase_population_analysis(cohort, settings, comparison_pairs):
+    """Build trial/neuron/fish descriptive tables from reviewed phase results.
+
+    Reuses explicit-window AUC/peak owners and the canonical activity rule.
+    Every selected neuron remains in every condition's denominator. An active
+    fraction with incomplete activity classifications is missing, with counts
+    retained. Measurements use native recorded-event-relative sample times.
+    """
+    from scipy.stats import spearmanr
+
+    if not cohort["fish_ids"]:
+        raise ValueError("No reviewed fish are ready. Inspect the readiness table.")
+    if not 1 <= settings["min_active_reps"] <= settings["expected_reps"]:
+        raise ValueError("Configure valid expected/active repetition counts.")
+    trial_tables, window_tables = [], []
+    for fid in cohort["fish_ids"]:
+        fish = cohort["all_fish_data"][fid]
+        if not fish["trials"].groupby("stimulus_id").size().eq(settings["expected_reps"]).all():
+            raise ValueError(f"{fid}: incomplete trial count.")
+        trial, window = _phase_trial_measurements(fid, fish, settings)
+        trial_tables.append(trial)
+        window_tables.append(window)
+    trial = pd.concat(trial_tables, ignore_index=True)
+    keys = ["fish_id", "side", "condition", "stimulus_key", "window", "neuron_id"]
+    measurements = ["auc_z_s", "peak_z", "mean_z", "delta_auc_z_s", "delta_peak_z", "delta_mean_z", "pre_bout_level_z"]
+    grouped = trial.groupby(keys, sort=False, dropna=False)
+    neuron = grouped[measurements].mean().reset_index()
+    counts = grouped.agg(valid_measurement_trials=("measurement_valid", "sum"),
+        valid_activity_trials=("active_trial", "count"), active_trials=("active_trial", lambda x: x.sum(min_count=1)),
+        applicable=("applicable", "first"), delay_s=("delay_s", "first")).reset_index()
+    neuron = neuron.merge(counts, on=keys, validate="one_to_one")
+    neuron["active"] = np.where(neuron.valid_activity_trials.eq(settings["expected_reps"]),
+        (neuron.active_trials >= settings["min_active_reps"]).astype(float), np.nan)
+    identity = ["fish_id", "side", "condition", "neuron_id"]
+    early = neuron.loc[neuron.window.eq("preconditioning_early"), identity + ["mean_z"]].rename(columns={"mean_z": "early_z"})
+    late = neuron.loc[neuron.window.eq("preconditioning_late"), identity + ["mean_z"]].rename(columns={"mean_z": "late_z"})
+    changes = early.merge(late, on=identity, validate="one_to_one")
+    changes["early_late_change_z"] = changes.late_z - changes.early_z
+    neuron = neuron.merge(changes[identity + ["early_late_change_z"]], on=identity, validate="many_to_one")
+    fish_keys = ["fish_id", "side", "condition", "window"]
+    fish_summary = neuron.groupby(fish_keys, sort=False)[measurements + ["early_late_change_z"]].mean().reset_index()
+    activity = neuron.groupby(fish_keys, sort=False).agg(n_neurons=("neuron_id", "size"),
+        n_valid_active=("active", "count"), n_valid_auc=("auc_z_s", "count"),
+        active_fraction=("active", lambda x: x.mean() if x.notna().all() else np.nan),
+        mean_active_trials=("active_trials", "mean"), delay_s=("delay_s", "first"),
+        applicable=("applicable", "first")).reset_index()
+    fish_summary = fish_summary.merge(activity, on=fish_keys, validate="one_to_one")
+    relationships, correlations, memberships = [], [], []
+    pre = neuron.loc[neuron.window.eq("preconditioning") & neuron.applicable,
+        identity + ["auc_z_s", "active"]].rename(columns={"auc_z_s": "preconditioning_auc", "active": "preconditioning_active"})
+    for label in settings["bout_windows"]:
+        bout = neuron.loc[neuron.window.eq(label), identity + ["auc_z_s", "active"]].rename(
+            columns={"auc_z_s": "bout_auc", "active": "bout_active"})
+        pairs = pre.merge(bout, on=identity, validate="one_to_one")
+        pairs["window"] = label
+        relationships.append(pairs)
+        for key, group in pairs.groupby(["fish_id", "side", "condition"], sort=False):
+            valid = group[["preconditioning_auc", "bout_auc"]].dropna()
+            rho = spearmanr(valid.preconditioning_auc, valid.bout_auc).statistic if (
+                len(valid) >= 3 and valid.preconditioning_auc.nunique() > 1 and valid.bout_auc.nunique() > 1) else np.nan
+            correlations.append(dict(zip(["fish_id", "side", "condition"], key), window=label,
+                                     spearman_rho=rho, n_valid_pairs=len(valid)))
+            known = group.preconditioning_active.notna() & group.bout_active.notna()
+            for category, a, b in [("preconditioning_only", 1, 0), ("bout_only", 0, 1), ("both", 1, 1), ("neither", 0, 0)]:
+                n = ((group.preconditioning_active == a) & (group.bout_active == b)).sum()
+                memberships.append(dict(zip(["fish_id", "side", "condition"], key), window=label,
+                    category=category, n_neurons=len(group), n_valid=int(known.sum()),
+                    fraction=float(n / len(group)) if known.all() else np.nan))
+    differences = []
+    for name, (condition, reference) in comparison_pairs.items():
+        left = fish_summary.loc[fish_summary.condition.eq(condition)]
+        right = fish_summary.loc[fish_summary.condition.eq(reference)]
+        pairs = left.merge(right, on=["fish_id", "side", "window"], suffixes=("", "_reference"), validate="one_to_one")
+        for metric in measurements + ["active_fraction"]:
+            differences.append(pd.DataFrame(dict(fish_id=pairs.fish_id, side=pairs.side,
+                window=pairs.window, comparison=name, condition=condition, reference=reference,
+                metric=metric, difference=pairs[metric] - pairs[metric + "_reference"])))
+    return dict(trial_metrics=trial, neuron_metrics=neuron, fish_summary=fish_summary,
+        window_coverage=pd.concat(window_tables, ignore_index=True),
+        phase_relationships=pd.concat(relationships, ignore_index=True),
+        correlations=pd.DataFrame(correlations), phase_memberships=pd.DataFrame(memberships),
+        paired_differences=pd.concat(differences, ignore_index=True) if differences else pd.DataFrame())
+
+
+def _phase_recruitment_decisions(trial_metrics, conditions, repetitions, min_active_reps, bout_window):
+    """Aggregate saved native-window decisions over selected one-based trials."""
+    keys = ["fish_id", "neuron_id", "condition", "window"]
+    selected = trial_metrics.loc[trial_metrics.condition.isin(conditions)
+        & trial_metrics.window.isin(["preconditioning", bout_window])
+        & (trial_metrics.repetition + 1).isin(repetitions)]
+    if selected.duplicated(keys + ["repetition"]).any():
+        raise ValueError("Duplicate neuron/condition/window/repetition decisions.")
+    result = selected.groupby(keys, sort=False).active_trial.agg(["count", "sum"])
+    result["active"] = np.where(result["count"].eq(len(repetitions)),
+        (result["sum"] >= min_active_reps).astype(float), np.nan)
+    return result.active
+
+
+def _phase_recruitment_neurons(cohort, decisions, side_conditions, bout_window):
+    """Build identity-preserving per-condition memberships; missing stays missing."""
+    rows = []
+    for fid in cohort["fish_ids"]:
+        ids = cohort["all_fish_data"][fid]["kept_neuron_indices"]
+        for side, conditions in side_conditions.items():
+            def activity(condition, window):
+                index = pd.MultiIndex.from_product([[fid], ids, [condition], [window]],
+                    names=decisions.index.names)
+                return decisions.reindex(index).to_numpy()
+
+            control = activity(conditions[0], bout_window)
+            for condition in conditions:
+                bout = activity(condition, bout_window)
+                pre = activity(condition, "preconditioning")
+                shared_known = np.isfinite(control) & np.isfinite(bout)
+                new_known = np.isfinite(pre) & np.isfinite(bout)
+                rows.append(pd.DataFrame(dict(fish_id=fid, neuron_id=ids, side=side,
+                    condition=condition, c1_active=control, pre_active=pre, bout_active=bout,
+                    shared_c1=np.where(shared_known, (control == 1) & (bout == 1), np.nan),
+                    new_after_pre=np.where(new_known, (pre == 0) & (bout == 1), np.nan),
+                    new_relative_c1=np.where(shared_known, (control == 0) & (bout == 1), np.nan))))
+    return pd.concat(rows, ignore_index=True)
+
+
+def _phase_preconditioning_pool(cohort, trial_metrics, side_conditions, repetitions, min_fraction):
+    """Select consistent preconditioning neurons from all conditioned trials.
+
+    Count native-window per-trial decisions, not per-condition majorities.
+    All expected decisions must be present; missing activity is not inactivity.
+    """
+    parts = []
+    for side, conditions in side_conditions.items():
+        expected = (len(conditions) - 1) * len(repetitions)
+        minimum = int(np.ceil(min_fraction * expected))
+        selected = trial_metrics.loc[trial_metrics.condition.isin(conditions[1:])
+            & trial_metrics.window.eq("preconditioning")
+            & (trial_metrics.repetition + 1).isin(repetitions)]
+        counts = selected.groupby(["fish_id", "neuron_id"]).active_trial.agg(["count", "sum"])
+        for fid in cohort["fish_ids"]:
+            ids = cohort["all_fish_data"][fid]["kept_neuron_indices"]
+            index = pd.MultiIndex.from_product([[fid], ids], names=["fish_id", "neuron_id"])
+            values = counts.reindex(index)
+            valid = values["count"].fillna(0).to_numpy(dtype=int)
+            passing = values["sum"].fillna(0).to_numpy(dtype=int)
+            parts.append(pd.DataFrame(dict(fish_id=fid, neuron_id=ids, side=side,
+                n_expected_trials=expected, n_valid_trials=valid, n_passing_trials=passing,
+                min_passing_trials=minimum, active_fraction=np.where(valid == expected, passing / expected, np.nan),
+                active=np.where(valid == expected, passing >= minimum, np.nan))))
+    return pd.concat(parts, ignore_index=True)
+
+
+def _phase_recruitment_display(cohort, neurons, pre_pool, side, conditions, repetitions, bout_bounds):
+    """Prepare grayscale display means and membership groups, without interpolation."""
+    pre_parts, bout_parts, metadata, codes, pre_codes = [], {c: [] for c in conditions}, [], {}, []
+    pooled_codes, decisions = [], []
+    indices = np.asarray(repetitions) - 1
+    axes = {}
+    for fid in cohort["fish_ids"]:
+        fish = cohort["all_fish_data"][fid]
+        ids = fish["kept_neuron_indices"]
+        lookup = neurons.loc[neurons.fish_id.eq(fid) & neurons.side.eq(side)]
+        members = {c: lookup.loc[lookup.condition.eq(c)].set_index("neuron_id").reindex(ids)
+                   for c in conditions}
+        pre_conditions = []
+        for condition in conditions:
+            trials = fish["trials"].loc[fish["trials"].logged_name.eq(condition)]
+            if len(trials) < max(repetitions):
+                raise ValueError(f"{fid}/{condition}: selected repetitions unavailable.")
+            sid = int(trials.stimulus_id.iloc[0])
+            aligned = fish["aligned"]["bout"]["raster"]
+            times = aligned["time_s"][sid]
+            mask = (times >= bout_bounds[0]) & (times < bout_bounds[1])
+            if not mask.any():
+                raise ValueError("Bout display window has no samples.")
+            values = aligned["trial_aligned_traces"][sid][:, mask, :][:, :, indices]
+            if condition in axes and not np.array_equal(axes[condition], times[mask]):
+                raise ValueError("Bout display axes differ between fish.")
+            axes[condition] = times[mask]
+            bout_parts[condition].append(np.mean(values, axis=2))
+            if condition != conditions[0]:
+                aligned = fish["aligned"]["sequence"]["raster"]
+                durations = trials.pre_end_s.to_numpy() - trials.onset_s.to_numpy()
+                if not np.allclose(durations, durations[0]) or durations[0] <= 0:
+                    raise ValueError("Preconditioning requires a consistent positive duration.")
+                times = aligned["time_s"][sid]
+                mask = (times >= 0) & (times < durations[0])
+                if "preconditioning" in axes and not np.array_equal(axes["preconditioning"], times[mask]):
+                    raise ValueError("Cannot average different preconditioning display axes.")
+                axes["preconditioning"] = times[mask]
+                values = aligned["trial_aligned_traces"][sid][:, mask, :][:, :, indices]
+                pre_conditions.append(np.mean(values, axis=2))
+        pre_parts.append(np.mean(pre_conditions, axis=0))
+        bout_members = np.column_stack([members[c].bout_active for c in conditions])
+        pre_members = np.column_stack([members[c].pre_active for c in conditions[1:]])
+        pooled = pre_pool.loc[pre_pool.fish_id.eq(fid) & pre_pool.side.eq(side)].set_index("neuron_id").reindex(ids).active.to_numpy()
+        pooled_codes.append(pooled)
+        decisions.append(np.column_stack([pooled, bout_members]))
+        known = np.isfinite(bout_members).all(axis=1) & np.isfinite(pooled)
+        category = np.full(len(ids), len(conditions) + 1, dtype=int)
+        for j in reversed(range(1, len(conditions))):
+            category[bout_members[:, j] == 1] = j + 1
+        category[bout_members[:, 0] == 1] = 1
+        category[pooled == 1] = 0
+        category[~known] = len(conditions) + 2
+        metadata.append(pd.DataFrame(dict(fish_id=fid, neuron_id=ids, group=category)))
+        pre_codes.append(np.where(known, np.any(pre_members == 1, axis=1), np.nan))
+        for condition in conditions:
+            shared, new = members[condition].shared_c1.to_numpy(), members[condition].new_after_pre.to_numpy()
+            if condition == conditions[0]:
+                code = np.where(np.isfinite(shared), shared, 4)
+            else:
+                code = np.where(np.isfinite(shared) & np.isfinite(new), shared + 2 * new, 4)
+            codes.setdefault(condition, []).append(code)
+    metadata = pd.concat(metadata, ignore_index=True)
+    order = np.argsort(metadata.group.to_numpy(), kind="stable")
+    matrices = {"preconditioning": np.concatenate(pre_parts)}
+    matrices.update({c: np.concatenate(parts) for c, parts in bout_parts.items()})
+    labels = ["Consistent preconditioning", "C1 bout active"] + [f"Additional in {c}" for c in conditions[1:]]
+    labels += ["Other", "Unclassified"]
+    return dict(side=side, conditions=conditions, matrices=matrices, time_s=axes,
+        neuron_order=order, displayed_row_metadata=metadata.iloc[order].reset_index(drop=True),
+        row_metadata=metadata, group_labels=labels, repetitions=list(repetitions),
+        membership_codes={c: np.concatenate(parts) for c, parts in codes.items()},
+        pre_active_any=np.concatenate(pre_codes), pre_active_pool=np.concatenate(pooled_codes),
+        decision_matrix=np.concatenate(decisions), fps_2p=cohort["all_fish_data"][cohort["fish_ids"][0]]["fps_2p"],
+        bout_bounds=bout_bounds)
+
+
+def build_phase_recruitment_analysis(cohort, trial_metrics, side_conditions, bout_bounds,
+                                     repetitions=(2, 3, 4), min_active_reps=2, bout_window="bout",
+                                     pre_active_fraction=0.75):
+    """Count significant-activity recruitment and prepare side-separated rasters.
+
+    Reuse native-window ``active_trial`` decisions from phase population analysis;
+    select one-based repetitions before applying the passing-trial count. Each
+    side's first condition is its C1 control; remaining conditions define the
+    preconditioning average (equal condition/repetition weights). Exclude unwanted
+    conditions in side_conditions. The cohort and input tables are not modified.
+
+    pre_active_fraction defines the display's consistent preconditioning pool:
+    ceil(fraction * conditioned presentations) passing native trials, with all
+    decisions known (0.75 across five conditions/three trials requires 12/15).
+    This display selection does not change per-condition recruitment counts.
+    Returns ``neurons``, ``fish_summary``, ``union_summary``, ``preconditioning_pool``
+    tables and ``displays`` including binary neuron-by-phase decision matrices.
+    Matrices are (pooled neurons, nominal display time); identity is fish/neuron.
+    Counts/fractions with any missing required classification remain NaN and have
+    explicit valid counts. C1 preconditioning/new-after-pre are not applicable.
+    New-after-pre uses each condition's own preconditioning, not its pooled mean.
+    """
+    repetitions = list(repetitions)
+    if (not repetitions or any(isinstance(r, (bool, np.bool_)) or not isinstance(r, (int, np.integer))
+            or r < 1 for r in repetitions) or len(set(repetitions)) != len(repetitions)):
+        raise ValueError("Use unique positive one-based repetition numbers.")
+    if not 1 <= min_active_reps <= len(repetitions):
+        raise ValueError("Invalid minimum active repetitions.")
+    if not np.isfinite(pre_active_fraction) or not 0 < pre_active_fraction <= 1:
+        raise ValueError("pre_active_fraction must be in (0, 1].")
+    bounds = np.asarray(bout_bounds, dtype=float)
+    if bounds.shape != (2,) or not np.isfinite(bounds).all() or bounds[1] <= bounds[0]:
+        raise ValueError("bout_bounds must be finite increasing seconds.")
+    if not cohort["fish_ids"] or not side_conditions:
+        raise ValueError("Recruitment needs a nonempty cohort and side conditions.")
+    conditions = [c for names in side_conditions.values() for c in names]
+    if any(len(names) < 2 for names in side_conditions.values()) or len(set(conditions)) != len(conditions):
+        raise ValueError("Each side needs a control plus unique conditioned stimuli.")
+    decisions = _phase_recruitment_decisions(trial_metrics, conditions, repetitions, min_active_reps, bout_window)
+    neurons = _phase_recruitment_neurons(cohort, decisions, side_conditions, bout_window)
+    pre_pool = _phase_preconditioning_pool(cohort, trial_metrics, side_conditions, repetitions, pre_active_fraction)
+    summaries, unions = [], []
+    flags = ["shared_c1", "new_after_pre", "new_relative_c1", "pre_active", "bout_active"]
+    for (fid, side, condition), group in neurons.groupby(["fish_id", "side", "condition"], sort=False):
+        record = dict(fish_id=fid, side=side, condition=condition, n_neurons=len(group))
+        for flag in flags:
+            record[f"n_valid_{flag}"] = int(group[flag].notna().sum())
+            record[f"n_{flag}"] = float(group[flag].sum()) if group[flag].notna().all() else np.nan
+            record[f"fraction_{flag}"] = record[f"n_{flag}"] / len(group)
+        n_control = group.c1_active.sum() if group.c1_active.notna().all() else np.nan
+        record["fraction_c1_retained"] = record["n_shared_c1"] / n_control if n_control > 0 else np.nan
+        summaries.append(record)
+    for (fid, side), group in neurons.groupby(["fish_id", "side"], sort=False):
+        conditioned = group.loc[~group.condition.eq(side_conditions[side][0])]
+        by_neuron = conditioned.groupby("neuron_id").new_after_pre
+        known = by_neuron.count().eq(len(side_conditions[side]) - 1)
+        unions.append(dict(fish_id=fid, side=side, n_neurons=len(known), n_valid=int(known.sum()),
+            n_any_new_after_pre=float(by_neuron.max().sum()) if known.all() else np.nan))
+    displays = {side: _phase_recruitment_display(cohort, neurons, pre_pool, side, list(names), repetitions, tuple(bounds))
+                for side, names in side_conditions.items()}
+    return dict(neurons=neurons, fish_summary=pd.DataFrame(summaries),
+                union_summary=pd.DataFrame(unions), preconditioning_pool=pre_pool,
+                pre_active_fraction=pre_active_fraction, min_active_reps=min_active_reps, displays=displays)
+
+
 def _family_sparseness_neurons(panel, memberships, labels, fid, side, family, population):
     """Reuse the canonical positive-response metric only for complete profiles."""
     vectors = panel["responses"].loc[:, labels]

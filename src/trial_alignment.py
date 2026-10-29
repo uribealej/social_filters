@@ -2,6 +2,73 @@
 
 import numpy as np
 
+
+def select_event_window(time_s, start_s, stop_s):
+    """Select native sample centers in [start, stop), without interpolation.
+
+    Times are seconds relative to the recorded event, strictly increasing.
+    Equal bounds represent an absent phase and return no indices. Report
+    selected sample coverage separately from requested scientific duration.
+    """
+    times = np.asarray(time_s, dtype=float)
+    if times.ndim != 1 or not np.isfinite(times).all() or (np.diff(times) <= 0).any():
+        raise ValueError("Sample times must be finite, 1D and strictly increasing.")
+    if not np.isfinite([start_s, stop_s]).all() or stop_s < start_s:
+        raise ValueError("Invalid explicit response window.")
+    indices = np.flatnonzero((times >= start_s) & (times < stop_s))
+    return dict(frame_indices=indices, requested_start_s=float(start_s),
+                requested_stop_s=float(stop_s), n_samples=len(indices),
+                first_sample_s=float(times[indices[0]]) if len(indices) else np.nan,
+                last_sample_s=float(times[indices[-1]]) if len(indices) else np.nan)
+
+
+def build_event_aligned_traces(dfof, trials, fps_2p, alignment="sequence",
+                               t_pre_s=5.0, recovery_s=10.0):
+    """Extract trials from recorded event seconds, without a resampled ID trace.
+
+    Input traces are (time, neurons). Output arrays preserve the established
+    (neurons, time, trials) contract. Conditions retain first appearance in the
+    input table; trials retain row order. Sequence windows have condition-specific
+    lengths; bout windows share a length when bouts do. The anchor is rounded
+    to the nearest imaging sample (half up). No interpolation is performed.
+    Return nominal axes and the actual per-trial sample times relative to each
+    unrounded anchor, so subframe alignment error remains visible. Any window
+    crossing a block fails; no incomplete trials are silently dropped.
+    """
+    data = np.asarray(dfof)
+    if data.ndim != 2 or fps_2p <= 0 or t_pre_s < 0 or recovery_s < 0:
+        raise ValueError("Expected (time, neurons), positive rate and nonnegative windows.")
+    if not np.isfinite([fps_2p, t_pre_s, recovery_s]).all():
+        raise ValueError("Nonfinite alignment settings.")
+    if alignment not in ("sequence", "bout") or trials.empty:
+        raise ValueError("Choose sequence or bout alignment with nonempty trials.")
+    anchor_key = "onset_s" if alignment == "sequence" else "bout_onset_s"
+    pre = int(round(t_pre_s * fps_2p))
+    arrays, axes, actual_axes, onsets, errors = {}, {}, {}, {}, {}
+    for sid, group in trials.groupby("stimulus_id", sort=False):
+        anchors = group[anchor_key].to_numpy(dtype=float)
+        durations = group.end_s.to_numpy(dtype=float) - anchors
+        if not np.isfinite(anchors).all() or not np.allclose(durations, durations[0]) or durations[0] <= 0:
+            raise ValueError(f"Condition {sid}: invalid or inconsistent phase duration.")
+        after = int(np.ceil(round(float(durations[0] + recovery_s) * fps_2p, 9)))
+        offsets = np.arange(-pre, after)
+        frames = np.floor(anchors * fps_2p + 0.5).astype(int)
+        indices = frames[:, None] + offsets
+        if ((indices[:, 0] < group.block_start_frame.to_numpy()) |
+            (indices[:, -1] >= group.block_stop_frame.to_numpy())).any():
+            raise ValueError(f"Condition {sid}: extraction window crosses an imaging block boundary.")
+        if indices.min() < 0 or indices.max() >= len(data):
+            raise ValueError(f"Condition {sid}: event falls outside the data.")
+        arrays[sid] = data[indices].transpose(2, 1, 0)
+        axes[sid] = offsets / float(fps_2p)
+        actual_axes[sid] = indices.T / float(fps_2p) - anchors
+        onsets[sid] = frames
+        errors[sid] = frames / float(fps_2p) - anchors
+    return dict(trial_aligned_traces=arrays, time_s=axes,
+                actual_time_s=actual_axes, onsets_by_id=onsets,
+                alignment_error_s=errors, alignment=alignment,
+                fps_2p=float(fps_2p), pre_frames=pre, trials=trials.copy())
+
 def build_trial_aligned_traces(
     dfof,
     stimuli_trace_60,

@@ -2,6 +2,142 @@
 
 import pandas as pd
 import numpy as np
+
+
+def validate_phase_metadata(phases, trajectories_path):
+    """Validate explicit, end-exclusive 60-Hz phase boundaries against CSV assets.
+
+    Return a copy indexed by ``stimulus_key``. All durations are seconds and
+    all frame boundaries refer to the trajectory, not the imaging recording.
+    Missing, nonfinite, inconsistent or duplicate records raise ValueError.
+    """
+    phases = phases.copy()
+    required = ["stimulus_key", "trajectory_file", "framerate", "n_frames",
+                "preconditioning_offset_frame", "bout_onset_frame", "bout_offset_frame",
+                "preconditioning_sec", "delay_sec", "bout_sec", "csv_duration_sec"]
+    if set(required) - set(phases):
+        raise ValueError(f"Missing phase metadata columns: {set(required) - set(phases)}")
+    if phases.empty or phases.stimulus_key.isna().any() or phases.stimulus_key.duplicated().any():
+        raise ValueError("Phase metadata must contain unique, nonempty stimulus keys.")
+    for row in phases.itertuples(index=False):
+        numbers = np.array([getattr(row, k) for k in required[2:]], dtype=float)
+        if not np.isfinite(numbers).all() or row.framerate != 60:
+            raise ValueError(f"Invalid phase timing/rate for {row.stimulus_key}")
+        boundaries = [0, row.preconditioning_offset_frame, row.bout_onset_frame, row.bout_offset_frame]
+        if any(float(x) != int(x) for x in boundaries + [row.n_frames]):
+            raise ValueError("Phase frame boundaries must be integers.")
+        if not (0 <= boundaries[1] <= boundaries[2] < boundaries[3] == row.n_frames):
+            raise ValueError(f"Invalid phase boundaries for {row.stimulus_key}")
+        durations = np.diff(boundaries) / row.framerate
+        if not np.allclose(durations, [row.preconditioning_sec, row.delay_sec, row.bout_sec]):
+            raise ValueError(f"Phase durations disagree with frames: {row.stimulus_key}")
+        if not np.isclose(row.csv_duration_sec, row.n_frames / row.framerate):
+            raise ValueError(f"Total duration disagrees with frames: {row.stimulus_key}")
+        asset = pd.read_csv(Path(trajectories_path) / row.trajectory_file)
+        radius = [c for c in asset if c == "radius" or c.endswith("_radius")]
+        if len(asset) != row.n_frames or not radius:
+            raise ValueError(f"Trajectory shape disagrees with metadata: {row.stimulus_key}")
+        radii = asset[radius].to_numpy(dtype=float)
+        if not np.isfinite(radii).all() or (radii < 0).any():
+            raise ValueError(f"Invalid visibility values: {row.stimulus_key}")
+        visible = (radii > 0).any(axis=1)
+        pre, bout = int(boundaries[1]), int(boundaries[2])
+        if visible[pre:bout].any() or not visible[bout] or (pre and not visible[pre - 1]):
+            raise ValueError(f"Visibility disagrees with phase boundaries: {row.stimulus_key}")
+    return phases.set_index("stimulus_key", drop=False)
+
+
+def build_phase_trial_table(block_log, trial_sequence, phases, stimulus_aliases,
+                            selected_blocks, frames_per_block, fps_2p,
+                            baseline_s=10.0):
+    """Build trials using recorded block-local seconds and explicit phase offsets.
+
+    ``stimulus_aliases`` is an ordered one-to-one logged-name -> metadata-key
+    mapping. Each selected block must contain every condition exactly once.
+    The sequence must match all logged presentations, including unselected
+    stimulus blocks. Imaging blocks are concatenated without interblock pauses.
+    Baselines must fit within blocks and follow the previous logged/nominal end.
+    Returns one row per trial in block then recorded-time order, retaining both
+    logged and canonical names, unrounded seconds, and block frame bounds.
+    """
+    import re
+
+    blocks = list(selected_blocks)
+    if not blocks or len(set(blocks)) != len(blocks) or "B0" in blocks:
+        raise ValueError("Select unique stimulus blocks; B0 is a resting block.")
+    if fps_2p <= 0 or baseline_s <= 0 or int(frames_per_block) != frames_per_block:
+        raise ValueError("Rates, baseline and integer block frame count must be positive.")
+    if frames_per_block <= 0 or not np.isfinite([fps_2p, baseline_s]).all():
+        raise ValueError("Invalid imaging timing.")
+    aliases = dict(stimulus_aliases)
+    if not aliases or len(set(aliases.values())) != len(aliases):
+        raise ValueError("Stimulus aliases must be nonempty and one-to-one.")
+    if set(aliases.values()) != set(phases.index):
+        raise ValueError("Stimulus aliases must cover the phase metadata exactly.")
+    log = block_log.copy()
+    if not {"event", "timestamp"} <= set(log) or log.event.duplicated().any():
+        raise ValueError("Block log needs unique events and timestamps.")
+    log["timestamp"] = pd.to_numeric(log.timestamp, errors="raise")
+    if not np.isfinite(log.timestamp).all():
+        raise ValueError("Nonfinite log timestamp.")
+    if any(group.timestamp.diff().dropna().lt(0).any()
+           for _, group in log.groupby(log.event.str.extract(r"^(B\d+)_", expand=False))):
+        raise ValueError("Block timestamps must be monotonic.")
+    events = log.set_index("event").timestamp.to_dict()
+    presentations = []
+    for row in log.itertuples(index=False):
+        match = re.fullmatch(r"(B\d+)_stim(\d+)_(.+)", row.event)
+        if match:
+            block, trial, name = match.groups()
+            if name not in aliases:
+                raise ValueError(f"Unknown logged stimulus {name!r}; supply an explicit alias.")
+            presentations.append((block, int(trial), name, float(row.timestamp)))
+    if [p[2] for p in presentations] != list(trial_sequence):
+        raise ValueError("Trial sequence does not match the recorded stimulus events.")
+    ids = {key: i + 1 for i, key in enumerate(aliases.values())}
+    records = []
+    for block_index, block in enumerate(blocks):
+        trials = [p for p in presentations if p[0] == block]
+        if sorted(p[2] for p in trials) != sorted(aliases):
+            raise ValueError(f"{block}: missing or duplicate conditions; expected {len(aliases)} trials.")
+        if [p[1] for p in trials] != list(range(trials[0][1], trials[0][1] + len(aliases))):
+            raise ValueError(f"{block}: missing, duplicate or out-of-order trial indices.")
+        if block + "_start" not in events or block + "_end" not in events:
+            raise ValueError(f"{block}: missing start/end events.")
+        if events[block + "_end"] > frames_per_block / fps_2p:
+            raise ValueError(f"{block}: block log exceeds imaging block duration.")
+        previous_end = 0.0
+        for _, trial, name, start in trials:
+            post_key = f"{block}_poststim{trial}_pause"
+            pre_key = f"{block}_prestim{trial}_pause"
+            if post_key not in events or pre_key not in events:
+                raise ValueError(f"{block} trial {trial}: incomplete pause/end events.")
+            end = events[post_key]
+            phase = phases.loc[aliases[name]]
+            nominal_end = start + float(phase.csv_duration_sec)
+            onset_frame = int(np.floor(start * fps_2p + 0.5))
+            baseline_start = (onset_frame - int(round(baseline_s * fps_2p))) / fps_2p
+            if baseline_start < previous_end or start - baseline_s < previous_end:
+                raise ValueError(f"{block} trial {trial}: baseline crosses block/previous presentation.")
+            if not events[block + "_start"] <= events[pre_key] <= start < end <= events[block + "_end"]:
+                raise ValueError(f"{block} trial {trial}: inconsistent logged event boundaries.")
+            if nominal_end > frames_per_block / fps_2p:
+                raise ValueError(f"{block} trial {trial}: stimulus exceeds imaging block.")
+            offset = block_index * frames_per_block / fps_2p
+            records.append(dict(block=block, trial_index=trial, logged_name=name,
+                hemifield=phase.get("hemifield", "presentation"),
+                stimulus_key=aliases[name], stimulus_id=ids[aliases[name]],
+                block_start_frame=block_index * frames_per_block,
+                block_stop_frame=(block_index + 1) * frames_per_block,
+                local_onset_s=start, onset_s=offset + start,
+                pre_end_s=offset + start + float(phase.preconditioning_sec),
+                bout_onset_s=offset + start + float(phase.bout_onset_frame / phase.framerate),
+                end_s=offset + nominal_end, logged_end_s=offset + end,
+                duration_error_s=end - nominal_end,
+                pre_pause_s=start - events[pre_key],
+                post_pause_s=events.get(f"{block}_prestim{trial + 1}_pause", events[block + "_end"]) - end))
+            previous_end = max(end, nominal_end)
+    return pd.DataFrame(records)
 from pathlib import Path
 
 

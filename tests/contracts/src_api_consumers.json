@@ -194,6 +194,55 @@
     ],
     "syntax_failure_raw_cells": []
   },
+  "notebooks/calcium/exp_09_rf_memory_inhibition/01_individual_fish_analysis.ipynb": {
+    "imports": [
+      "src.data_loading",
+      "src.plotting_single_fish",
+      "src.reliability",
+      "src.response_normalization",
+      "src.significant_trace_detection",
+      "src.trial_alignment"
+    ],
+    "symbols": [
+      "src.data_loading.load_phase_aligned_experiment",
+      "src.data_loading.save_phase_analysis_outputs",
+      "src.plotting_single_fish.plot_continuous_phase_raster",
+      "src.plotting_single_fish.plot_phase_aligned_responses",
+      "src.plotting_single_fish.plot_phase_timing",
+      "src.plotting_single_fish.plot_significant_trace_comparison",
+      "src.plotting_single_fish.plot_significant_trace_examples",
+      "src.plotting_single_fish.prepare_phase_response_display",
+      "src.reliability.filter_neurons_by_trial_reliability",
+      "src.response_normalization.zscore_dfof_from_prestim_baseline",
+      "src.significant_trace_detection.compute_noise_model_romano_fast_modular",
+      "src.trial_alignment.build_event_aligned_traces"
+    ],
+    "syntax_failure_raw_cells": []
+  },
+  "notebooks/calcium/exp_09_rf_memory_inhibition/02_population_analysis.ipynb": {
+    "imports": [
+      "src.several_fish_diagnostics",
+      "src.several_fish_figures",
+      "src.several_fish_loading",
+      "src.several_fish_reporting"
+    ],
+    "symbols": [
+      "src.several_fish_diagnostics.build_phase_population_analysis",
+      "src.several_fish_diagnostics.build_phase_population_display",
+      "src.several_fish_diagnostics.build_phase_recruitment_analysis",
+      "src.several_fish_figures.plot_phase_cohort_means",
+      "src.several_fish_figures.plot_phase_cohort_rasters",
+      "src.several_fish_figures.plot_phase_fish_summary",
+      "src.several_fish_figures.plot_phase_population_comparisons",
+      "src.several_fish_figures.plot_phase_population_relationships",
+      "src.several_fish_figures.plot_phase_recruitment_counts",
+      "src.several_fish_figures.plot_phase_recruitment_decisions",
+      "src.several_fish_figures.plot_phase_recruitment_rasters",
+      "src.several_fish_loading.load_reviewed_phase_cohort",
+      "src.several_fish_reporting.save_analysis_report_run"
+    ],
+    "syntax_failure_raw_cells": []
+  },
   "notebooks/calcium/preprocessing/2P_Experiment_FileOps.ipynb": {
     "imports": [],
     "symbols": [],

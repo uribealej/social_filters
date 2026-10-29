@@ -11,6 +11,214 @@ from src.analysis_io import find_file_with_suffix
 from src.trial_alignment import build_trial_aligned_traces
 
 
+def load_phase_aligned_experiment(fish_id, experiment_name, main_path,
+                                  stimuli_main_path, phase_metadata_path,
+                                  stimulus_aliases, selected_blocks,
+                                  session_id=None, baseline_s=10.0, expected_fps_2p=2.0):
+    """Load one complete, explicitly phased recording without legacy inference.
+
+    Select a matching ``*_block_log.csv``/metadata/sequence session. Ambiguous
+    sessions fail unless ``session_id`` is supplied (full filename prefix).
+    Require B1..Bn concatenation in acquisition order, matching metadata volume
+    count and the frames-by-neurons dFoF. Does not load or trust older caches.
+    Returns paths, metadata, phases, trials, dFoF, rate, condition order and an
+    audit table. This opt-in entry point leaves ``load_2p_experiment`` unchanged.
+    """
+    paths = _experiment_paths(fish_id, experiment_name, Path(main_path), Path(stimuli_main_path))
+    logs = sorted(paths["metadata_dir"].glob("*_block_log.csv"))
+    if session_id is not None:
+        logs = [p for p in logs if p.name == f"{session_id}_block_log.csv"]
+    if len(logs) != 1:
+        raise ValueError(f"Select one recording session in {paths['metadata_dir']}; candidates: {[p.name for p in logs]}")
+    log_path = logs[0]
+    session = log_path.name.removesuffix("_block_log.csv")
+    metadata_path = log_path.with_name(f"{session}_metadata.csv")
+    sequence_path = log_path.with_name(f"{session}_trial_sequence.csv")
+    experiment_log_path = log_path.with_name(f"{session}_experiment_log.csv")
+    meta_rows = pd.read_csv(metadata_path, keep_default_na=False)
+    if meta_rows.parameter.duplicated().any():
+        raise ValueError("Duplicate recording metadata parameters.")
+    metadata = dict(zip(meta_rows.parameter, meta_rows.value))
+    if metadata.get("fish_ID") != fish_id or metadata.get("experiment_name") != experiment_name:
+        raise ValueError("Recording metadata identity does not match selected fish/experiment.")
+    fps = float(metadata["framerate"])
+    if fps != expected_fps_2p:
+        raise ValueError(f"Expected {expected_fps_2p:g}-Hz imaging, got {fps}.")
+    blocks = list(selected_blocks)
+    repetitions = int(metadata["n_rep_stim"])
+    if blocks != [f"B{i}" for i in range(1, repetitions + 1)]:
+        raise ValueError("Select all stimulus blocks in acquisition order; exclude resting B0.")
+    frames = int(metadata["n_volumes"])
+    if int(metadata["n_trials_per_block"]) != len(stimulus_aliases):
+        raise ValueError("Metadata trial count disagrees with configured conditions.")
+    imaging = _load_merged_dfof(paths, blocks, fps)
+    if imaging["dfof"].ndim != 2 or imaging["frames_per_block"] != frames:
+        raise ValueError(f"Incompatible frame count: {imaging['dfof'].shape}; expected {len(blocks)} x {frames} samples.")
+    phases = st.validate_phase_metadata(pd.read_csv(phase_metadata_path), paths["stimuli_path"])
+    block_log = pd.read_csv(log_path)
+    trials = st.build_phase_trial_table(block_log,
+        pd.read_csv(sequence_path).stimulus.tolist(), phases, stimulus_aliases,
+        blocks, frames, fps, baseline_s)
+    # Check the independently saved global clock against block-local clocks.
+    global_log = pd.read_csv(experiment_log_path).set_index("event").timestamp
+    local = block_log.set_index("event").timestamp
+    for block in blocks:
+        names = [e for e in local.index if e.startswith(block + "_")]
+        if not set(names) <= set(global_log.index):
+            raise ValueError(f"Experiment log is missing {block} events.")
+        discrepancy = ((global_log.loc[names] - global_log[block + "_start"])
+                       - (local.loc[names] - local[block + "_start"]))
+        if not np.isfinite(discrepancy).all() or discrepancy.abs().max() >= 1 / fps:
+            raise ValueError(f"Global and block logs disagree by an imaging frame in {block}.")
+    audit = trials.groupby("block", sort=False).agg(
+        trials=("stimulus_id", "size"), conditions=("stimulus_id", "nunique"),
+        max_duration_error_s=("duration_error_s", lambda x: float(x.abs().max())),
+        min_pre_pause_s=("pre_pause_s", "min"), min_post_pause_s=("post_pause_s", "min"))
+    paths.update(experiment_log_path=log_path, recording_experiment_log_path=experiment_log_path,
+                 metadata_file=metadata_path, sequence_file=sequence_path,
+                 phase_metadata_file=Path(phase_metadata_path), dfof_file=imaging["dfof_file"])
+    return dict(paths=paths, metadata=metadata, session_id=session,
+                selected_blocks=blocks, stimulus_aliases=dict(stimulus_aliases),
+                baseline_s=float(baseline_s), phases=phases, trials=trials,
+                dfof=imaging["dfof"], fps_2p=fps, frames_per_block=frames,
+                stimuli_ids=list(range(1, len(stimulus_aliases) + 1)),
+                stimuli_id_map={name: i + 1 for i, name in enumerate(stimulus_aliases.values())},
+                audit=audit)
+
+
+def load_reviewed_phase_experiment(fish_id, experiment_name, main_path, stimuli_main_path,
+                                   phase_metadata_path, stimulus_aliases, selected_blocks,
+                                   cache_root=None):
+    """Read reviewed phase caches and verify original neuron/session identities.
+
+    Does not recompute normalization, reliability or significant activity and
+    never writes files. Older phase caches may obtain detector settings/rate
+    from their saved configuration and recording metadata. A mismatch raises.
+    """
+    import json
+
+    paths = _experiment_paths(fish_id, experiment_name, Path(main_path), Path(stimuli_main_path))
+    root = Path(cache_root) if cache_root is not None else paths["plots_path"]
+    prefix = paths["prefix"]
+    files = dict(configuration=root / "phase_alignment" / f"{prefix}_analysis_configuration.json",
+        trial_timing=root / "phase_alignment" / f"{prefix}_trial_timing.csv",
+        zscore=root / "z_core" / f"{prefix}_zcore.npz",
+        kept=root / "filtered_neurons_by_stimuli" / f"{prefix}_kept_neuron_indices.npy",
+        significant=root / "significant_traces" / f"{prefix}_significant_traces.npz")
+    missing = [str(p) for p in files.values() if not p.is_file()]
+    if missing:
+        raise FileNotFoundError("Missing reviewed outputs: " + "; ".join(missing))
+    config = json.loads(files["configuration"].read_text(encoding="utf-8"))
+    if config["selected_blocks"] != list(selected_blocks) or config["stimulus_aliases"] != dict(stimulus_aliases):
+        raise ValueError("Saved blocks or stimulus aliases differ from cohort configuration.")
+    loaded = load_phase_aligned_experiment(fish_id, experiment_name, main_path,
+        stimuli_main_path, phase_metadata_path, stimulus_aliases, selected_blocks,
+        session_id=config["session_id"], baseline_s=config["configuration"]["baseline_s"])
+    if config["paths"]["fish"] != loaded["paths"]["fish"]:
+        raise ValueError("Saved fish identity differs from the recording.")
+    saved_trials = pd.read_csv(files["trial_timing"])
+    expected_trials = loaded["trials"]
+    for col in ("block", "trial_index", "stimulus_key", "stimulus_id"):
+        if saved_trials[col].tolist() != expected_trials[col].tolist():
+            raise ValueError(f"Saved trial identity/order differs: {col}.")
+    for col in ("onset_s", "pre_end_s", "bout_onset_s", "end_s", "logged_end_s"):
+        if not np.allclose(saved_trials[col], expected_trials[col], atol=1e-7, rtol=0):
+            raise ValueError(f"Saved trial timing differs from current logs/metadata: {col}.")
+    kept = np.load(files["kept"], allow_pickle=False)
+    if (kept.ndim != 1 or not np.issubdtype(kept.dtype, np.integer) or not len(kept)
+            or len(np.unique(kept)) != len(kept) or (kept < 0).any()
+            or (kept >= loaded["dfof"].shape[1]).any()
+            or not np.array_equal(kept, config["kept_neuron_indices"])):
+        raise ValueError("Invalid or inconsistent saved retained-neuron mapping.")
+    with np.load(files["zscore"], allow_pickle=False) as z:
+        zscore = z["z_traces"]
+    settings = config["configuration"].get("significant")
+    if not isinstance(settings, dict) or not settings:
+        raise ValueError("Saved detector settings are missing.")
+    with np.load(files["significant"], allow_pickle=False) as z:
+        raster = z["raster"]
+        if not np.array_equal(z["kept_neuron_indices"], kept):
+            raise ValueError("Significant-cache neuron IDs differ from retained-index file.")
+        if z["deltaF_center"].shape != raster.shape:
+            raise ValueError("Centered traces and raster have incompatible shapes.")
+        if "settings_json" in z and json.loads(str(z["settings_json"])) != settings:
+            raise ValueError("Significant-cache detector settings differ from provenance.")
+        if "fps" in z and float(z["fps"]) != loaded["fps_2p"]:
+            raise ValueError("Saved imaging rates differ.")
+        if "source_file" in z and Path(str(z["source_file"])).resolve() != Path(loaded["paths"]["dfof_file"]).resolve():
+            raise ValueError("Saved significant-cache source file differs.")
+    if zscore.shape != loaded["dfof"].shape or raster.shape != (len(zscore), len(kept)):
+        raise ValueError("Saved trace/raster shapes differ from source data and retained IDs.")
+    if not np.isin(raster[np.isfinite(raster)], [0, 1]).all():
+        raise ValueError("Saved significant raster is not binary.")
+    loaded.update(z_traces=zscore, raster=raster, kept_neuron_indices=kept,
+                  detector_settings=settings, saved_configuration=config, cache_files=files)
+    return loaded
+
+
+def save_phase_analysis_outputs(loaded, zres, reliability_results, significant_results,
+                                configuration, output_root=None, significant_run=None,
+                                review_figures=None):
+    """Save canonical caches and timing provenance; optionally redirect for validation.
+
+    Significant columns follow ``kept_neuron_indices`` in merged-neuron order.
+    ``significant_results`` is the canonical detector's eight-item result.
+    Existing canonical caches are replaced only when this writer is called.
+    Optional ``significant_run`` captures the detector's actual settings, session,
+    source, fps and original neuron IDs. Reject changed settings or selections
+    before writing. Optional review figures are saved beside the canonical NPZ.
+    """
+    import json
+
+    kept = np.asarray(reliability_results["kept_neuron_indices"])
+    expected = (loaded["dfof"].shape[0], len(kept))
+    if (np.asarray(zres["z_traces"]).shape != loaded["dfof"].shape
+            or np.asarray(significant_results[6]).shape != expected
+            or np.asarray(significant_results[1]).shape != expected):
+        raise ValueError("Cache shapes do not match this recording and retained neuron mapping.")
+    if (kept.ndim != 1 or not np.issubdtype(kept.dtype, np.integer)
+            or len(np.unique(kept)) != len(kept) or (kept < 0).any()
+            or (kept >= loaded["dfof"].shape[1]).any()):
+        raise ValueError("Invalid retained merged-neuron IDs.")
+    if significant_run is not None:
+        if (significant_run["fish"] != loaded["paths"]["fish"]
+                or significant_run["session_id"] != loaded["session_id"]
+                or Path(significant_run["source_file"]).resolve() != Path(loaded["paths"]["dfof_file"]).resolve()
+                or significant_run["fps"] != loaded["fps_2p"]
+                or not np.array_equal(significant_run["neuron_indices"], kept)
+                or significant_run["settings"] != configuration.get("significant")):
+            raise ValueError("Significant-trace inputs/settings changed: rerun detection and review before saving.")
+    figures = dict(review_figures or {})
+    if any(Path(name).name != name or Path(name).suffix != ".png" for name in figures):
+        raise ValueError("Review figure names must be plain PNG filenames.")
+    root = Path(output_root) if output_root is not None else loaded["paths"]["plots_path"]
+    prefix = loaded["paths"]["prefix"]
+    for name in ("z_core", "filtered_neurons_by_stimuli", "significant_traces", "phase_alignment"):
+        (root / name).mkdir(parents=True, exist_ok=True)
+    np.savez(root / "z_core" / f"{prefix}_zcore.npz", **{
+        k: zres[k] for k in ("z_traces", "baseline_mean", "baseline_std", "valid_onsets")})
+    np.save(root / "filtered_neurons_by_stimuli" / f"{prefix}_kept_neuron_indices.npy", kept)
+    np.savez(root / "significant_traces" / f"{prefix}_significant_traces.npz",
+             raster=significant_results[6], deltaF_center=significant_results[1],
+             kept_neuron_indices=kept, fps=loaded["fps_2p"],
+             source_file=str(loaded["paths"]["dfof_file"]),
+             settings_json=json.dumps(significant_run["settings"] if significant_run is not None
+                                      else configuration.get("significant", {})))
+    for name, figure in figures.items():
+        figure.savefig(root / "significant_traces" / name, dpi=180, bbox_inches="tight")
+    loaded["trials"].to_csv(root / "phase_alignment" / f"{prefix}_trial_timing.csv", index=False)
+    provenance = dict(session_id=loaded["session_id"], paths=loaded["paths"],
+        metadata=loaded["metadata"], stimulus_aliases=loaded["stimulus_aliases"],
+        selected_blocks=loaded["selected_blocks"], configuration=configuration,
+        timing_method="shared block trigger; recorded presentation timestamps; nominal 2-Hz imaging samples",
+        reliability_threshold=float(reliability_results["otsu_threshold"]),
+        kept_neuron_indices=kept.tolist(), significant_run=significant_run,
+        review_figures=list(figures))
+    out = root / "phase_alignment" / f"{prefix}_analysis_configuration.json"
+    out.write_text(json.dumps(provenance, indent=2, default=str) + "\n", encoding="utf-8")
+    return out
+
+
 def transform_stimuli_duration(stimuli_durations: Dict[str, dict]) -> Dict[str, dict]:
     """Delegate to the shared timing owner while preserving this import path."""
 

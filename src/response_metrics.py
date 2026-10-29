@@ -5,6 +5,48 @@ import pandas as pd
 
 from src.trial_alignment import resolve_selected_stimuli, trial_aligned_time_axis
 
+
+def compute_explicit_window_metrics(traces, frame_indices, time_s, fps_2p, baseline=None):
+    """Per-neuron/per-trial signed metrics using existing AUC/peak owners.
+
+    Input is (neurons, time, trials); all returned measurements are (neurons,
+    trials). Nonfinite windows remain missing, never filled with zero. Optional
+    baseline (neurons, trials) supplies descriptive pre-bout level corrections.
+    """
+    arr = np.asarray(traces, dtype=float)
+    indices = np.asarray(frame_indices, dtype=int)
+    if arr.ndim != 3:
+        raise ValueError("Expected (neurons, time, trials).")
+    shape = (arr.shape[0], arr.shape[2])
+    output = {k: np.full(shape, np.nan) for k in
+              ("auc_z_s", "peak_z", "mean_z", "delta_auc_z_s", "delta_peak_z", "delta_mean_z")}
+    if not len(indices):
+        return output
+    output["auc_z_s"] = compute_trial_auc_by_neuron(arr, indices, time_s=time_s, fps_2p=fps_2p)
+    # The established peak/mean helper operates on trial means; give it one
+    # repetition at a time rather than introducing another peak implementation.
+    for rep in range(arr.shape[2]):
+        selected = arr[:, indices, rep:rep + 1]
+        valid = np.isfinite(selected).all(axis=(1, 2))
+        output["auc_z_s"][~valid, rep] = np.nan
+        if not valid.any():
+            continue
+        result = compute_trial_mean_response_metrics({0: selected[valid]},
+            stimuli_ids=[0], fps_2p=fps_2p, t_pre_s=0, t_post_s=None)
+        output["peak_z"][valid, rep] = result["peaks"][0]
+        output["mean_z"][valid, rep] = result["averages"][0]
+        output["auc_z_s"][~valid, rep] = np.nan
+    if baseline is not None:
+        baseline = np.asarray(baseline, dtype=float)
+        if baseline.shape != shape:
+            raise ValueError("Pre-bout levels must match (neurons, trials).")
+        corrected = arr - baseline[:, None, :]
+        output["delta_auc_z_s"] = compute_trial_auc_by_neuron(corrected, indices, time_s=time_s, fps_2p=fps_2p)
+        output["delta_peak_z"] = output["peak_z"] - baseline
+        output["delta_mean_z"] = output["mean_z"] - baseline
+        output["delta_auc_z_s"][~(np.isfinite(arr[:, indices, :]).all(axis=1) & np.isfinite(baseline))] = np.nan
+    return output
+
 def compute_trial_mean_response_metrics(
     trial_aligned_traces,
     stimuli_ids=None,

@@ -22,6 +22,33 @@ def _has_consecutive_true(bool_vec, min_run_frames):
             run_length = 0
     return False
 
+
+def classify_trial_raster_activity(response, fps_2p, active_fraction_threshold=0.10,
+                                    min_epoch_s=1.0):
+    """Apply the canonical fraction-and-epoch rule to (neurons, time, trials).
+
+    Return float decisions (neurons, trials): 1/0 for valid binary windows,
+    NaN for empty windows or neuron/trials containing missing samples.
+    """
+    values = np.asarray(response)
+    if values.ndim != 3 or not np.isfinite([fps_2p, min_epoch_s, active_fraction_threshold]).all():
+        raise ValueError("Expected a 3D raster and finite activity settings.")
+    if fps_2p <= 0 or min_epoch_s <= 0 or not 0 <= active_fraction_threshold <= 1:
+        raise ValueError("Invalid rate, epoch duration or active-frame fraction.")
+    if not np.isin(values[np.isfinite(values)], [0, 1]).all():
+        raise ValueError("Activity classification requires a binary raster.")
+    decisions = np.full((values.shape[0], values.shape[2]), np.nan)
+    if not values.shape[1]:
+        return decisions
+    min_run_frames = int(np.ceil(min_epoch_s * fps_2p))
+    for rep in range(values.shape[2]):
+        valid = np.isfinite(values[:, :, rep]).all(axis=1)
+        for neuron in np.flatnonzero(valid):
+            trace = values[neuron, :, rep].astype(bool)
+            decisions[neuron, rep] = (trace.mean() >= active_fraction_threshold
+                and _has_consecutive_true(trace, min_run_frames))
+    return decisions
+
 def build_active_neuron_matrix_from_trial_raster(
     trial_aligned_traces_raster,
     stimuli_durations,
@@ -118,21 +145,8 @@ def build_active_neuron_matrix_from_trial_raster(
             )
 
         response = arr[:, response_mask, :].astype(bool, copy=False)
-        active_reps = np.zeros((n_neurons, n_reps), dtype=bool)
-
-        for rep_idx in range(n_reps):
-            rep_values = response[:, :, rep_idx]
-            frac_active = np.mean(rep_values, axis=1)
-            has_epoch = np.array(
-                [
-                    _has_consecutive_true(rep_values[neuron_idx], min_run_frames)
-                    for neuron_idx in range(n_neurons)
-                ],
-                dtype=bool,
-            )
-            active_reps[:, rep_idx] = (
-                (frac_active >= active_fraction_threshold) & has_epoch
-            )
+        active_reps = classify_trial_raster_activity(
+            response, fps_2p, active_fraction_threshold, min_epoch_s)
 
         active_counts = np.sum(active_reps, axis=1)
         matrices.append((active_counts >= min_active_reps).astype(int))

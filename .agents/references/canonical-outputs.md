@@ -34,6 +34,7 @@ Use this file when
 - Preprocessing notebook helpers that search for experiments, planes, or per-plane files are wrapper logic, not canonical output contracts.
 
 ## Calcium analysis caches and plots
+- Exp 9 significant-trace review is non-writing until its final `SAVE_OUTPUTS` cell is enabled. Its filtered canonical significant NPZ includes `raster`, `deltaF_center`, `kept_neuron_indices`, `fps`, `source_file`, and `settings_json`. Columns follow the original merged-neuron IDs in the canonical retained-index file; zero-event neurons are not removed. The writer validates the successful detector run's settings/session/source/IDs before saving. Four optional review PNGs (original/centered/raster comparison, peak-sorted comparison, single-neuron trace, high-activity examples) are saved beside that NPZ. Display order, example IDs and review settings are recorded in the phase-analysis configuration. This differs intentionally from the separate `significant_traces_all` reference notebook, whose outputs include every processed input column and are not loaded as filtered canonical caches.
 - Canonical plots root:
   - `03_analysis/functional/plots`
 - Common cache folders and files:
@@ -44,6 +45,7 @@ Use this file when
 - `src/data_loading.py` is the loader-side authority for how these outputs are discovered and reused.
 
 ## Several-fish reviewed-run reports
+- Exp 9 population analysis reuses `save_analysis_report_run`, with `analysis_path` set to `Lab/Results/Paper/2p_derived` and run label `population_analysis`. The usual `<experiment>/reports/<timestamp>_<label>/` contains readiness, per-trial/per-neuron/per-fish metrics, native sample coverage, phase memberships, correlations, paired differences and original-neuron display mappings in `tables/`. Optional `figures` are exported into `figures/` as PNGs. Settings and run metadata retain included fish, sessions and per-fish detector settings. The final save gate defaults off; individual-fish canonical caches are read-only.
 - `src/several_fish_reporting.py` writes optional reports when `REPORT_SETTINGS['save_report']` is enabled. Active several-fish notebooks call it directly; `src.reusable_several_fish` remains a supported historical compatibility facade under the [S12 decision](src-compatibility-decision.md).
 - Report folder: `<analysis_path>/<experiment_name>/reports/<YYYY-MM-DD_HHMM>_<run_label>/`.
 - Each saved run contains `settings.json`, `report_settings.json`, `run_metadata.json`, `comments.md`, and `tables/`. Nonempty supplied tables become `<slugified_table_name>.csv` files under `tables/`.
@@ -65,6 +67,7 @@ Use this file when
 - The Experiment 9 batch notebook saves only `stimuli_polar.png` and `stimuli_timing.png` at 300 dpi. Angle/dot-size traces and angle summaries are displayed in the notebook without creating redundant files. Timing phases use supplied metadata via `plot_stimulus_phase_timing`.
 
 ## Timing ownership
+- Exp 9 individual-fish analysis preserves canonical `plots/z_core/{prefix}_zcore.npz`, `plots/filtered_neurons_by_stimuli/{prefix}_kept_neuron_indices.npy`, and `plots/significant_traces/{prefix}_significant_traces.npz`. The significant cache additionally records original `kept_neuron_indices` for its column mapping. `src.data_loading.save_phase_analysis_outputs` adds `plots/phase_alignment/{prefix}_trial_timing.csv` and `{prefix}_analysis_configuration.json` containing the matched session, input paths, aliases, metadata and settings. Validation may redirect this output tree without writing to the source data.
 - `src/stimuli_timeline.py` is the authority for turning trajectory CSVs and block logs into downstream timing semantics.
 - Downstream notebooks should consume these timing semantics, not redefine movement onset or duration logic locally.
 - Stimulus generator helpers may compute packaging metadata such as total duration, but that metadata does not supersede `src/stimuli_timeline.py` as downstream timing authority.

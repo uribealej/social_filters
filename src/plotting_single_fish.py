@@ -11,6 +11,282 @@ from src.neuron_ordering import (
 )
 
 
+_PHASE_COLORS = {"Preconditioning": "#b59bd6", "Blank delay": "#d9dde3", "Bout": "#52b9b1"}
+
+
+def _validate_significant_review_inputs(dfof, centered, raster, fps, neuron_indices):
+    arrays = [np.asarray(x) for x in (dfof, centered, raster)]
+    if arrays[0].ndim != 2 or not all(x.shape == arrays[0].shape for x in arrays):
+        raise ValueError("Original/centered dFoF and raster must share (time, neurons) shape.")
+    if not all(arrays[0].shape) or not np.isfinite(fps) or fps <= 0:
+        raise ValueError("Review requires nonempty data and a positive finite imaging rate.")
+    ids = np.asarray(neuron_indices)
+    if (ids.ndim != 1 or len(ids) != arrays[0].shape[1] or len(np.unique(ids)) != len(ids)
+            or not np.issubdtype(ids.dtype, np.integer) or (ids < 0).any()):
+        raise ValueError("Supply one unique original merged-neuron ID per raster column.")
+    return *arrays, ids
+
+
+def _review_time_limits(time_window_s, n_time, fps):
+    if time_window_s is None:
+        return (0, n_time / fps)
+    window = np.asarray(time_window_s, dtype=float)
+    if window.shape != (2,) or not np.isfinite(window).all() or not 0 <= window[0] < window[1] <= n_time / fps:
+        raise ValueError("Review time window must lie within the recording, in seconds.")
+    return tuple(window)
+
+
+def plot_significant_trace_comparison(dfof, centered, raster, fps, neuron_indices,
+                                      sort_by_peak=False, time_window_s=None,
+                                      vmin=0.0, vmax=0.05, figsize=(14, 9), title=""):
+    """Compare original/centered dFoF and detected-event rasters before saving.
+
+    Inputs share (time, retained neurons); ``neuron_indices`` maps columns to
+    original merged-neuron IDs. Sorting is display-only and shared by all three
+    panels. Return figure, axes and the displayed original neuron IDs. No neuron
+    is removed, including zero-event neurons. Color/time limits are display-only.
+    """
+    dfof, centered, raster, ids = _validate_significant_review_inputs(dfof, centered, raster, fps, neuron_indices)
+    limits = _review_time_limits(time_window_s, len(dfof), fps)
+    order = np.argsort(-np.nanmax(dfof, axis=0), kind="stable") if sort_by_peak else np.arange(len(ids))
+    fig, axes = plt.subplots(3, 1, figsize=figsize, sharex=True)
+    for ax, values, label, binary in zip(axes, (dfof, centered, raster),
+            ("Original Delta F/F", "Noise-centered Delta F/F", "Detected event frames"), (False, False, True)):
+        im = raster_with_stimuli(ax, values, fps, fish_id=title, neuron_order=order,
+            title_suffix=label, is_binary=binary, vmin=0 if binary else vmin, vmax=1 if binary else vmax)
+        ax.set(xlim=limits, ylabel="Neuron rank" if sort_by_peak else "Retained column")
+        fig.colorbar(im, ax=ax, label="Event (0/1)" if binary else "Delta F/F")
+    axes[-1].set_xlabel("Concatenated imaging time (s)")
+    for ax in axes[:-1]:
+        ax.set_xlabel("")
+    fig.subplots_adjust(left=0.08, right=0.94, bottom=0.08, top=0.96, hspace=0.3)
+    fig.canvas.draw()
+    return fig, axes, ids[order].copy()
+
+
+def plot_significant_trace_examples(dfof, centered, raster, fps, neuron_indices,
+                                    neuron_ids=None, n_examples=20,
+                                    high_activity_fraction=0.1, seed=42,
+                                    time_window_s=None, figsize=(16, 14), title=""):
+    """Show original/centered traces with every detected frame marked in red.
+
+    Explicit ``neuron_ids`` are original merged-neuron IDs and must be retained.
+    Otherwise select reproducible random examples without replacement from the
+    highest positive original dFoF peaks, as in the all-neuron review notebook.
+    Example selection never changes detector input, reliability or saved arrays.
+    Return figure, axes and displayed original IDs (not retained-column indices).
+    """
+    dfof, centered, raster, ids = _validate_significant_review_inputs(dfof, centered, raster, fps, neuron_indices)
+    limits = _review_time_limits(time_window_s, len(dfof), fps)
+    if neuron_ids is None:
+        if int(n_examples) != n_examples or n_examples < 1 or not 0 < high_activity_fraction <= 1:
+            raise ValueError("Use positive integer n_examples and activity fraction in (0, 1].")
+        peaks = np.nanmax(dfof, axis=0)
+        pool = np.argsort(-peaks, kind="stable")[:max(1, int(np.ceil(high_activity_fraction * len(ids))))]
+        pool = pool[peaks[pool] > 0]
+        columns = np.random.default_rng(seed).choice(pool, min(n_examples, len(pool)), replace=False)
+    else:
+        requested = np.asarray(neuron_ids)
+        if requested.ndim != 1 or not np.issubdtype(requested.dtype, np.integer) or not np.isin(requested, ids).all():
+            raise ValueError("Choose original merged-neuron IDs present in the retained population.")
+        columns = np.array([np.flatnonzero(ids == n)[0] for n in requested], dtype=int)
+    ncols = min(4, max(1, len(columns)))
+    fig, axes = plt.subplots(max(1, int(np.ceil(len(columns) / ncols))), ncols,
+                             figsize=figsize, squeeze=False, layout="constrained")
+    times = np.arange(len(dfof)) / fps
+    for ax in axes.flat:
+        ax.set_visible(False)
+    for ax, column in zip(axes.flat, columns):
+        ax.set_visible(True)
+        events = raster[:, column].astype(bool)
+        ax.plot(times, dfof[:, column], lw=0.8, label="Original Delta F/F")
+        ax.plot(times, centered[:, column], lw=0.8, alpha=0.75, label="Centered Delta F/F")
+        ax.scatter(times[events], dfof[events, column], s=7, color="tab:red", label="Detected event frames", zorder=3)
+        ax.set(xlim=limits, xlabel="Time (s)", ylabel="Delta F/F", title=f"Merged neuron {ids[column]}")
+    if len(columns):
+        handles, labels = axes.flat[0].get_legend_handles_labels()
+        legend_y = -0.16 if len(columns) == 1 else -0.03
+        fig.legend(handles, labels, loc="lower center", bbox_to_anchor=(0.5, legend_y), ncol=3, frameon=False)
+    fig.suptitle(title if len(columns) else "No neurons with positive original dFoF peaks")
+    fig.canvas.draw()
+    return fig, axes, ids[columns].copy()
+
+
+def _phase_spans(row, anchor):
+    edges = [row.onset_s, row.pre_end_s, row.bout_onset_s, row.end_s]
+    return [(label, left - anchor, right - anchor)
+            for label, left, right in zip(_PHASE_COLORS, edges[:-1], edges[1:]) if right > left]
+
+
+def add_phase_annotations(ax, trial, anchor_s, offset_s=0.0):
+    """Shade explicit phase spans on an existing axis, optionally in a repeat."""
+    for label, start, stop in _phase_spans(trial, anchor_s):
+        ax.axvspan(start + offset_s, stop + offset_s, color=_PHASE_COLORS[label], alpha=0.17)
+        ax.axvline(start + offset_s, color=_PHASE_COLORS[label], linewidth=0.7)
+
+
+def plot_phase_timing(trials, stimulus_keys, figsize=(12, 6)):
+    """Show explicit real-duration phases, excluding external pauses."""
+    fig, ax = plt.subplots(figsize=figsize, layout="constrained")
+    for i, key in enumerate(stimulus_keys):
+        row = trials.loc[trials.stimulus_key == key].iloc[0]
+        for label, start, end in _phase_spans(row, row.onset_s):
+            ax.barh(i, end - start, left=start, color=_PHASE_COLORS[label], height=0.65)
+    ax.set(yticks=np.arange(len(stimulus_keys)), yticklabels=stimulus_keys,
+           xlabel="Seconds from presentation start", title="Stimulus phases (actual trajectory durations)")
+    ax.invert_yaxis()
+    ax.legend(handles=[Patch(color=c, label=k) for k, c in _PHASE_COLORS.items()],
+              loc="upper center", bbox_to_anchor=(0.5, -0.14), ncol=3, frameon=False)
+    return fig, ax
+
+
+def plot_continuous_phase_raster(data, fps_2p, trials, figsize=(16, 5),
+                                  title="Continuous dFoF", vmax=None):
+    """Plot (time, neurons) data with phase strips and imaging-block boundaries."""
+    data = np.asarray(data)
+    if data.ndim != 2 or not data.shape[1]:
+        raise ValueError("Continuous raster requires a nonempty neuron axis.")
+    fig, (ax, timeline) = plt.subplots(2, 1, figsize=figsize, sharex=True,
+        gridspec_kw={"height_ratios": [5, 1]}, layout="constrained")
+    if vmax is None:
+        vmax = max(float(np.nanpercentile(data, 99)), np.finfo(float).eps)
+    image = ax.imshow(data.T, aspect="auto", origin="lower", interpolation="nearest",
+        extent=[0, len(data) / fps_2p, -0.5, data.shape[1] - 0.5], vmin=0, vmax=vmax, cmap="magma")
+    fig.colorbar(image, ax=ax, label="dFoF")
+    ax.set(ylabel="Merged neuron index", title=title)
+    sides = trials.hemifield.drop_duplicates().tolist() if "hemifield" in trials else ["presentation"]
+    for row in trials.itertuples(index=False):
+        y = sides.index(getattr(row, "hemifield", "presentation"))
+        for label, start, end in _phase_spans(row, 0):
+            timeline.broken_barh([(start, end - start)], (y - 0.3, 0.6), facecolors=_PHASE_COLORS[label])
+        ax.axvline(row.onset_s, color="white", alpha=0.15, linewidth=0.5)
+    for start in trials.block_start_frame.unique():
+        for panel in (ax, timeline):
+            panel.axvline(start / fps_2p, color="#4085c5", linewidth=1)
+    timeline.set(yticks=np.arange(len(sides)), yticklabels=[s.capitalize() for s in sides],
+                 xlabel="Concatenated imaging time (s)")
+    timeline.legend(handles=[Patch(color=c, label=k) for k, c in _PHASE_COLORS.items()],
+                    loc="upper center", bbox_to_anchor=(0.5, -0.55), ncol=3)
+    return fig, (ax, timeline)
+
+
+def prepare_phase_response_display(aligned, stimulus_ids, sort_mode="corravg",
+                                    n_clusters=3, random_state=42):
+    """Return trial means and one shared existing-method neuron order.
+
+    Means retain every neuron and condition; nonfinite rows are put last by
+    correlation ordering. No phase-specific response metric is calculated.
+    """
+    means = {sid: np.nanmean(aligned["trial_aligned_traces"][sid], axis=2) for sid in stimulus_ids}
+    joined = np.concatenate([means[sid] for sid in stimulus_ids], axis=1)
+    if joined.shape[0] < 2:
+        order = np.arange(joined.shape[0])
+    else:
+        order = compute_single_sort_order(joined.T, sort_mode, n_clusters, random_state)
+        if order is None:
+            order = np.arange(joined.shape[0])
+    return means, order
+
+
+def plot_phase_aligned_responses(aligned, stimulus_keys, stimulus_ids, neuron_order,
+                                  neuron_indices=None, neuron_labels=None,
+                                  figsize=(19, 8), trace_figsize=(19, 10),
+                                  trace_count=8, trace_offset=6.0,
+                                  vmin=-1.0, vmax=4.0, binary=False, title="",
+                                  trace_mode="individual"):
+    """Plot trial-mean rasters and individual or population-average traces.
+
+    Conditions follow the supplied order. The same supplied neuron ordering and
+    original merged-neuron labels can be reused across alignments/populations.
+    Heatmaps contain all selected neurons; line panels explicitly show only the
+    first ``trace_count`` rows. Binary means are trial activation fractions.
+    ``trace_mode='population'`` instead averages the trial means of exactly all
+    raster rows after neuron selection, with equal neuron weights and NaNs
+    omitted. Its common y-axis is mean z-score, with no vertical offsets or SEM.
+    The default individual mode preserves existing callers.
+    No interpolation/time warping is used; axes show nominal 2-Hz sample offsets.
+    """
+    if trace_mode not in ("individual", "population"):
+        raise ValueError("trace_mode must be 'individual' or 'population'.")
+    order = np.asarray(neuron_order, dtype=int)
+    if neuron_indices is not None:
+        order = order[np.isin(order, np.asarray(neuron_indices, dtype=int))]
+    if order.size == 0:
+        raise ValueError("No neurons selected for phase plots.")
+    if len(stimulus_ids) != len(stimulus_keys):
+        raise ValueError("Stimulus IDs and labels must have the same length.")
+    n_neurons = next(iter(aligned["trial_aligned_traces"].values())).shape[0]
+    labels = np.arange(n_neurons) if neuron_labels is None else np.asarray(neuron_labels)
+    if len(labels) != n_neurons or len(np.unique(order)) != len(order) or order.min() < 0 or order.max() >= n_neurons:
+        raise ValueError("Neuron ordering/labels do not match aligned data.")
+    ncols = int(np.ceil(len(stimulus_ids) / 2))
+    fig, axes = plt.subplots(2, ncols, figsize=figsize, sharex=True, sharey=True,
+                             squeeze=False, layout="constrained")
+    line_fig = None
+    if (trace_count or trace_mode == "population") and not binary:
+        line_fig, line_axes = plt.subplots(2, ncols, figsize=trace_figsize, sharex=True, sharey=True,
+                                           squeeze=False, layout="constrained")
+    times = aligned["time_s"]
+    xmin = min(times[sid][0] for sid in stimulus_ids)
+    xmax = max(times[sid][-1] + 1 / aligned["fps_2p"] for sid in stimulus_ids)
+    selected_lines = order[:trace_count]
+    for i, (sid, key) in enumerate(zip(stimulus_ids, stimulus_keys)):
+        ax = axes.flat[i]
+        arr = aligned["trial_aligned_traces"][sid]
+        mean = np.nanmean(arr, axis=2)
+        t = times[sid]
+        im = ax.imshow(mean[order], aspect="auto", origin="lower", interpolation="nearest",
+            extent=[t[0] - 0.5 / aligned["fps_2p"], t[-1] + 0.5 / aligned["fps_2p"], -0.5, len(order) - 0.5],
+            vmin=0 if binary else vmin, vmax=1 if binary else vmax, cmap="magma")
+        row = aligned["trials"].loc[aligned["trials"].stimulus_id == sid].iloc[0]
+        anchor = row.onset_s if aligned["alignment"] == "sequence" else row.bout_onset_s
+        panels = [ax] + ([line_axes.flat[i]] if line_fig is not None else [])
+        for panel in panels:
+            for label, start, end in _phase_spans(row, anchor):
+                panel.axvspan(start, end, color=_PHASE_COLORS[label], alpha=0.17)
+                if xmin <= start <= xmax:
+                    panel.axvline(start, color=_PHASE_COLORS[label], linewidth=0.8)
+            panel.axvline(0, color="#25707b", linewidth=0.7, linestyle="--")
+            panel.set(xlim=(xmin, xmax), title=f"{key}\nn={arr.shape[2]} trials")
+            if i >= ncols:
+                panel.set_xlabel(f"From {'presentation' if aligned['alignment'] == 'sequence' else 'bout'} onset (s)", fontsize=9)
+        if i % ncols == 0:
+            ax.set_ylabel("Shared neuron order")
+        if line_fig is not None:
+            line_ax = line_axes.flat[i]
+            if trace_mode == "population":
+                line_ax.plot(t, np.nanmean(mean[order], axis=0), linewidth=1.3,
+                             color="#263c65", label="Population mean")
+                line_ax.axhline(0, color="gray", linewidth=0.5, alpha=0.6)
+                if i % ncols == 0:
+                    line_ax.set_ylabel("Population mean z-score")
+            else:
+                for j, neuron in enumerate(selected_lines):
+                    line_ax.plot(t, mean[neuron] + j * trace_offset, linewidth=0.8, color="#263c65")
+                    line_ax.axhline(j * trace_offset, color="gray", linewidth=0.3, alpha=0.4)
+                line_ax.set(yticks=np.arange(len(selected_lines)) * trace_offset,
+                            yticklabels=labels[selected_lines])
+                if i % ncols == 0:
+                    line_ax.set_ylabel("Merged neuron ID (offset traces)")
+    for unused in range(len(stimulus_ids), 2 * ncols):
+        axes.flat[unused].set_visible(False)
+        if line_fig is not None:
+            line_axes.flat[unused].set_visible(False)
+    fig.colorbar(im, ax=axes.ravel().tolist(), label="Trial activation fraction" if binary else "Mean z-score", shrink=0.7)
+    legend = [Patch(color=c, label=k) for k, c in _PHASE_COLORS.items()]
+    fig.legend(handles=legend, loc="lower center", bbox_to_anchor=(0.5, -0.055), ncol=3, frameon=False)
+    fig.suptitle(f"{title} | {aligned['alignment']}-aligned | {len(order)} neurons")
+    if line_fig is not None:
+        line_fig.legend(handles=legend, loc="lower center", bbox_to_anchor=(0.5, -0.045), ncol=3, frameon=False)
+        if trace_mode == "population":
+            line_fig.suptitle(f"{title} | {aligned['alignment']}-aligned | mean of all {len(order)} raster neurons")
+        else:
+            line_fig.suptitle(f"{title} | individual means: first {len(selected_lines)} displayed neurons | spacing {trace_offset:g} z")
+        line_fig.canvas.draw()
+    fig.canvas.draw()
+    return fig, line_fig
+
+
 def add_stimuli_markers(ax, exp_log, stimuli_durations, stimuli_colors, time_offset=0, trace='movement',
                         stimuli_linestyles=None):
     if stimuli_linestyles is None:

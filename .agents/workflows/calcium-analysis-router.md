@@ -28,12 +28,15 @@ use the matching row below to open the owner.
 | Response classification, active-neuron decisions, left-right or onset ordering | — | `src/response_classification.py` |
 | Selectivity metrics or response-pair filtering | — | `src/response_selectivity.py` |
 | Pre-stimulus baseline z-scoring | — | `src/response_normalization.py` |
+| Explicit preconditioning/blank/bout phases, per-fish session logs, or Exp 9 individual-fish analysis | — | `src/stimuli_timeline.py` phase metadata/table helpers; `src/data_loading.py::load_phase_aligned_experiment`; `src/trial_alignment.py::build_event_aligned_traces`; phase plots in `src/plotting_single_fish.py` |
 | Significant trace detection, noise model, raster generation | — | `src/significant_trace_detection.py` |
+| Significant-trace parameter review, dFoF/raster comparisons, or retained-ID trace examples before saving | — | `src/plotting_single_fish.py::plot_significant_trace_comparison` and `plot_significant_trace_examples`; `src/data_loading.py::save_phase_analysis_outputs` for checked canonical exports |
 | Sorted chunk plots, all-fish flat rasters, mean traces, raster styling, saved PNG behavior | — | Relevant `src/plotting_*` owner; use `src/plotting.py` to locate it if unclear |
 | Notebook helper duplication, notebook-local scientific logic, or notebook-to-module extraction | `refactor-rules.md` | Owning `src/` module before opening the notebook region |
 | Cache names, filtered neuron index naming, saved figure locations | `canonical-outputs.md` | `src/data_loading.py` or the relevant writer |
 | Several-fish report folder, JSON/CSV serialization, notebook export | `canonical-outputs.md` for saved names and layout | `src/several_fish_reporting.py` |
 | Several-fish cohort loading, data-root lookup, or stimulus preflight | `src-api-consumer-inventory.md` for the returned bundle | `src/several_fish_loading.py` |
+| Reviewed phase-cohort readiness, Exp 9 population rasters, or preconditioning/bout descriptive measurements | `src-api-consumer-inventory.md` | `src/data_loading.py::load_reviewed_phase_experiment`; cohort loading in `src/several_fish_loading.py`; existing response metric/classification owners; phase tables/figures in `src/several_fish_diagnostics.py` and `src/several_fish_figures.py` |
 | Directional active-neuron containment or empty-source overlap behavior | `src-api-consumer-inventory.md` for fraction semantics | `src/active_neuron_analysis.py` |
 | Mirrored recruitment, observed-window activity, control/all-rocking containment summaries | `src-api-consumer-inventory.md` for neuron identity and equal-fish contracts | `src/several_fish_diagnostics.py`, then `src/several_fish_figures.py` |
 | Mirrored all-kept/shared-rocking response-pattern similarity | `src-api-consumer-inventory.md` for conditional-population and valid-count semantics | `src/several_fish_diagnostics.py`, then `src/several_fish_figures.py`; `src/stimulus_similarity.py` owns Pearson/cosine calculations |
@@ -47,6 +50,12 @@ use the matching row below to open the owner.
 | Historical facade import or removal question | `src-compatibility-decision.md` | Canonical owner named in the decision |
 
 ## Ownership guidance
+
+- Consistent preconditioning pools in phase recruitment: the diagnostic owner counts passing native trials across conditioned presentations with a configurable minimum fraction (ceil). `plot_phase_recruitment_decisions` reuses `plotting_diagnostics.plot_active_trace_decision_diagnostic` for Exp 7-style mean-trace and binary-decision panels; pooled preconditioning and own-condition recruitment remain separate definitions.
+
+- Significant phase recruitment: `build_phase_recruitment_analysis` in `src/several_fish_diagnostics.py` reuses native per-trial activity decisions, selects repetitions before counting memberships and prepares one-preconditioning-plus-bouts displays; `plot_phase_recruitment_rasters` and `plot_phase_recruitment_counts` in `src/several_fish_figures.py` own their figures. C1 overlap and new-after-own-preconditioning are distinct memberships.
+
+- Reviewed phase population displays: `build_phase_population_display` in `src/several_fish_diagnostics.py` selects one-based display repetitions and within-fish/pooled sorting using a fixed all-trial reference, optionally restricted by condition keys, alignment and nominal time bounds; `plot_phase_cohort_rasters` in `src/several_fish_figures.py` owns configurable raster/z-score colors, reference titles and original repetition labels. Display selection does not change phase measurements.
 - Pooled left/right response-profile heatmaps: `build_pooled_response_profiles` in `src/several_fish_diagnostics.py`; `build_response_profile_sort_order` in `src/neuron_ordering.py` owns preferred/Pearson/Euclidean ordering; `plot_pooled_response_profiles` in `src/several_fish_figures.py` owns the two figures.
 - Family-responsive breadth/combination denominators: `src/stimulus_specificity.py::build_family_responsive_membership_fractions`; prepared tables are assembled by `build_response_breadth_profiles`, and selected by the figure helper's `denominator` option.
 - Compact independent summary panels are owned by `src/several_fish_figures.py` (`separate=True`, `individual_style="anonymous_points"`); anonymous categorical dots and CDF dots belong to `plotting_diagnostics.py` and `plotting_specificity.py`. Exp 7 notebook 02 owns their dimensions, fonts and export selection.

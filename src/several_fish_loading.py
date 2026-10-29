@@ -6,7 +6,55 @@ import os
 from pathlib import Path
 
 import src.data_loading as exio
-from src.trial_alignment import resolve_selected_stimuli
+from src.trial_alignment import resolve_selected_stimuli, build_event_aligned_traces
+
+
+def load_reviewed_phase_cohort(settings):
+    """Load ready reviewed fish, retaining explicit readiness for every request.
+
+    Missing/inconsistent outputs are reported, never regenerated. Returns
+    ``all_fish_data``, ``fish_ids`` and a readiness DataFrame. Empty readiness
+    remains inspectable; analysis/figure entrypoints require a nonempty cohort.
+    Aligned z-score and raster arrays both contain the same retained neurons.
+    """
+    import pandas as pd
+
+    fish_ids = list(settings["fish_ids"])
+    if not fish_ids or len(set(fish_ids)) != len(fish_ids):
+        raise ValueError("Configure unique, nonempty fish IDs.")
+    data, rows = {}, []
+    for fid in fish_ids:
+        try:
+            with redirect_stdout(StringIO()):
+                fish = exio.load_reviewed_phase_experiment(fid, settings["experiment_name"],
+                    settings["main_path"], settings["stimuli_main_path"],
+                    settings["phase_metadata_path"], settings["stimulus_aliases"],
+                    settings["selected_blocks"], cache_root=settings.get("cache_roots", {}).get(fid))
+            fish["aligned"] = {}
+            for anchor in ("sequence", "bout"):
+                fish["aligned"][anchor] = {
+                    kind: build_event_aligned_traces(values, fish["trials"], fish["fps_2p"],
+                        alignment=anchor, t_pre_s=settings["display_pre_s"],
+                        recovery_s=settings["recovery_s"])
+                    for kind, values in (("zscore", fish["z_traces"][:, fish["kept_neuron_indices"]]),
+                                         ("raster", fish["raster"]))}
+            if data:
+                first = next(iter(data.values()))
+                if fish["fps_2p"] != first["fps_2p"]:
+                    raise ValueError("Included fish must share the imaging rate.")
+                for sid in fish["stimuli_ids"]:
+                    for anchor in fish["aligned"]:
+                        candidate = fish["aligned"][anchor]["zscore"]["trial_aligned_traces"][sid]
+                        reference = first["aligned"][anchor]["zscore"]["trial_aligned_traces"][sid]
+                        if candidate.shape[1:] != reference.shape[1:]:
+                            raise ValueError("Fish have incompatible per-condition time/trial shapes.")
+            data[fid] = fish
+            rows.append(dict(fish_id=fid, status="ready", reason="", session_id=fish["session_id"],
+                neurons=len(fish["kept_neuron_indices"]), trials=len(fish["trials"])))
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            rows.append(dict(fish_id=fid, status="missing" if isinstance(error, FileNotFoundError) else "invalid",
+                             reason=str(error), session_id=None, neurons=0, trials=0))
+    return dict(all_fish_data=data, fish_ids=list(data), readiness=pd.DataFrame(rows), settings=dict(settings))
 
 
 def _automatic_onedrive_candidates():

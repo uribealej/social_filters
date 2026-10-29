@@ -126,8 +126,14 @@ def save_analysis_report_run(
     notebook_path=None,
     extra_metadata=None,
     report_name=None,
+    figures=None,
+    figure_dpi=180,
 ):
-    """Save one timestamped analysis run record and an optional named notebook report."""
+    """Save a timestamped run, optional notebook export and named PNG figures.
+
+    ``figures`` maps report labels to Matplotlib figures; defaults preserve
+    existing report behavior. The save_report gate precedes every write.
+    """
     if not report_settings.get("save_report", False):
         print("Report saving is off. Set REPORT_SETTINGS['save_report'] = True to save this run.")
         return None
@@ -176,6 +182,15 @@ def save_analysis_report_run(
         pd.DataFrame(table).to_csv(table_path, index=False)
         saved_tables[name] = table_path
 
+    saved_figures = {}
+    if figures:
+        figures_dir = run_dir / "figures"
+        figures_dir.mkdir()
+        for name, figure in figures.items():
+            path = figures_dir / f"{_slugify_label(name)}.png"
+            figure.savefig(path, dpi=figure_dpi, bbox_inches="tight")
+            saved_figures[name] = path
+
     export_result = None
     if notebook_path is not None and report_settings.get("export_notebook", True):
         report_name = _slugify_label(report_name or "several_fish_report")
@@ -196,5 +211,6 @@ def save_analysis_report_run(
         "run_id": run_id,
         "run_dir": run_dir,
         "tables": saved_tables,
+        "figures": saved_figures,
         "export": export_result,
     }
