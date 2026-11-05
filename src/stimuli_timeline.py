@@ -508,6 +508,28 @@ def extract_stimulus_chunks(
     return chunked_data, trial_start_positions, movement_start_positions, movement_colors, stim_labels
 
 
+def stimulus_phase_intervals(duration):
+    """Return nominal display phases in seconds relative to stimulus appearance.
+
+    ``duration`` uses the canonical static_before_sec, motion_sec,
+    static_after_sec (optional, zero), and total_sec fields. Return ordered
+    (name, start_s, stop_s) spans, omitting zero-duration phases. Reject missing,
+    negative/nonfinite or inconsistent timing; do not infer phases from traces.
+    Here ``active`` includes motion/flicker as defined by the timing contract.
+    """
+    before, active, after, total = [float(duration[key]) if key in duration else 0.0
+        for key in ("static_before_sec", "motion_sec", "static_after_sec", "total_sec")]
+    if not {"static_before_sec", "motion_sec", "total_sec"} <= duration.keys():
+        raise ValueError("Stimulus phases require static_before_sec, motion_sec, and total_sec.")
+    if (not np.isfinite([before, active, after, total]).all()
+            or min(before, active, after, total) < 0
+            or not np.isclose(before + active + after, total, atol=0.001, rtol=0)):
+        raise ValueError("Stimulus phases must be finite, nonnegative, and sum to total_sec.")
+    edges = (0.0, before, before + active, total)
+    return [(name, start, stop) for name, start, stop in
+            zip(("static", "active", "static"), edges[:-1], edges[1:]) if stop > start]
+
+
 def summarize_durations(stimuli_durations):
     '''''
     Given a dict of stimuli durations, summarize common durations.

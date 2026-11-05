@@ -1,5 +1,7 @@
 """Known-output phase measurements, reviewed cache validation and fish weighting."""
 import json
+from pathlib import Path, PureWindowsPath
+import shutil
 import unittest
 
 import matplotlib
@@ -241,6 +243,15 @@ class PhasePopulationTests(unittest.TestCase):
         fig, axes = several_fish_figures.plot_phase_recruitment_counts(result, cohort["fish_ids"], conditions)
         self.assertEqual(axes[0, 0].patches[1].get_height(), 2)
         self.assertEqual(axes[1, 0].patches[1].get_height(), 2.5)
+        _, proportion_axes = several_fish_figures.plot_phase_recruitment_proportions(
+            result, cohort["fish_ids"], conditions)
+        # New-after-pre: 1/2 retained neurons in one fish, 4/5 in the other.
+        self.assertEqual(summary.loc[("first", "S1"), "fraction_new_after_pre"], 0.5)
+        self.assertEqual(summary.loc[("second", "S1"), "fraction_new_after_pre"], 0.8)
+        self.assertAlmostEqual(proportion_axes[1, 0].patches[1].get_height(), 0.65)
+        self.assertNotAlmostEqual(proportion_axes[1, 0].patches[1].get_height(), 5 / 7)
+        self.assertIn("all retained neurons", proportion_axes[1, 0].get_ylabel())
+        self.assertIn("N/A", [text.get_text() for text in proportion_axes[1, 0].texts])
         # A missing selected repetition must not classify the neuron as inactive.
         mask = trials.fish_id.eq("first") & trials.neuron_id.eq(3) & trials.condition.eq("S1")
         trials.loc[mask & trials.window.eq("bout") & trials.repetition.eq(2), "active_trial"] = np.nan
@@ -249,6 +260,44 @@ class PhasePopulationTests(unittest.TestCase):
         self.assertTrue(np.isnan(first.n_shared_c1))
         self.assertEqual(first.n_valid_shared_c1, 1)
         self.assertTrue(np.isnan(first.n_new_after_pre))
+        self.assertTrue(np.isnan(first.fraction_c1_retained))
+        self.assertTrue(np.isnan(first.fraction_new_after_pre))
+
+    def test_c1_proportions_use_control_pool_and_equal_fish_weights(self):
+        cohort, trials = self.recruitment_fixture()
+        conditions = {"left": ["C1", "S1"]}
+        # First fish retains its single C1 neuron; second retains 1 of 3.
+        # Stimulus-only neurons stay active but cannot enter the numerator.
+        control_ids = cohort["all_fish_data"]["second"]["kept_neuron_indices"][[2, 4]]
+        mask = (trials.fish_id.eq("second") & trials.condition.eq("S1")
+                & trials.window.eq("bout") & trials.neuron_id.isin(control_ids))
+        trials.loc[mask, "active_trial"] = 0
+        result = several_fish_diagnostics.build_phase_recruitment_analysis(
+            cohort, trials, conditions, (0, 3.6))
+        table = result["fish_summary"].set_index(["fish_id", "condition"])
+        self.assertEqual(table.loc[("first", "S1"), "n_shared_c1"], 1)
+        self.assertEqual(table.loc[("second", "S1"), "n_shared_c1"], 1)
+        self.assertEqual(table.loc[("first", "S1"), "fraction_c1_retained"], 1)
+        self.assertAlmostEqual(table.loc[("second", "S1"), "fraction_c1_retained"], 1 / 3)
+        fig, axes = several_fish_figures.plot_phase_recruitment_proportions(
+            result, cohort["fish_ids"], conditions)
+        self.assertEqual(axes.shape, (2, 1))
+        self.assertEqual(axes[0, 0].patches[0].get_height(), 1)
+        self.assertAlmostEqual(axes[0, 0].patches[1].get_height(), 2 / 3)
+        self.assertEqual(axes[0, 0].get_yticklabels()[-1].get_text(), "100%")
+        trials.loc[trials.condition.eq("S1") & trials.window.eq("bout"), "active_trial"] = 0
+        zero = several_fish_diagnostics.build_phase_recruitment_analysis(
+            cohort, trials, conditions, (0, 3.6))
+        self.assertTrue(zero["fish_summary"].loc[lambda t: t.condition.eq("S1")].fraction_c1_retained.eq(0).all())
+        # No C1-responsive neurons means undefined, rather than 0% overlap.
+        trials.loc[trials.condition.eq("C1") & trials.window.eq("bout"), "active_trial"] = 0
+        empty = several_fish_diagnostics.build_phase_recruitment_analysis(
+            cohort, trials, conditions, (0, 3.6))
+        self.assertTrue(empty["fish_summary"].fraction_c1_retained.isna().all())
+        self.assertTrue(empty["fish_summary"].loc[lambda t: t.condition.eq("S1")].fraction_new_after_pre.eq(0).all())
+        _, empty_axes = several_fish_figures.plot_phase_recruitment_proportions(
+            empty, cohort["fish_ids"], conditions)
+        self.assertIn("N/A", [text.get_text() for text in empty_axes[0, 0].texts])
 
     def test_preconditioning_mean_across_conditions_and_unique_union(self):
         cohort, trials = self.recruitment_fixture()
@@ -299,6 +348,37 @@ class PhasePopulationTests(unittest.TestCase):
         self.assertEqual(cohort["readiness"].status.tolist(), ["ready", "missing"])
         np.save(out / "filtered_neurons_by_stimuli/L1_f01_kept_neuron_indices.npy", [2, 0])
         with self.assertRaisesRegex(ValueError, "mapping"):
+            data_loading.load_reviewed_phase_experiment(**args)
+
+    def test_reviewed_cache_can_move_between_data_roots(self):
+        args, out = self.prepare_reviewed()
+        config_file = out / "phase_alignment/L1_f01_analysis_configuration.json"
+        config = json.loads(config_file.read_text())
+        original_source = Path(config["paths"]["dfof_file"])
+        relative = original_source.relative_to(args["main_path"])
+        # Model provenance saved on the other Windows workstation.
+        saved_source = str(PureWindowsPath("D:/Alejandro/Data/OneDrive - Universit\u00e9 de Lausanne/Lab/Data/2p") / relative)
+        config["paths"]["dfof_file"] = saved_source
+        config_file.write_text(json.dumps(config))
+        cache_file = out / "significant_traces/L1_f01_significant_traces.npz"
+        with np.load(cache_file) as cache:
+            values = {key: cache[key] for key in cache.files}
+        values["source_file"] = saved_source
+        np.savez(cache_file, **values)
+        moved = self.fixture.root / "other-computer" / "data"
+        shutil.copytree(args["main_path"], moved)
+        args["main_path"] = moved
+        loaded = data_loading.load_reviewed_phase_experiment(**args)
+        np.testing.assert_array_equal(loaded["kept_neuron_indices"], [0, 2])
+        self.assertEqual(loaded["paths"]["dfof_file"], moved / relative)
+        # Matching filenames alone cannot bypass source provenance or fish identity.
+        values["source_file"] = str(PureWindowsPath(saved_source).with_name("other_dFoF_merged.npy"))
+        np.savez(cache_file, **values)
+        with self.assertRaisesRegex(ValueError, "source file differs"):
+            data_loading.load_reviewed_phase_experiment(**args)
+        config["paths"]["dfof_file"] = values["source_file"]
+        config_file.write_text(json.dumps(config))
+        with self.assertRaisesRegex(ValueError, "source file differs"):
             data_loading.load_reviewed_phase_experiment(**args)
 
     def test_inconsistent_settings_and_timestamps_fail(self):

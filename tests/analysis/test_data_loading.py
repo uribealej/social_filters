@@ -14,6 +14,37 @@ import pandas as pd
 from src import data_loading
 
 
+class LabRootTests(unittest.TestCase):
+    """Check workstation discovery and explicit configuration precedence."""
+
+    def test_environment_home_and_explicit_roots(self):
+        with tempfile.TemporaryDirectory() as folder:
+            home = Path(folder)
+            root = home / "OneDrive - Universit\u00e9 de Lausanne" / "Lab"
+            other = home / "other-drive" / "Lab"
+            for lab in (root, other):
+                (lab / "Data" / "2p").mkdir(parents=True)
+            with patch.dict(os.environ, {}, clear=True), patch.object(Path, "home", return_value=home):
+                self.assertEqual(data_loading.resolve_lab_root(), root)
+                with patch.dict(os.environ, {"OneDriveCommercial": str(other.parent)}):
+                    self.assertEqual(data_loading.resolve_lab_root(), other)
+                    with patch.dict(os.environ, {"SOCIAL_FILTERS_LAB_ROOT": str(root)}):
+                        self.assertEqual(data_loading.resolve_lab_root(), root)
+                        self.assertEqual(data_loading.resolve_lab_root(other), other)
+                with self.assertRaisesRegex(FileNotFoundError, "SOCIAL_FILTERS_LAB_ROOT"):
+                    data_loading.resolve_lab_root(home / "missing")
+
+    def test_d_drive_fallback_without_onedrive_environment(self):
+        root = Path("D:/Alejandro/Data/OneDrive - Universit\u00e9 de Lausanne/Lab")
+        with (patch.dict(os.environ, {}, clear=True),
+              patch.object(Path, "home", return_value=Path("C:/Users/test")),
+              patch.object(Path, "glob", autospec=True,
+                  side_effect=lambda parent, pattern: [root.parent] if parent == Path("D:/Alejandro/Data") else []),
+              patch.object(Path, "is_dir", autospec=True,
+                  side_effect=lambda path: path == root / "Data" / "2p")):
+            self.assertEqual(data_loading.resolve_lab_root(), root)
+
+
 class ExperimentLoaderTests(unittest.TestCase):
     """Exercise the public loader against a small canonical experiment tree."""
 

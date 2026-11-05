@@ -3,7 +3,7 @@
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
+from matplotlib.ticker import MaxNLocator, PercentFormatter
 
 import src.active_neuron_analysis as active_neuron_analysis
 import src.plotting_all_fish as plot_all_fish
@@ -14,6 +14,7 @@ from src.several_fish_diagnostics import (
     build_all_fish_raster_inputs, build_high_sparseness_raster_data,
     build_lifetime_sparseness_summary, build_motion_active_counts,
     build_overlap_diagnostic_data, build_pooled_mean_trace_by_stimulus,
+    build_stimulus_panel_display,
 )
 from src.several_fish_reporting import slugify_label
 
@@ -275,23 +276,23 @@ def plot_phase_recruitment_decisions(recruitment, side, figsize=(14, 8)):
     return fig, axes
 
 
-def plot_phase_recruitment_counts(recruitment, fish_ids, side_conditions, figsize=(13, 8)):
-    """Equal-fish mean count bars and individual fish points for two memberships."""
-    fig, axes = plt.subplots(2, len(side_conditions), figsize=figsize,
+def _plot_phase_recruitment_summary(recruitment, fish_ids, side_conditions, metrics, figsize,
+                                    proportion=False):
+    """Render selected per-fish recruitment metrics with equal-fish mean bars."""
+    fig, axes = plt.subplots(len(metrics), len(side_conditions), figsize=figsize,
         sharey="row", squeeze=False, layout="constrained")
     table = recruitment["fish_summary"]
     colors = plt.get_cmap("tab10")
     for j, (side, conditions) in enumerate(side_conditions.items()):
-        for i, (metric, title) in enumerate([
-                ("n_shared_c1", "Shared with C1 during bout"),
-                ("n_new_after_pre", "New after own preconditioning")]):
+        for i, (metric, title, ylabel) in enumerate(metrics):
             ax = axes[i, j]
             values = table.loc[table.side.eq(side)].pivot(index="fish_id", columns="condition", values=metric)
             values = values.reindex(index=fish_ids, columns=conditions)
             x = np.arange(len(conditions))
             means = values.mean(axis=0).to_numpy()
             bars = ax.bar(x, means, color="#cccccc", width=0.65, zorder=1)
-            ax.bar_label(bars, labels=[f"{v:.1f}" if np.isfinite(v) else "N/A" for v in means],
+            labels = [(f"{v:.1%}" if proportion else f"{v:.1f}") if np.isfinite(v) else "N/A" for v in means]
+            ax.bar_label(bars, labels=labels,
                          padding=4, fontsize=8)
             for position in np.flatnonzero(~np.isfinite(means)):
                 ax.text(position, 0.025, "N/A", transform=ax.get_xaxis_transform(),
@@ -300,19 +301,62 @@ def plot_phase_recruitment_counts(recruitment, fish_ids, side_conditions, figsiz
                 ax.plot(x + (k - (len(fish_ids) - 1) / 2) * 0.025,
                     values.loc[fid], ".-", linewidth=0.5, markersize=5,
                     color=colors(k % 10), alpha=0.75, label=fid, zorder=2)
-            ax.set(xticks=x, xticklabels=conditions, ylabel="Neuron count", title=f"{side.capitalize()}: {title}")
+            ax.set(xticks=x, xticklabels=conditions, ylabel=ylabel, title=f"{side.capitalize()}: {title}")
             ax.set_xlim(-0.5, len(conditions) - 0.5)
             ax.set_ylim(bottom=0)
             ax.margins(y=0.15)
+            if proportion:
+                ax.set_ylim(0, 1.12)
+                ax.set_yticks(np.linspace(0, 1, 5))
+                ax.yaxis.set_major_formatter(PercentFormatter(xmax=1))
     handles, labels = axes[0, 0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="lower center", bbox_to_anchor=(0.5, -0.07),
         ncol=min(4, len(fish_ids)), frameon=False, fontsize=8)
     repetitions = next(iter(recruitment["displays"].values()))["repetitions"]
     cohort_label = "SINGLE-FISH preview" if len(fish_ids) == 1 else f"{len(fish_ids)} fish"
-    fig.suptitle(cohort_label + " | significant activity | repetitions " + ", ".join(map(str, repetitions))
-        + " | bars: equal-fish means; points: individual fish")
+    title = (cohort_label + " | significant activity | repetitions " + ", ".join(map(str, repetitions))
+             + " | bars: equal-fish means; points: individual fish")
+    if proportion:
+        title += "\nPercentages calculated per fish; denominators shown on each row"
+    fig.suptitle(title)
     fig.canvas.draw()
     return fig, axes
+
+
+def plot_phase_recruitment_counts(recruitment, fish_ids, side_conditions, figsize=(13, 8)):
+    """Equal-fish mean count bars and individual fish points for two memberships."""
+    metrics = [("n_shared_c1", "Shared with C1 during bout", "Neuron count"),
+               ("n_new_after_pre", "New after own preconditioning", "Neuron count")]
+    return _plot_phase_recruitment_summary(recruitment, fish_ids, side_conditions, metrics, figsize)
+
+
+def plot_phase_recruitment_proportions(recruitment, fish_ids, side_conditions, figsize=(13, 8)):
+    """Plot C1 overlap and new-after-preconditioning fractions in separate rows.
+
+    Args:
+        recruitment (dict): build_phase_recruitment_analysis output containing
+            per-fish fraction_c1_retained = shared C1/stimulus count / C1 count,
+            and fraction_new_after_pre = new-after-own-pre count / retained count.
+        fish_ids (sequence): Fish order for individual points and equal-fish means.
+        side_conditions (dict): Side to ordered conditions, starting with C1.
+        figsize (tuple): Figure dimensions in inches.
+
+    Returns:
+        tuple: Figure and axes with shape (2, number of sides). Fractions are
+        displayed as percentages. Stimulus-only neurons do not contribute to
+        C1 overlap. New-after-pre counts bout-active, own-preconditioning-inactive
+        neurons among all retained neurons, regardless of C1 membership.
+        Empty C1 pools leave the first row undefined; C1 has no preconditioning
+        so its second-row values are N/A. Incomplete classifications stay missing;
+        bars average defined fish fractions equally, without pooling neurons.
+    """
+    metrics = [
+        ("fraction_c1_retained", "C1 neurons also active during bout",
+         "Shared / C1-responsive\nneurons (%)"),
+        ("fraction_new_after_pre", "New after own preconditioning",
+         "New after preconditioning /\nall retained neurons (%)")]
+    return _plot_phase_recruitment_summary(
+        recruitment, fish_ids, side_conditions, metrics, figsize, proportion=True)
 
 
 def plot_phase_population_comparisons(analysis, fish_ids, side_conditions, bout_windows,
@@ -909,6 +953,57 @@ def build_all_fish_raster_figure(
     }
 
 
+def build_all_fish_stimulus_figures(all_fish_data, fish_ids, stim_order, reference_fish,
+                                    timing, raster_settings, side_stimuli,
+                                    neuron_order=None, z_limits=(0, 10), mean_ylim=None,
+                                    raster_figsize=(12, 3.5), mean_figsize=(12, 3.5),
+                                    combined_figsize=(12, 5), cmap="Greys"):
+    """Build separate and combined stimulus panels for each requested side.
+
+    Input cohort/timing/settings match build_all_fish_raster_figure. side_stimuli
+    maps side labels to nonempty stimulus-ID subsets in desired column order.
+    All figures reuse one trial-mean z-score display and full neuron permutation;
+    a supplied order can be taken directly from the existing raster. Color and
+    trace scales match across sides/layouts. Dimensions are inches per figure.
+
+    Returns a dict with display (including original/displayed row metadata),
+    figures and axes keyed by side_layout (raster, mean, combined). No file
+    writes, forced display, changes to old raster settings, or new filtering.
+    """
+    prepared = build_stimulus_panel_display(all_fish_data, fish_ids, stim_order,
+        reference_fish, timing, raster_settings, neuron_order=neuron_order)
+    return plot_all_fish_stimulus_figures(prepared, side_stimuli, z_limits=z_limits,
+        mean_ylim=mean_ylim, raster_figsize=raster_figsize, mean_figsize=mean_figsize,
+        combined_figsize=combined_figsize, cmap=cmap)
+
+
+def plot_all_fish_stimulus_figures(prepared, side_stimuli, z_limits=(0, 10),
+                                   mean_ylim=None, raster_figsize=(12, 3.5),
+                                   mean_figsize=(12, 3.5), combined_figsize=(12, 5),
+                                   cmap="Greys"):
+    """Redraw all side/layout variants from a previously sorted display.
+
+    prepared is the unchanged build_stimulus_panel_display result; side_stimuli
+    selects nonempty stimulus-ID subsets in column order. Appearance arguments
+    match build_all_fish_stimulus_figures. Return the same display/figures/axes
+    bundle, without loading traces, rebuilding trial means, sorting, or mutating
+    prepared data. The inexpensive equal-fish mean is drawn from cached traces.
+    Call repeatedly for font/size/color/limit edits without rerunning sorting.
+    """
+    if not side_stimuli or any(not ids or len(set(ids)) != len(ids)
+        or not set(ids) <= set(prepared["stimulus_ids"]) for ids in side_stimuli.values()):
+        raise ValueError("side_stimuli must contain nonempty unique subsets of stim_order.")
+    figures, axes = {}, {}
+    for side, ids in side_stimuli.items():
+        for layout, figsize in (("raster", raster_figsize), ("mean", mean_figsize),
+                                ("combined", combined_figsize)):
+            key = f"{side}_{layout}"
+            figures[key], axes[key] = plot_all_fish.plot_stimulus_response_panels(
+                prepared, ids, layout, figsize=figsize, z_limits=z_limits,
+                mean_ylim=mean_ylim, cmap=cmap, title=f"{side.capitalize()} stimuli")
+    return {"display": prepared, "figures": figures, "axes": axes}
+
+
 def plot_lifetime_sparseness_analysis(
     all_fish_data,
     fish_ids,
@@ -1226,6 +1321,41 @@ def plot_left_right_active_overlap_diagnostics(
                 plt.show()
 
     return results
+
+
+def plot_shared_control_auc(analysis, metric="normalized_auc", figsize=(85 / 25.4, 60 / 25.4)):
+    """Plot per-fish control-minus-stimulus differences for pairwise shared neurons.
+
+    analysis is build_shared_control_auc_analysis's result. metric is raw_auc
+    (z-score seconds) or normalized_auc (AUC / actual integration span, z-score).
+    Return side -> (Figure, Axes), with common y limits, one gray dot per finite
+    fish/condition and a black equally weighted fish mean. Empty intersections
+    leave gaps; the horizontal zero line separates stronger control from weaker.
+    No tests, file writes, reclassification or forced display are performed.
+    """
+    if metric not in {"raw_auc", "normalized_auc"}:
+        raise ValueError("metric must be raw_auc or normalized_auc.")
+    table = analysis["tables"]["shared_auc_per_fish"]
+    value = f"mean_delta_{metric}"
+    finite = table.loc[np.isfinite(table[value]), value].to_numpy()
+    low, high = (min(0, finite.min()), max(0, finite.max())) if finite.size else (-1, 1)
+    pad = max((high - low) * 0.12, 0.1)
+    ylabel = "Control − stimulus\n" + ("AUC (z-score s)" if metric == "raw_auc" else "Normalized AUC (z-score)")
+    panels = {}
+    for side, selection in analysis["side_selections"].items():
+        fig, ax = plt.subplots(figsize=figsize)
+        plot_diagnostics.plot_paired_fish_values(table.loc[table.side.eq(side)], value,
+            selection["condition_labels"], analysis["fish_ids"], ax, ylabel,
+            individual_style="anonymous_points")
+        ax.axhline(0, color="0.4", linestyle="--", linewidth=0.5, zorder=0)
+        ax.set_ylim(low - pad, high + pad)
+        ax.set_title(f"{side.capitalize()}: shared with {selection['control_label']}")
+        handles, labels = ax.get_legend_handles_labels()
+        fig.legend(handles, labels, loc="lower center", bbox_to_anchor=(0.60, 0.005),
+                   frameon=False, ncol=2, handlelength=1.1, columnspacing=0.8)
+        fig.subplots_adjust(left=0.25, right=0.97, bottom=0.30, top=0.86)
+        panels[side] = (fig, ax)
+    return panels
 
 
 def plot_motion_active_neuron_counts(

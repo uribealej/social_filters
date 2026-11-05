@@ -151,10 +151,52 @@ def compute_sort_orders(data, n_clusters=3, random_state=42):
     }
 
 
+def _rastermap_sort_order(data, random_state):
+    """Return a full neuron permutation from a (time, neurons) matrix.
+
+    Fit finite, nonconstant neuron traces only; append all other neurons in
+    source order. Zero, one, or two usable neurons retain source order. Only
+    the sorting copy is normalized by Rastermap; displayed values are intact.
+    Rastermap is an optional dependency, imported only for this sorting mode.
+    """
+    try:
+        from rastermap import Rastermap
+    except ImportError as exc:
+        raise ImportError(
+            "Rastermap sorting requires rastermap in the notebook environment. "
+            "Run %pip install \"rastermap>=1.0,<2\" in a notebook cell, then restart "
+            "the kernel; or select 'corravg'."
+        ) from exc
+
+    traces = np.asarray(data, dtype=float).T
+    finite = np.isfinite(traces).all(axis=1)
+    valid = finite & (np.ptp(np.where(np.isfinite(traces), traces, 0), axis=1) > 0)
+    good, other = np.flatnonzero(valid), np.flatnonzero(~valid)
+    if good.size < 3:
+        return np.concatenate([good, other])
+
+    values = traces[good].astype(np.float32)
+    model = Rastermap(
+        n_PCs=min(200, min(values.shape) - 1),
+        n_clusters=min(100, good.size // 2),
+        # Small populations skip clustering in Rastermap; avoid interpolating
+        # a tiny set of nodes. Larger populations use its usual upsampling.
+        grid_upsample=0 if good.size <= 50 else 10,
+        random_state=random_state, verbose=False, verbose_sorting=False,
+    ).fit(values, compute_X_embedding=False)
+    order = np.asarray(model.isort)
+    if (order.shape != (good.size,) or not np.issubdtype(order.dtype, np.integer)
+            or not np.array_equal(np.sort(order), np.arange(good.size))):
+        raise ValueError("Rastermap must return each fitted neuron exactly once.")
+    return np.concatenate([good[order], other])
+
+
 def compute_single_sort_order(data, sort_mode, n_clusters=3, random_state=42):
     """
     data: array (time, neurons) – e.g. chunked_data.T
-    sort_mode: 'unsorted', 'max_intensity', 'pca', 'kmeans', 'hier', 'corravg'
+    sort_mode: 'unsorted', 'max_intensity', 'pca', 'kmeans', 'hier', 'corravg',
+        or 'rastermap' (optional package; finite, variable rows fitted and other
+        rows appended in source order; uses up to 200 PCs and 100 clusters).
     returns: index array or None (for 'unsorted')
     """
     data = np.asarray(data)
@@ -163,6 +205,9 @@ def compute_single_sort_order(data, sort_mode, n_clusters=3, random_state=42):
 
     if sort_mode == "unsorted":
         return None
+
+    if sort_mode == "rastermap":
+        return _rastermap_sort_order(data, random_state)
 
     # (a) Max intensity per neuron
     if sort_mode == "max_intensity":
@@ -227,4 +272,4 @@ def compute_single_sort_order(data, sort_mode, n_clusters=3, random_state=42):
         return neuron_order
 
     raise ValueError(f"Unknown sort_mode {sort_mode!r}. "
-                     f"Use one of: 'unsorted', 'max_intensity', 'pca', 'kmeans', 'hier', 'corravg'.")
+                     f"Use one of: 'unsorted', 'max_intensity', 'pca', 'kmeans', 'hier', 'corravg', 'rastermap'.")

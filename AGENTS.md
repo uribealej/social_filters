@@ -16,6 +16,7 @@ This repository uses a routed instruction system under `.agents/` so future agen
 - Stimulus generation scripts in `scripts/stimuli/generation/` are wrappers around experiment-specific asset generation, not downstream timing authority.
 - Fix scientific or file-contract semantics at the narrowest owner layer instead of patching downstream notebooks.
 - Preserve canonical output names, folder layouts, and stage order unless a task explicitly includes a migration.
+- Paths must work on both workstations: discover the local OneDrive Lab root with `src.data_loading.resolve_lab_root()` instead of hardcoding one computer's drive or username. Support the home OneDrive and `D:/Alejandro/Data` layouts and the `SOCIAL_FILTERS_LAB_ROOT` override. Keep experiment paths relative to that root; when loading moved caches, validate experiment/session/neuron identity without requiring the old absolute root.
 
 ## Validation by change
 - Documentation-only: inspect the diff and verify affected paths, links, and factual claims against the repository.

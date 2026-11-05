@@ -46,6 +46,13 @@ machine-contract symbol changed in this audit.
 
 ## Consumer overview
 
+Both Exp 9 notebooks use `data_loading.resolve_lab_root()` to discover the local
+OneDrive Lab folder from environment variables, home, or `D:/Alejandro/Data`.
+An explicit Lab root or `SOCIAL_FILTERS_LAB_ROOT` overrides discovery. Reviewed
+phase caches may move between data roots when their source path matches saved
+configuration provenance and the complete relative fish/stage/filename agrees;
+session, timing, settings, shape and neuron-identity validation remains required.
+
 Exp 9 `02_population_analysis.ipynb` loads reviewed caches through the existing
 loading owners and preserves original retained-neuron IDs. Its phase adapters
 reuse `multifish_matrices` repetition/pooling, `neuron_ordering`, existing AUC
@@ -85,7 +92,18 @@ The preconditioning display averages S1-S5/repetitions equally, while membership
 classification remains per condition. Neuron identities and grouped row order
 are retained for export. `plot_phase_recruitment_rasters` shows one preconditioning
 panel and six bouts; `plot_phase_recruitment_counts` shows equal-fish mean count
-bars and individual fish points. Other metric cells keep their original trials.
+bars and individual fish points. The additional `plot_phase_recruitment_proportions`
+uses two rows (axes shape `(2, number of sides)`): existing `fraction_c1_retained`,
+shared C1/condition neurons divided by
+same-side C1-active neurons, calculated per fish before averaging defined fish
+equally. Stimulus-only neurons do not contribute. Empty C1 pools and missing
+required decisions remain NaN (N/A); a defined C1 self-overlap is 100%.
+The second row uses existing `fraction_new_after_pre`, bout-active neurons
+inactive during their own preconditioning divided by all retained neurons in
+that fish, regardless of C1 membership. C1's second-row entry is N/A because
+it has no preconditioning. Its denominator stays fixed even if C1 has no active
+neurons. Defined fish fractions are averaged equally for both rows.
+Other metric cells keep their original trials.
 The display's stable preconditioning pool now counts native passing trials
 across S1-S5 and selected repetitions: `pre_active_fraction=0.75` requires 12/15
 (ceil). Its exported `preconditioning_pool` table retains passing/valid/expected
@@ -348,11 +366,13 @@ Its scientific thresholds remain explicit parameters. Output filenames are owned
 
 ### Several-fish workflow gateways
 
-Exp 7 notebook 02 section 15 pools all-kept neurons via `build_pooled_response_profiles`, retaining per-neuron fish/source/global identities and identical left/right row order. Joint ordering concatenates both sides' six non-control response features; control remains displayed. `build_response_profile_sort_order` adds optional Pearson-distance or Euclidean-distance average-linkage ordering, retaining its historical `preferred` default. Pearson requires complete nonconstant rows; Euclidean requires complete rows; undefined profiles follow in source order without imputation. Zero/one clusterable-row inputs remain valid. `plot_pooled_response_profiles` returns left/right figure/axis pairs with matched raw signed values and shared symmetric color limits. Notebook controls expose sort mode, individual panel size, and optional color saturation; a smaller explicit bound changes colors only and adds colorbar extensions. Section 16's per-fish core layout is unchanged. The optional report includes `pooled_profile_display_rows` and separate sort settings for pooled all-kept and per-fish core profiles.
+Exp 7 notebook 02 omits original sections 6, 9–11 and 15–20, retaining original numbering. It displays recruitment/activity, control/all-rocking containment, family breadth, and exact combinations. Shared population/profile preparation remains required by the existing breadth helper. Its optional report excludes pairwise overlap/similarity, continuous-profile, and sparseness tables; publication export contains only sections 5, 7, 13 and 14. Notebook 01 and all shared helpers remain unchanged by this cleanup.
+
+`build_pooled_response_profiles` remains available for other consumers, retaining per-neuron fish/source/global identities and identical left/right row order. Joint ordering concatenates both sides' six non-control response features; control remains displayed. `build_response_profile_sort_order` supports optional Pearson-distance or Euclidean-distance average-linkage ordering, retaining its historical `preferred` default. Pearson requires complete nonconstant rows; Euclidean requires complete rows; undefined profiles follow in source order without imputation. Zero/one clusterable-row inputs remain valid. `plot_pooled_response_profiles` returns left/right figure/axis pairs with matched raw signed values and shared symmetric color limits.
 
 Exp 7 notebook 02 sections 13–14 select `denominator="family_responsive"`: each fish/side/family uses the union of that family's variant-responsive neurons, excludes zero-active categories, and contributes equally to the mean when the denominator is nonzero. `stimulus_specificity.build_family_responsive_membership_fractions` owns the calculation. `build_response_breadth_profiles` adds `response_breadth_family_responsive` and `response_combinations_family_responsive` tables with `n_family_responsive_neurons` and `fraction_family_responsive`. Existing all-kept tables, counts, profiles, and helper defaults remain intact. Report serialization includes both new tables and records the plotted denominator separately from the base-table denominator.
 
-The five summary figure helpers used in Exp 7 notebook 02 sections 5, 7, 13, 14, 18, 19 and 20 accept additive `separate=False` and `individual_style="identified"` options. Defaults retain `(Figure, 2-by-2 axes)` grids and identified fish lines. Separate mode returns four ordered `panel_key: (Figure, Axes)` entries, with `figsize` applying to each panel and matching left/right scales. Anonymous-point style retains fish data and means while hiding identity and individual connecting lines, including CDF evaluation dots. The notebook uses 45 × 27.5 mm panels and 6 pt Arial, and exports each panel independently. Separate exact-combination panels use binary tick codes in the family's labeled variant order, preserving category order and membership values.
+The summary figure helpers accept additive `separate=False` and `individual_style="identified"` options. Defaults retain `(Figure, 2-by-2 axes)` grids and identified fish lines. Separate mode returns four ordered `panel_key: (Figure, Axes)` entries, with `figsize` applying to each panel and matching left/right scales. Anonymous-point style retains fish data and means while hiding identity and individual connecting lines, including CDF evaluation dots. Exp 7 notebook 02 uses the recruitment, containment, and breadth helpers in sections 5, 7, 13 and 14 with 45 × 27.5 mm panels and 6 pt Arial, exporting each panel independently. Separate exact-combination panels use binary tick codes in the family's labeled variant order, preserving category order and membership values. Sparseness figure helpers remain available to other consumers.
 
 Exp 7 notebooks 01/02 declare final-size publication styles and local millimetre figure sizes. `plotting_common.save_publication_figure` optionally saves PDF/SVG/PNG without tight cropping, preserving the configured canvas size and explicit raster DPI. `plot_response_profile_panels(..., fish_ids=None)` retains whole-cohort behavior by default; a nonempty ordered subset splits profiles into compact blocks without recalculating or rescaling responses. `plot_left_right_active_overlap_diagnostics` additionally retains `overlap_figure` and `diagnostic_figure` in each side's result when those figures are drawn, enabling exports after notebook display.
 
@@ -362,7 +382,7 @@ The returned `tables` are `family_sparseness_neurons`, `family_sparseness_per_fi
 
 `build_response_breadth_profiles(analysis, similarity)` adds stage-3 family membership and signed profiles from matching prepared bundles, without loading, classification, or normalization. It checks cached response values and source-neuron identities. The result contains fish/condition/population order, family labels, exact combination order, `profiles[fish][side][population]`, `profile_color_limit`, and report tables. Memberships use all kept neurons, independently within each fish, side, and family. All breadth and exact-combination categories are present, including zero counts; empty denominators produce NaN. Summary fractions are equal-fish arithmetic means with `valid_fish`, while summed counts/denominators are retained separately and are not used as pooled fraction estimates.
 
-The stage-3 tables are `response_memberships`, `response_breadth`, `response_combinations`, their two `*_summary` tables, and `response_profile_rows`. Profiles retain signed normalized AUC in canonical condition order. Each panel retains display-row identities and is sorted by largest signed weaker-variant response, descending largest value, then original row order; rows with no finite weaker-variant values go last. Sorting is descriptive and does not validate preference. Both population figures use one full-range symmetric color bound, with a bound of 1 only for all-zero/all-missing data; missing values are gray and empty cores are annotated. Left/right core selections and display rows are independent. Notebook 02 adds these tables to the existing report, still disabled by default; the additive stage-4 sparseness workflow is documented above.
+The stage-3 tables are `response_memberships`, `response_breadth`, `response_combinations`, their two `*_summary` tables, and `response_profile_rows`. Profiles retain signed normalized AUC in canonical condition order. Each panel retains display-row identities and is sorted by largest signed weaker-variant response, descending largest value, then original row order; rows with no finite weaker-variant values go last. Sorting is descriptive and does not validate preference. Both population figures use one full-range symmetric color bound, with a bound of 1 only for all-zero/all-missing data; missing values are gray and empty cores are annotated. Left/right core selections and display rows are independent. Notebook 02 reports membership/breadth/combination tables, with saving disabled by default; response-profile rows are omitted from its report. The shared stage-4 sparseness workflow remains available to other consumers.
 
 `build_response_similarity_comparison(analysis)` is an additive stage-2 gateway consuming the unchanged stage-1 result. It uses identity-aligned signed `normalized_auc` rows, never reloads data or repeats activity classification, and delegates Pearson/cosine to `stimulus_similarity.build_stimulus_vector_similarity`. It compares `all_kept` and `all_rocking` populations separately within each fish and side. The latter is selected by intersecting that side's rocking activity columns, with one fixed neuron selection across all stimulus comparisons; rocking-versus-rocking Jaccard is therefore one by construction when the core is nonempty.
 
@@ -379,6 +399,64 @@ Containment row A/column B is `|A intersection B| / |A|`; Jaccard is intersectio
 `settings['data_base']=None` enables automatic path discovery in this order: `OneDriveCommercial`, `OneDrive`, university OneDrive folders under the current user's home, then those under `D:\Alejandro\Data`. Candidates are deduplicated and must contain both `Lab/Data/2p` and `Lab/Analysis`; the two returned roots always come from the same candidate. Explicit `data_base` values remain parent-folder overrides with the previous lookup and failure behavior, without automatic fallback. Exp 7 opts into discovery and displays the resolved roots after loading; existing experiment notebooks keep their explicit settings.
 
 `build_all_fish_raster_figure` returns a dictionary containing the flat matrix, optional left-right index, neuron order, figure, axes, and image.
+
+Exp 7 notebook 01 section 4 overrides its panel's sort mode via `RASTER_SORT_MODE`
+(Corravg by default; Rastermap, left/right index and unsorted remain selectable).
+`RASTER_SIDE` selects both/left/right stimulus conditions in configured order,
+retaining every neuron. Corravg/Rastermap fit displayed conditions; left/right
+index still uses both controls. Local selection does not change later analyses.
+`compute_single_sort_order(..., "rastermap")` lazily imports Rastermap >=1.0,<2,
+fits finite nonconstant traces, and appends other rows in source order. It uses
+up to 200 PCs/100 clusters, passes the existing random seed, and returns a full
+permutation without replacing displayed data with Rastermap's normalized/binned
+matrix. Fewer than three usable traces retain their source order. Missing
+Rastermap raises an installation hint; other modes do not require the package.
+The optional report records the actual panel sort, side, and stimulus order.
+
+Exp 7 notebook 01 section 6b adds shared-neuron response-strength comparisons.
+Section 6 exposes its unchanged defaults through `SECTION6_ACTIVE_SETTINGS`;
+`build_shared_control_auc_analysis` consumes the resulting unsorted binary
+decision matrices and row identities, validating current fish/kept rows and
+continuous/raster time/trial shapes. It does not rerun activity classification.
+Each control/comparison pair uses its own intersection. Measurement starts at
+that condition's loaded static-before boundary and ends at motion end plus
+`SHARED_AUC_DECAY_S` (default 5 s), independently of section 6's selection window.
+`compute_motion_decay_auc` delegates integration/window selection to existing
+owners, retains signed values, rejects nonfinite neuron/trials, and averages
+fully finite trials. It returns raw AUC (z-score seconds), normalized AUC divided
+by the actual sample span (one frame period for one sample), valid-trial counts,
+and requested/observed bounds with clipping flags. Shared-neuron source indices,
+pairwise deltas and finite/shared counts remain in `shared_neuron_auc`,
+`shared_auc_per_fish`, `shared_auc_summary`, and `shared_auc_windows`. Empty
+intersections/missing pairs remain NaN. Cohort summaries average finite per-fish
+paired means equally. `plot_shared_control_auc` defaults to normalized AUC;
+`raw_auc` remains selectable. Separate side figures use anonymous fish dots and
+a zero reference; positive means stronger control. Tables/measurement settings
+join the optional report, and `shared_control_auc_*` joins publication export.
+
+Exp 7 notebook 01 section 4b adds `build_all_fish_stimulus_figures` without
+altering section 4. Each requested side gets standalone rasters, per-fish traces
+with an equal-fish mean, and rasters above the same traces. Its diagnostic owner
+`build_stimulus_panel_display` averages repetitions per neuron, preserves source
+row identities, and returns condition-keyed neuron-by-time matrices and
+fish-by-time means. A supplied original-raster order is reused; otherwise the
+configured sorter runs once across all configured conditions. Left/right panels
+share that order and common color/trace limits. Time axes restart relative to
+stimulus appearance for each column. `stimulus_phase_intervals` validates the
+existing static-before/active/static-after duration fields; it does not infer
+new event timings. The plotting primitive adds nominal phase shading and
+stimulus-on/off markers. New figures are included in optional publication
+export under `stimulus_panels_*`, leaving existing export names unchanged.
+
+Section 4b now separates `build_stimulus_panel_display` (one preparation/sorting
+cell) from `plot_all_fish_stimulus_figures` (appearance-only redraws). The latter
+accepts the prepared display and returns the same figure/axes bundle without
+reloading traces, rebuilding trial means, sorting, or mutating the cached result. The original
+`build_all_fish_stimulus_figures` remains a compatible prepare-and-draw wrapper.
+The plotting cell owns `PANEL_FONT_PT` (default 6 for all text), side selection,
+limits, colors, and halved physical dimensions: raster 150 × 45 mm, means
+150 × 42.5 mm, combined 150 × 65 mm. Titles contain only stimulus names, fish
+traces have no name legend, and the phase key and Time (s) label appear once.
 
 `save_analysis_report_run` is intentionally stateful. When enabled it creates a timestamped report folder containing settings JSON, report-settings JSON, run metadata JSON, comments Markdown, optional CSV tables, and an optional notebook export. It returns `run_id`, `run_dir`, saved table paths, and export status; when saving is disabled it returns `None`.
 

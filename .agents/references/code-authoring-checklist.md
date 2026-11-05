@@ -12,6 +12,7 @@ The full reproducibility policy remains the source of truth. Read it when changi
 - Keep experiment, fish, stimulus, threshold, color, and figure settings outside shared functions.
 - Preserve canonical output names, layouts, dimension conventions, and stage order unless the task explicitly includes a migration.
 - Fix scientific and file-contract behavior at its owner rather than compensating in a downstream notebook.
+- Keep paths portable between the home OneDrive and `D:/Alejandro/Data` workstations. Use `src.data_loading.resolve_lab_root()` (or an explicit configurable root), derive subpaths from it, and preserve provenance checks when accepting relocated caches.
 
 ## When writing `src/` code
 

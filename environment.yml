@@ -29,6 +29,8 @@ dependencies:
 
   # Specialized TIFF preprocessing and stimulus playback
   - pip:
+      # Optional display sorting in all-fish rasters (loaded only when selected).
+      - "rastermap>=1.0,<2"
       # Needed when extracting aux triggers; src imports without this reader.
       - scanimage-tiff-reader
       - psychopy

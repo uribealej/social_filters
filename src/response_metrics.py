@@ -3,7 +3,54 @@
 import numpy as np
 import pandas as pd
 
-from src.trial_alignment import resolve_selected_stimuli, trial_aligned_time_axis
+from src.trial_alignment import (
+    resolve_selected_stimuli, trial_aligned_time_axis, compute_response_window_frames,
+)
+
+
+def compute_motion_decay_auc(traces, stimulus_duration, fps_2p, t_pre_s, decay_s=5.0):
+    """Measure signed AUC during motion plus an explicit post-motion tail.
+
+    traces is (neurons, time, trials), in z-score units. Canonical duration
+    metadata supplies static_before_sec and motion_sec; no baseline subtraction
+    or rectification is added. The window is [motion onset, motion end + decay_s)
+    on the nominal aligned axis, clipped to available samples. Reuse the window
+    owner (whose tau_s convention is half the total extension) and AUC owner.
+
+    Return raw_auc (z-score seconds), normalized_auc (raw / actual trapezoidal
+    sample span), n_valid_trials, and window provenance. Any nonfinite sample
+    invalidates that neuron/trial; average only its fully finite trials. No
+    finite trials gives NaN. Single-sample integration spans one frame period.
+    """
+    arr = np.asarray(traces, dtype=float)
+    if arr.ndim != 3 or not arr.shape[2] or not np.isfinite(decay_s) or decay_s < 0:
+        raise ValueError("Expected (neurons, time, nonempty trials) and nonnegative decay_s.")
+    from src.stimuli_timeline import stimulus_phase_intervals
+    stimulus_phase_intervals(stimulus_duration)
+    window = compute_response_window_frames(
+        arr.shape[1], fps_2p, t_pre_s=t_pre_s,
+        motion_onset_s=stimulus_duration["static_before_sec"],
+        motion_duration_s=stimulus_duration["motion_sec"], tau_s=decay_s / 2,
+    )
+    indices = window["frame_indices"]
+    auc = compute_trial_auc_by_neuron(arr, indices, time_s=window["time_s"], fps_2p=fps_2p)
+    valid = np.isfinite(arr[:, indices, :]).all(axis=1)
+    auc[~valid] = np.nan
+    counts = valid.sum(axis=1)
+    average = np.full(arr.shape[0], np.nan)
+    np.divide(np.where(valid, auc, 0).sum(axis=1), counts, out=average, where=counts > 0)
+    times = window["time_s"][indices]
+    span = float(times[-1] - times[0]) if len(times) > 1 else 1 / fps_2p
+    return {"raw_auc": average, "normalized_auc": average / span,
+            "n_valid_trials": counts, "window": {
+                "start_s": window["start_s"],
+                "motion_end_s": float(stimulus_duration["static_before_sec"] + stimulus_duration["motion_sec"]),
+                "decay_s": float(decay_s), "requested_end_s": window["requested_end_s"],
+                "observed_end_s": window["end_s"], "first_sample_s": float(times[0]),
+                "last_sample_s": float(times[-1]), "integration_span_s": span,
+                "n_frames": len(indices), "n_trials": arr.shape[2],
+                "window_clipped": window["end_s"] < window["requested_end_s"] - 1e-9,
+            }}
 
 
 def compute_explicit_window_metrics(traces, frame_indices, time_s, fps_2p, baseline=None):

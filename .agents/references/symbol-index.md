@@ -35,6 +35,7 @@ call time. The module itself must import without the TIFF reader installed;
 missing readers raise an actionable `ImportError` from the function.
 
 ### `src/data_loading.py`
+- `resolve_lab_root` - discover the local university OneDrive Lab/Data/2p root on either workstation; accepts an explicit Lab root or the `SOCIAL_FILTERS_LAB_ROOT` environment override.
 - `load_reviewed_phase_experiment` - read and validate reviewed phase caches, session/timing provenance and retained-neuron identities; accept legacy phase-cache settings from the saved configuration without recomputing results.
 - `load_phase_aligned_experiment` - opt-in session-matched loading with explicit phase metadata, logged-name aliases, block-local event times, and strict trial/frame/baseline validation.
 - `save_phase_analysis_outputs` - write canonical caches plus per-trial timing and recording/configuration provenance; supports a validation output root.
@@ -49,6 +50,7 @@ Not public here yet:
 - per-plane lookup helpers such as `load_dfof_for_plane` and `load_filtered_indices_for_plane` are still notebook-local duplication backlog until a later extraction slice moves them into an owner module.
 
 ### `src/stimuli_timeline.py`
+- `stimulus_phase_intervals` - validate canonical duration fields and return nominal static/active/static spans in seconds from stimulus appearance.
 - `validate_phase_metadata` - validate exclusive phase boundaries, durations and visibility against trajectory CSV assets.
 - `build_phase_trial_table` - construct unrounded phase times from per-fish block logs, validating aliases, trial order and block-contained baselines.
 - `get_motion_timing_simple` - derive timing from trajectory CSVs using plain or dot-prefixed x, y, and radius changes.
@@ -124,6 +126,7 @@ Canonical implementation owners after S06:
 - `zscore_dfof_from_prestim_baseline` - z-score dFoF using pre-stimulus baselines.
 
 ### `src/response_metrics.py`
+- `compute_motion_decay_auc` - signed raw/duration-normalized AUC from each condition's motion onset through motion end plus an explicit decay tail, with finite-trial counts and actual/clipped window provenance.
 - `compute_explicit_window_metrics` - per-neuron/repetition signed AUC, peaks and means using existing owners, with optional pre-bout level corrections and missing-window preservation.
 - `compute_trial_mean_response_metrics` - build per-stimulus trial-mean traces and response metrics.
 - `validate_static_flicker_recruitment_result` - check one fish's static--flicker windows, categories, and raster rows.
@@ -181,6 +184,7 @@ Supported compatibility facade: S07 moved scientific implementations into `src.m
 - `build_active_membership_table` - preserve neuron rows and summarize every binary membership and breadth category, with kept-neuron denominators and missing fractions for empty populations.
 
 ### `src/neuron_ordering.py`
+- `compute_single_sort_order` - order `(time, neurons)` traces with existing modes or optional `rastermap`; Rastermap returns a full row permutation, with nonfinite/constant neurons last and displayed values unchanged.
 - `build_response_profile_sort_order(..., sort_mode="pearson"|"euclidean")` - average-linkage leaf order with stable trailing unclusterable rows; default `preferred` retains the existing largest-response order.
 - `build_response_profile_sort_order` - display neurons by largest signed selected response, descending magnitude, and stable source-order ties; missing profiles last.
 
@@ -211,6 +215,8 @@ Supported compatibility facade: S07 moved scientific implementations into `src.m
 - `filter_active_matrices_by_keep_mask` - apply a pooled keep mask to per-fish active-matrix rows.
 
 ### `src/several_fish_diagnostics.py`
+- `build_shared_control_auc_analysis` - reuse section-6 binary decisions to compare control-minus-stimulus AUC within pairwise shared neurons, retaining source identities, empty/missing counts, per-fish means and equal-fish summaries.
+- `build_stimulus_panel_display` - trial-mean stimulus matrices and per-fish traces with one shared neuron permutation, source-row identities, nominal phase intervals, and stimulus-relative seconds.
 - `build_phase_population_display` - adapt phase bundles to existing pooled-matrix, repetition, ordering and per-fish mean helpers while preserving original neuron/fish row identities; `sort_scope` selects within-fish/pooled sorting, and one-based `repetitions` selects display trials with a fixed all-trial sorting reference. `sort_stimulus_keys`, `sort_alignment`, `sort_window_s` optionally restrict the reference conditions and nominal display time window.
 - `build_phase_population_analysis` - event-window trial/neuron/fish tables, active-trial counts, phase memberships, paired differences, and descriptive within-fish correlations.
 - `build_phase_recruitment_analysis` - select one-based repetitions from native-window activity decisions; preserve neuron identity for C1 overlap and new-after-own-preconditioning memberships, complete per-fish counts/fractions, unique recruitment across conditions and one-preconditioning-plus-bouts display inputs.
@@ -232,10 +238,14 @@ Supported compatibility facade: S07 moved scientific implementations into `src.m
 - `build_overlap_diagnostic_data` - prepare overlap matrices and pooled trace diagnostics.
 
 ### `src/several_fish_figures.py`
+- `plot_shared_control_auc` - separate side figures of per-fish shared-neuron AUC differences, with zero reference, equal-fish means, matched limits and raw/normalized metric selection.
+- `plot_all_fish_stimulus_figures` - redraw per-side layouts from an already prepared/sorted stimulus display without loading traces, rebuilding trial means, sorting, or mutating it.
+- `build_all_fish_stimulus_figures` - separate per-side raster, equal-fish mean, and raster-over-mean layouts using one prepared display and common scales.
 - `plot_phase_cohort_rasters` - phase-aware mean/concatenated pooled rasters with shared scales, original repeat markers and fish boundaries only for within-fish sorting; `raster_cmap` defaults to grayscale (`Greys`), and `zscore_cmap` independently controls z-score colors (default magma). Titles identify the sorting reference.
 - `plot_phase_cohort_means` - retained-neuron population means per fish and an equally weighted fish mean.
 - `plot_phase_recruitment_rasters` - one side's pooled preconditioning mean followed by control and conditioned bouts, fixed membership-grouped rows and classification strips.
 - `plot_phase_recruitment_counts` - C1-shared and new-after-preconditioning count bars (equal-fish means) with individual fish points.
+- `plot_phase_recruitment_proportions` - two percentage rows: shared C1/stimulus neurons divided by same-side C1-active neurons, and new-after-own-preconditioning neurons divided by all retained neurons per fish; equal-fish means and individual points, with undefined/incomplete values missing.
 - `plot_phase_recruitment_decisions` - Exp 7-style paired mean-trace and binary active-decision panels using the stable pooled preconditioning criterion and per-condition bout decisions, with matching neuron rows.
 - `plot_phase_fish_summary` - side-separated phase measurements using the existing paired-fish plot.
 - `plot_phase_population_comparisons` - paired reference differences and actual-delay curves using the existing fish plotting helper.
@@ -347,6 +357,7 @@ Supported compatibility facade: S08 moved figure construction into the `src.plot
 - `plot_sorted_chunks_single_mode` - build and plot one sorted stimulus-chunk raster.
 
 ### `src/plotting_all_fish.py`
+- `plot_stimulus_response_panels` - independent raster, fish-mean, or combined stimulus columns with shared scales and canonical static/active timing annotations.
 - `plot_stimulus_means` - plot per-stimulus mean traces with optional save behavior and configurable `ylabel` units (default ΔF/F).
 - `plot_allfish_flat_raster` - render pooled flattened matrices with optional mean panels.
 

@@ -459,6 +459,11 @@ def build_phase_recruitment_analysis(cohort, trial_metrics, side_conditions, bou
     Counts/fractions with any missing required classification remain NaN and have
     explicit valid counts. C1 preconditioning/new-after-pre are not applicable.
     New-after-pre uses each condition's own preconditioning, not its pooled mean.
+    fraction_c1_retained divides the C1/condition shared count by that fish's
+    same-side C1-active count; stimulus-only neurons are excluded. An empty
+    C1 population has an undefined (NaN) retained fraction.
+    fraction_new_after_pre divides the bout-active, own-preconditioning-inactive
+    count by all retained neurons in the fish, regardless of C1 membership.
     """
     repetitions = list(repetitions)
     if (not repetitions or any(isinstance(r, (bool, np.bool_)) or not isinstance(r, (int, np.integer))
@@ -1136,6 +1141,124 @@ def build_recruitment_containment_analysis(
             "per_fish_matrices": per_fish, "mean_matrices": means, "tables": tables}
 
 
+def _shared_auc_pair_table(fid, side, sid, control, label, control_label, kept,
+                           decisions, measures):
+    """Pair the same retained neurons using the existing binary decisions."""
+    shared = build_active_group_masks(decisions, {"shared": [control, sid]})["shared"]["all"]
+    indices = np.flatnonzero(shared)
+    info = {"fish_id": fid, "side": side, "stimulus_id": sid, "condition": label,
+            "control_id": control, "control": control_label}
+    rows = pd.DataFrame({"neuron_id": indices, "source_neuron_index": kept[indices]})
+    for name, value in info.items():
+        rows[name] = value
+    for kind, stimulus in (("control", control), ("stimulus", sid)):
+        measure = measures[stimulus]
+        for metric in ("raw_auc", "normalized_auc", "n_valid_trials"):
+            rows[f"{kind}_{metric}"] = measure[metric][indices]
+    finite = np.isfinite(rows[["control_raw_auc", "stimulus_raw_auc"]]).all(axis=1)
+    rows["finite_pair"] = finite
+    summary = {**info, "n_control_active": int(decisions[control].sum()),
+               "n_stimulus_active": int(decisions[sid].sum()),
+               "n_shared": len(rows), "n_finite_pairs": int(finite.sum())}
+    for metric in ("raw_auc", "normalized_auc"):
+        rows[f"delta_{metric}"] = rows[f"control_{metric}"] - rows[f"stimulus_{metric}"]
+        rows.loc[~finite, f"delta_{metric}"] = np.nan
+        for kind in ("control", "stimulus", "delta"):
+            summary[f"mean_{kind}_{metric}"] = rows.loc[finite, f"{kind}_{metric}"].mean()
+    return rows, summary
+
+
+def build_shared_control_auc_analysis(all_fish_data, fish_ids, overlap_results,
+                                      side_controls, timing, decay_s=5.0):
+    """Compare control minus other-stimulus AUC within pairwise shared neurons.
+
+    overlap_results is the exact section-6 plot_left_right_active_overlap_diagnostics
+    output: use its unsorted decision_matrix and row_metadata, never reclassify
+    neurons or threshold continuous z-scores. Full per-fish rows must match
+    kept_neuron_indices in source order. Each comparison has its own intersection.
+    Controls are explicit IDs/names per side. Measurement windows use each
+    stimulus's canonical motion onset/end plus decay_s seconds, independently
+    of the wider activity-selection windows. Shapes are (neurons, time, trials).
+
+    Returns fish_ids, side_selections, and tables: shared_neuron_auc (paired
+    source identities and signed raw/normalized AUC), shared_auc_per_fish
+    (mean paired differences, shared/finite counts), shared_auc_summary
+    (equally weighted fish means/counts), shared_auc_windows (actual/requested
+    bounds, integration spans and clipping). Empty intersections/missing pairs
+    remain NaN; fish with no finite pairs do not enter the corresponding mean.
+    Trial responses average all fully finite trials, not only active trials.
+    This is descriptive within the selected observed-trial population.
+    """
+    from src.response_metrics import compute_motion_decay_auc
+
+    fish_ids = list(fish_ids)
+    if not fish_ids or len(set(fish_ids)) != len(fish_ids):
+        raise ValueError("Configure unique, nonempty fish_ids.")
+    if set(overlap_results) != set(side_controls) or not overlap_results:
+        raise ValueError("side_controls must match the nonempty overlap-result sides.")
+    expected_rows = [(fid, index) for fid in fish_ids
+                     for index in range(len(all_fish_data[fid]["kept_neuron_indices"]))]
+    neurons, summaries, windows, selections = [], [], [], {}
+    for side, result in overlap_results.items():
+        diagnostic = result["active_trace_diagnostic"]
+        metadata = diagnostic["row_metadata"]
+        if list(metadata[["fish_id", "neuron_id"]].itertuples(index=False, name=None)) != expected_rows:
+            raise ValueError(f"{side}: section-6 decision rows do not match current fish/kept-neuron order.")
+        ids, labels = list(diagnostic["stim_order"]), list(diagnostic["stim_labels"])
+        binary = np.asarray(diagnostic["decision_matrix"])
+        if (binary.shape != (len(expected_rows), len(ids)) or not np.isin(binary, [0, 1]).all()
+                or len(ids) != len(labels) or len(set(ids)) != len(ids)):
+            raise ValueError(f"{side}: invalid section-6 binary decision columns/rows.")
+        reference = all_fish_data[fish_ids[0]]
+        control = resolve_selected_stimuli([side_controls[side]], reference["stimuli_id_map"], ids)["stimulus_ids"][0]
+        comparisons = [sid for sid in ids if sid != control]
+        if not comparisons:
+            raise ValueError(f"{side}: at least one non-control comparison is required.")
+        names = dict(zip(ids, labels))
+        selections[side] = {"control_id": control, "control_label": names[control],
+                            "stimulus_ids": comparisons, "condition_labels": [names[sid] for sid in comparisons]}
+        offset = 0
+        for fid in fish_ids:
+            fish = all_fish_data[fid]
+            kept = np.asarray(fish["kept_neuron_indices"])
+            if (kept.ndim != 1 or not np.issubdtype(kept.dtype, np.integer)
+                    or len(np.unique(kept)) != len(kept) or (kept < 0).any()):
+                raise ValueError(f"{fid}: invalid kept-neuron source indices.")
+            decisions = pd.DataFrame(binary[offset:offset + len(kept)], columns=ids)
+            offset += len(kept)
+            measures = {}
+            for index, sid in enumerate(ids):
+                label = names[sid]
+                if fish["stimuli_id_map"].get(label) != sid:
+                    raise ValueError(f"{fid}, {label}: stimulus identity differs from section 6.")
+                traces = fish["trial_aligned_traces_z_core"]
+                arr = np.asarray(traces[sid if sid in traces else str(sid)])
+                if (arr.ndim != 3 or (kept.size and kept.max() >= len(arr))
+                        or arr.shape[1] != diagnostic["trace_block_timepoints"][index]
+                        or arr.shape[2] != diagnostic["trace_block_reps"][index]):
+                    raise ValueError(f"{fid}, {label}: continuous/raster source rows or time/trial axes differ.")
+                measures[sid] = compute_motion_decay_auc(arr[kept], fish["stimuli_durations"][label],
+                    timing["fps_2p"], timing["t_pre_s"], decay_s=decay_s)
+                windows.append({"fish_id": fid, "side": side, "stimulus_id": sid,
+                                "stimulus": label, **measures[sid]["window"]})
+            for sid in comparisons:
+                rows, summary = _shared_auc_pair_table(fid, side, sid, control,
+                    names[sid], names[control], kept, decisions, measures)
+                neurons.append(rows)
+                summaries.append(summary)
+    per_fish = pd.DataFrame(summaries)
+    group = ["side", "stimulus_id", "condition", "control_id", "control"]
+    aggregations = {name: (name, "mean") for name in per_fish if name.startswith("mean_")}
+    cohort = per_fish.groupby(group, sort=False).agg(
+        n_fish=("mean_delta_raw_auc", "count"), n_shared_total=("n_shared", "sum"),
+        n_shared_min=("n_shared", "min"), n_shared_max=("n_shared", "max"),
+        n_finite_pairs_total=("n_finite_pairs", "sum"), **aggregations).reset_index()
+    return {"fish_ids": fish_ids, "side_selections": selections, "decay_s": float(decay_s),
+            "tables": {"shared_neuron_auc": pd.concat(neurons, ignore_index=True),
+                       "shared_auc_per_fish": per_fish, "shared_auc_summary": cohort,
+                       "shared_auc_windows": pd.DataFrame(windows)}}
+
+
 def build_all_fish_raster_inputs(
     all_fish_data, fish_ids, stim_order, reference_fish, timing, raster_settings,
 ):
@@ -1201,6 +1324,81 @@ def build_all_fish_raster_inputs(
         "raster_left_right_index": raster_left_right_index,
         "raster_neuron_order": raster_neuron_order,
         "raster_sort_label": raster_sort_label,
+    }
+
+
+def build_stimulus_panel_display(all_fish_data, fish_ids, stim_order, reference_fish,
+                                 timing, raster_settings, neuron_order=None):
+    """Prepare trial-mean z-scores for independent stimulus panels.
+
+    Inputs follow build_all_fish_raster_inputs. Force mean repetitions/z-score
+    for this display only. Use a supplied full pooled-row permutation, otherwise
+    compute the configured order once across stim_order (both controls for the
+    left/right index). All panels retain every kept neuron in the same order.
+
+    Returns a dict with stimulus-keyed matrices (neurons, time), fish_means
+    (fish, time), time_s from stimulus appearance, canonical phase intervals,
+    original row identities, and a shared neuron_order. Trials, per-condition
+    shapes, maps and phase timings must match across fish; values are not
+    normalized again. Means average trials per neuron, then neurons per fish.
+    """
+    from src.neuron_ordering import compute_single_sort_order
+    from src.stimuli_timeline import stimulus_phase_intervals
+
+    fish_ids, stim_order = list(fish_ids), list(stim_order)
+    if not fish_ids or len(set(fish_ids)) != len(fish_ids):
+        raise ValueError("Stimulus panels require unique, nonempty fish_ids.")
+    selection = resolve_selected_stimuli(stim_order, reference_fish["stimuli_id_map"],
+        reference_fish["trial_aligned_traces_z_core"].keys())
+    ids, labels = selection["stimulus_ids"], selection["stimulus_labels"]
+    fps, pre = float(timing["fps_2p"]), float(timing["t_pre_s"])
+    if not np.isfinite([fps, pre]).all() or fps <= 0 or pre < 0:
+        raise ValueError("Stimulus panels require positive fps_2p and nonnegative t_pre_s.")
+    shapes, phases = {}, {}
+    for sid, label in zip(ids, labels):
+        ref = reference_fish["trial_aligned_traces_z_core"][sid]
+        shapes[sid] = ref.shape[1:]
+        phases[sid] = stimulus_phase_intervals(reference_fish["stimuli_durations"][label])
+        for fid in fish_ids:
+            fish = all_fish_data[fid]
+            arr = np.asarray(fish["trial_aligned_traces_z_core"][sid])
+            if (arr.ndim != 3 or arr.shape[1:] != shapes[sid]
+                    or min(arr.shape[1:]) == 0 or fish["stimuli_id_map"].get(label) != sid):
+                raise ValueError(f"{fid}, {label}: incompatible stimulus identity or time/trial shape.")
+            if stimulus_phase_intervals(fish["stimuli_durations"][label]) != phases[sid]:
+                raise ValueError(f"{fid}, {label}: inconsistent stimulus phase timings.")
+            kept = np.asarray(fish["kept_neuron_indices"])
+            if (kept.ndim != 1 or not kept.size or not np.issubdtype(kept.dtype, np.integer)
+                    or len(np.unique(kept)) != len(kept) or kept.min() < 0 or kept.max() >= len(arr)):
+                raise ValueError(f"{fid}: invalid or empty kept-neuron indices.")
+    config = {**raster_settings, "combine_mode": "mean", "trace_type": "zscore"}
+    prepared = build_all_fish_raster_inputs(
+        all_fish_data, fish_ids, ids, reference_fish, timing, config)
+    matrix = prepared["flat_matrix_all_fish"]
+    order = neuron_order
+    if order is None:
+        order = prepared["raster_neuron_order"]
+        if order is None:
+            order = compute_single_sort_order(matrix.T, config["raster_sort_mode"], n_clusters=8, random_state=0)
+    order = np.arange(len(matrix)) if order is None else np.asarray(order)
+    if (order.shape != (len(matrix),) or not np.issubdtype(order.dtype, np.integer)
+            or not np.array_equal(np.sort(order), np.arange(len(matrix)))):
+        raise ValueError("neuron_order must contain every pooled neuron exactly once.")
+    rows = pd.DataFrame([(fid, index, int(source)) for fid in fish_ids
+        for index, source in enumerate(all_fish_data[fid]["kept_neuron_indices"])],
+        columns=["fish_id", "neuron_id", "source_neuron_index"])
+    rows["global_neuron_id"] = np.arange(len(rows))
+    offsets = np.cumsum([0] + [shapes[sid][0] for sid in ids])
+    return {
+        "fish_ids": fish_ids, "stimulus_ids": ids, "stimulus_labels": dict(zip(ids, labels)),
+        "matrices": {sid: matrix[:, offsets[i]:offsets[i + 1]] for i, sid in enumerate(ids)},
+        "fish_means": build_pooled_mean_trace_by_stimulus(
+            all_fish_data, fish_ids, ids, trace_type="zscore", use_kept_neurons=True),
+        "time_s": {sid: np.arange(shapes[sid][0]) / fps - pre for sid in ids},
+        "phases": phases, "repetitions": {sid: shapes[sid][1] for sid in ids},
+        "fps_2p": fps, "neuron_order": order, "row_metadata": rows,
+        "displayed_row_metadata": rows.iloc[order].reset_index(drop=True),
+        "sort_mode": config["raster_sort_mode"],
     }
 
 

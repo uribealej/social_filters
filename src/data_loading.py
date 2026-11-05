@@ -1,6 +1,7 @@
 """Load calcium-imaging experiments and assemble downstream analysis inputs."""
 
-from pathlib import Path
+import os
+from pathlib import Path, PureWindowsPath
 from typing import Any, Dict
 
 import numpy as np
@@ -9,6 +10,36 @@ import pandas as pd
 import src.stimuli_timeline as st
 from src.analysis_io import find_file_with_suffix
 from src.trial_alignment import build_trial_aligned_traces
+
+
+def resolve_lab_root(lab_root=None):
+    """Find the local Lab folder without hardcoding one workstation.
+
+    Args:
+        lab_root (str, Path, or None): Explicit Lab folder; otherwise use
+            SOCIAL_FILTERS_LAB_ROOT, OneDrive environment variables, then
+            university OneDrive folders under home and D:/Alejandro/Data.
+
+    Returns:
+        Path: Existing Lab folder containing Data/2p.
+
+    Raises:
+        FileNotFoundError: No configured or discovered data root exists.
+    """
+    override = lab_root if lab_root is not None else os.environ.get("SOCIAL_FILTERS_LAB_ROOT")
+    if override is not None:
+        candidates = [Path(override)]
+    else:
+        candidates = [Path(os.environ[key]) / "Lab"
+                      for key in ("OneDriveCommercial", "OneDrive") if os.environ.get(key)]
+        for parent in (Path.home(), Path("D:/Alejandro/Data")):
+            candidates.extend(root / "Lab" for root in sorted(parent.glob("OneDrive - Universit* de Lausanne")))
+    for candidate in candidates:
+        if (candidate / "Data" / "2p").is_dir():
+            return candidate
+    raise FileNotFoundError(
+        "Could not find Lab/Data/2p. Set SOCIAL_FILTERS_LAB_ROOT to your Lab folder. "
+        "Tried: " + "; ".join(map(str, candidates)))
 
 
 def load_phase_aligned_experiment(fish_id, experiment_name, main_path,
@@ -93,7 +124,9 @@ def load_reviewed_phase_experiment(fish_id, experiment_name, main_path, stimuli_
 
     Does not recompute normalization, reliability or significant activity and
     never writes files. Older phase caches may obtain detector settings/rate
-    from their saved configuration and recording metadata. A mismatch raises.
+    from their saved configuration and recording metadata. Source paths may
+    relocate with the data root if saved provenance and the relative experiment
+    path agree. A mismatch raises.
     """
     import json
 
@@ -145,8 +178,16 @@ def load_reviewed_phase_experiment(fish_id, experiment_name, main_path, stimuli_
             raise ValueError("Significant-cache detector settings differ from provenance.")
         if "fps" in z and float(z["fps"]) != loaded["fps_2p"]:
             raise ValueError("Saved imaging rates differ.")
-        if "source_file" in z and Path(str(z["source_file"])).resolve() != Path(loaded["paths"]["dfof_file"]).resolve():
-            raise ValueError("Saved significant-cache source file differs.")
+        if "source_file" in z:
+            source = PureWindowsPath(str(z["source_file"]))
+            current = Path(loaded["paths"]["dfof_file"]).resolve()
+            relative = PureWindowsPath(str(Path(loaded["paths"]["dfof_file"]).relative_to(main_path)))
+            # Accept a moved data root only when the original provenance agrees
+            # and the complete fish/stage/filename suffix is unchanged.
+            relocated = (source == PureWindowsPath(config["paths"].get("dfof_file", ""))
+                         and PureWindowsPath(*source.parts[-len(relative.parts):]) == relative)
+            if Path(str(z["source_file"])).resolve() != current and not relocated:
+                raise ValueError("Saved significant-cache source file differs.")
     if zscore.shape != loaded["dfof"].shape or raster.shape != (len(zscore), len(kept)):
         raise ValueError("Saved trace/raster shapes differ from source data and retained IDs.")
     if not np.isin(raster[np.isfinite(raster)], [0, 1]).all():

@@ -15,7 +15,7 @@ and fix specific issues the user identifies.
 | 04 | Pooled z-score/significant rasters, both repetition displays and equal-weight fish mean traces |
 | 05 | Per-trial/per-neuron/per-fish measurements and native sample coverage |
 | 06 | Bout AUC, peak and active-neuron fractions in both windows |
-| 06b | Significant recruitment from trials 2-4: one mean preconditioning panel, C1/S1-S5 bouts, C1-shared and new-after-preconditioning counts; C2 excluded |
+| 06b | Significant recruitment from trials 2-4: one mean preconditioning panel, C1/S1-S5 bouts, counts and percentages for C1 overlap and new after own preconditioning; C2 excluded |
 | 07 | Preconditioning, early/late change, pre-bout level, corrected AUC and repetition consistency |
 | 08 | Paired control comparisons and delay curves |
 | 09 | Preconditioning/bout memberships, neuron scatterplots and descriptive correlations |
@@ -73,14 +73,31 @@ new-after-preconditioning counts still use each stimulus's own preconditioning.
   by the bout; correlations and control differences remain descriptive.
 - Keep left and right separate. Compare conditioned stimuli against same-side
   C1, C2 against S1, and S1-S5 against their actual unequal blank delays.
+- Cell 06b retains the counts and adds the percentage of C1-responsive neurons
+  also responsive to each stimulus: shared C1/stimulus count divided by the
+  same-side C1 count, per fish. Stimulus-only neurons are excluded. Bars average
+  defined fish fractions equally; points show individual fish. Empty C1 pools
+  and missing required classifications are N/A; defined C1 self-overlap is 100%.
+  The percentage plot's second row shows bout-active neurons inactive during
+  their own preconditioning divided by all retained neurons in the fish,
+  regardless of C1 membership, again averaged equally across defined fish.
+  C1 has no preconditioning, so its second-row value is N/A.
 
 ## Files and readiness: check before assuming a fish needs rerunning
 
-Source data root:
+Both notebooks discover the local OneDrive Lab folder with
+`data_loading.resolve_lab_root()`: OneDrive environment variables first, then
+university OneDrive folders under the current user's home or `D:/Alejandro/Data`.
+Set `SOCIAL_FILTERS_LAB_ROOT` to override discovery with a specific Lab folder.
+The data root is `<LAB_ROOT>/Data/2p`; for example, on the D: workstation:
 
 ```text
 D:\Alejandro\Data\OneDrive - Université de Lausanne\Lab\Data\2p
 ```
+
+Reviewed caches can be synced between these roots without resaving them. The
+loader checks saved source provenance and the relative experiment path, plus
+session, timing, settings and retained-neuron identities.
 
 For each fish, `01_individual_fish_analysis.ipynb` reviews normalization,
 reliability, significant-trace parameters and matching dFoF/raster diagnostics.

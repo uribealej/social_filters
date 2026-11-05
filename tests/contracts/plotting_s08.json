@@ -156,7 +156,7 @@
     "add_stimuli_markers": "584f9dbd38a43cb905c8d6391f99181398446c07344311dde9e318da67e3b95f",
     "raster_with_stimuli": "8f9c8a94bad467f695674226a212c6743e503b29c4afddad189d22456d3d6287",
     "compute_sort_orders": "a67fb8e28913cf0fdda6482c7f5853560ed58fe42da9725ee5500b715b38a55b",
-    "compute_single_sort_order": "dc9af23fe3399668e8578138931247571594f04b7e0df5451cc68b239c5b5fa6",
+    "compute_single_sort_order": "6a9d58d365e46a2f9481d2a79647382947fd5120e266298e10e69776ddd2eb6e",
     "save_sorted_rasters_for_all_modes": "643d59155c07f48d85acb1a678c55f3070540aa82bd26e262bdfc252a2145b54",
     "plot_sorted_chunks_single_mode": "c0bc16682905a015c0027b991f61a7139a8f49d69a4d274cd0aa03b5fe8f84eb",
     "plot_stimulus_means": "c8639906d348b3e3d01219330d9b77f842ff0df0d3dc481c3b931aa7b8b0d8e0",
@@ -2797,7 +2797,7 @@
       ],
       [
         "ValueError",
-        "Unknown sort_mode 'bad'. Use one of: 'unsorted', 'max_intensity', 'pca', 'kmeans', 'hier', 'corravg'."
+        "Unknown sort_mode 'bad'. Use one of: 'unsorted', 'max_intensity', 'pca', 'kmeans', 'hier', 'corravg', 'rastermap'."
       ],
       [
         "ValueError",

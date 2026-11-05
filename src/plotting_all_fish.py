@@ -132,6 +132,105 @@ def plot_stimulus_means(
     return fig, ax, color_by_stim, out_png
 
 
+def plot_stimulus_response_panels(display, stimulus_ids=None, layout="combined",
+                                  figsize=(12, 5), z_limits=(0, 10), mean_ylim=None,
+                                  cmap="Greys", title=""):
+    """Plot independent trial-mean stimulus columns with one shared neuron order.
+
+    Args:
+        display (dict): build_stimulus_panel_display result; matrices are
+            (neurons, time), fish_means (fish, time), and time_s is seconds.
+        stimulus_ids (sequence or None): Nonempty display subset in column order.
+        layout (str): raster, mean, or combined (raster above fish mean traces).
+        figsize (tuple): Final figure width/height in inches.
+        z_limits (tuple): Shared z-score color limits, independent of sorting.
+        mean_ylim (tuple or None): Shared trace limits; None spans every prepared
+            fish/condition, ensuring separate left/right figures are comparable.
+        cmap (str): Raster colormap; original trial-mean values remain unchanged.
+        title (str): Short figure heading, typically the selected stimulus side.
+
+    Returns:
+        tuple: Figure and a 2D axes array (rows, conditions). No saving/showing.
+        Thin colored traces represent fish; black averages fish equally. Static
+        and active spans use canonical nominal timing; baseline stays unshaded.
+        Phase labels and Time (s) appear once per figure; there is no fish legend.
+        Font sizes follow the caller's Matplotlib rc_context.
+    """
+    from matplotlib.ticker import MaxNLocator
+
+    ids = list(display["stimulus_ids"] if stimulus_ids is None else stimulus_ids)
+    if not ids or len(set(ids)) != len(ids) or not set(ids) <= set(display["stimulus_ids"]):
+        raise ValueError("stimulus_ids must be a nonempty unique subset of the display.")
+    if layout not in {"raster", "mean", "combined"}:
+        raise ValueError("layout must be raster, mean, or combined.")
+    if not np.isfinite(z_limits).all() or len(z_limits) != 2 or z_limits[0] >= z_limits[1]:
+        raise ValueError("z_limits must be two finite increasing values.")
+    has_raster, has_mean = layout != "mean", layout != "raster"
+    nrows = 2 if layout == "combined" else 1
+    fig, axes = plt.subplots(nrows, len(ids), figsize=figsize, sharex=True,
+        sharey="row", squeeze=False,
+        gridspec_kw={"height_ratios": [3, 1.5]} if nrows == 2 else None)
+    fig.subplots_adjust(left=0.10, right=0.90 if has_raster else 0.985,
+                        bottom=0.21, top=0.82, wspace=0.12, hspace=0.13)
+    if mean_ylim is None:
+        finite = np.concatenate([v[np.isfinite(v)] for v in display["fish_means"].values()])
+        low, high = (min(0, finite.min()), max(0, finite.max())) if finite.size else (-1, 1)
+        pad = max(0.1, (high - low) * 0.06)
+        mean_ylim = (low - pad, high + pad)
+    colors = plt.get_cmap("tab10")
+    im = None
+    order = display["neuron_order"]
+    dt = 1 / display["fps_2p"]
+    for column, sid in enumerate(ids):
+        times = display["time_s"][sid]
+        if has_raster:
+            im = axes[0, column].imshow(display["matrices"][sid][order], aspect="auto",
+                interpolation="nearest", origin="upper", cmap=cmap,
+                vmin=z_limits[0], vmax=z_limits[1],
+                extent=[times[0] - dt / 2, times[-1] + dt / 2, len(order) - 0.5, -0.5])
+        if has_mean:
+            ax = axes[-1, column]
+            values = display["fish_means"][sid]
+            for index, fid in enumerate(display["fish_ids"]):
+                ax.plot(times, values[index], color=colors(index % 10), alpha=0.65,
+                        linewidth=0.4, label=fid)
+            ax.plot(times, np.nanmean(values, axis=0), color="black", linewidth=0.9,
+                    label="Equal-fish mean")
+            ax.axhline(0, color="gray", linewidth=0.35, zorder=0)
+            ax.set_ylim(*mean_ylim)
+        for ax in axes[:, column]:
+            for phase, start, stop in display["phases"][sid]:
+                ax.axvspan(start, stop, facecolor="#808080" if phase == "static" else "#4bb8ae",
+                           alpha=0.20 if phase == "static" else 0.10, zorder=2)
+                if phase == "active" and start > 0:
+                    ax.axvline(start, color="#248f86", linewidth=0.45, zorder=3)
+            ax.axvline(0, color="#555555", linestyle=":", linewidth=0.45, zorder=3)
+            end = display["phases"][sid][-1][2] if display["phases"][sid] else 0
+            ax.axvline(end, color="#555555", linestyle="--", linewidth=0.5, zorder=3)
+        axes[0, column].set_title(display['stimulus_labels'][sid], pad=3)
+        axes[-1, column].xaxis.set_major_locator(MaxNLocator(nbins=3))
+    axes[0, 0].set_xlim(min(display["time_s"][sid][0] - dt / 2 for sid in ids),
+                        max(display["time_s"][sid][-1] + dt / 2 for sid in ids))
+    if has_raster:
+        axes[0, 0].set_ylabel("Neurons")
+        cax = fig.add_axes([0.92, 0.21 if nrows == 1 else 0.43, 0.012,
+                            0.61 if nrows == 1 else 0.39])
+        fig.colorbar(im, cax=cax, label="Z-score")
+    # A compact phase key replaces the fish and onset/offset legends.
+    for text, x, color, alpha in (("Static", 0.51, "#808080", 0.20),
+                                  ("Motion / flicker", 0.75, "#4bb8ae", 0.10)):
+        fig.text(x, 0.965, text, ha="center", va="top",
+                 fontsize=plt.rcParams["axes.labelsize"],
+                 bbox=dict(facecolor=color, alpha=alpha, edgecolor="none", pad=1.2))
+    if has_mean:
+        axes[-1, 0].set_ylabel("Mean\nz-score")
+        axes[-1, 0].yaxis.set_major_locator(MaxNLocator(nbins=3))
+    fig.supxlabel("Time (s)", y=0.02, fontsize=plt.rcParams["axes.labelsize"])
+    if title:
+        fig.suptitle(title, x=0.10, y=0.965, ha="left")
+    return fig, axes
+
+
 def plot_allfish_flat_raster(
     data,
     trial_aligned_traces,

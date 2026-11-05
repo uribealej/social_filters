@@ -105,6 +105,7 @@
   "notebooks/calcium/exp_07_trans_stat/01_all_fish_raster.ipynb": {
     "imports": [
       "src.plotting_common",
+      "src.several_fish_diagnostics",
       "src.several_fish_figures",
       "src.several_fish_loading",
       "src.several_fish_reporting"
@@ -112,11 +113,15 @@
     "symbols": [
       "src.plotting_common.build_stimulus_style_maps",
       "src.plotting_common.save_publication_figure",
+      "src.several_fish_diagnostics.build_shared_control_auc_analysis",
+      "src.several_fish_diagnostics.build_stimulus_panel_display",
       "src.several_fish_figures.build_all_fish_raster_figure",
       "src.several_fish_figures.build_plot_all_fish_mean_zscore_traces",
+      "src.several_fish_figures.plot_all_fish_stimulus_figures",
       "src.several_fish_figures.plot_left_right_active_overlap_diagnostics",
       "src.several_fish_figures.plot_lifetime_sparseness_analysis",
       "src.several_fish_figures.plot_motion_active_neuron_counts",
+      "src.several_fish_figures.plot_shared_control_auc",
       "src.several_fish_loading.load_and_preflight_fish_raster_inputs",
       "src.several_fish_reporting.save_analysis_report_run"
     ],
@@ -136,20 +141,12 @@
     ],
     "symbols": [
       "src.plotting_common.save_publication_figure",
-      "src.several_fish_diagnostics.build_family_lifetime_sparseness",
-      "src.several_fish_diagnostics.build_pooled_response_profiles",
       "src.several_fish_diagnostics.build_recruitment_containment_analysis",
       "src.several_fish_diagnostics.build_response_breadth_profiles",
       "src.several_fish_diagnostics.build_response_similarity_comparison",
-      "src.several_fish_figures.plot_family_lifetime_sparseness",
-      "src.several_fish_figures.plot_family_sparseness_summary",
-      "src.several_fish_figures.plot_pooled_response_profiles",
       "src.several_fish_figures.plot_recruitment_activity_summary",
-      "src.several_fish_figures.plot_recruitment_containment_matrices",
       "src.several_fish_figures.plot_recruitment_containment_summary",
       "src.several_fish_figures.plot_response_breadth_summary",
-      "src.several_fish_figures.plot_response_profile_panels",
-      "src.several_fish_figures.plot_response_similarity_comparison",
       "src.several_fish_loading.load_and_preflight_fish_raster_inputs",
       "src.several_fish_reporting.save_analysis_report_run"
     ],
@@ -205,6 +202,7 @@
     ],
     "symbols": [
       "src.data_loading.load_phase_aligned_experiment",
+      "src.data_loading.resolve_lab_root",
       "src.data_loading.save_phase_analysis_outputs",
       "src.plotting_single_fish.plot_continuous_phase_raster",
       "src.plotting_single_fish.plot_phase_aligned_responses",
@@ -221,12 +219,14 @@
   },
   "notebooks/calcium/exp_09_rf_memory_inhibition/02_population_analysis.ipynb": {
     "imports": [
+      "src.data_loading",
       "src.several_fish_diagnostics",
       "src.several_fish_figures",
       "src.several_fish_loading",
       "src.several_fish_reporting"
     ],
     "symbols": [
+      "src.data_loading.resolve_lab_root",
       "src.several_fish_diagnostics.build_phase_population_analysis",
       "src.several_fish_diagnostics.build_phase_population_display",
       "src.several_fish_diagnostics.build_phase_recruitment_analysis",
@@ -237,6 +237,7 @@
       "src.several_fish_figures.plot_phase_population_relationships",
       "src.several_fish_figures.plot_phase_recruitment_counts",
       "src.several_fish_figures.plot_phase_recruitment_decisions",
+      "src.several_fish_figures.plot_phase_recruitment_proportions",
       "src.several_fish_figures.plot_phase_recruitment_rasters",
       "src.several_fish_loading.load_reviewed_phase_cohort",
       "src.several_fish_reporting.save_analysis_report_run"
