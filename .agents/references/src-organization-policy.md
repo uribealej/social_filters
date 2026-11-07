@@ -19,7 +19,7 @@ directory move or a change to scientific behavior.
 | Shared trajectory timing, log-to-trace conversion, and angle interpretation | `stimuli_timeline.py` |
 | Trial alignment, response metrics, normalization, classification, selectivity, reliability, and motion metrics | `trial_alignment.py`, `response_*.py`, `reliability.py`, `motion_metrics.py` |
 | Significant-trace noise model and rasterization | `significant_trace_detection.py` |
-| Several-fish matrices, active-neuron analysis, stimulus specificity/similarity, static/flicker and bout/flicker analyses, and LME features | `multifish_matrices.py`, `active_neuron_analysis.py`, `stimulus_specificity.py`, `stimulus_similarity.py`, `static_flicker_analysis.py`, `bout_flicker_analysis.py`, `lme_feature_decomposition.py` |
+| Several-fish matrices, population trajectories, active-neuron analysis, stimulus specificity/similarity, static/flicker and bout/flicker analyses, and LME features | `multifish_matrices.py`, `population_trajectories.py`, `active_neuron_analysis.py`, `stimulus_specificity.py`, `stimulus_similarity.py`, `static_flicker_analysis.py`, `bout_flicker_analysis.py`, `lme_feature_decomposition.py` |
 | Several-fish cohort loading, selection, diagnostic data, figure orchestration, and reports | Corresponding `several_fish_*.py` modules |
 | Reusable figures and display preparation | Relevant `plotting_*.py` module; `neuron_ordering.py` for ordering; `stimulus_visualization.py` for stimulus inspection |
 

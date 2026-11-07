@@ -55,9 +55,11 @@
   "notebooks/calcium/exp_05_map_positions/01_all_fish_raster.ipynb": {
     "imports": [
       "src.active_neuron_analysis",
+      "src.data_loading",
       "src.multifish_matrices",
       "src.plotting_common",
       "src.plotting_diagnostics",
+      "src.several_fish_diagnostics",
       "src.several_fish_figures",
       "src.several_fish_loading",
       "src.several_fish_reporting",
@@ -66,14 +68,22 @@
     "symbols": [
       "src.active_neuron_analysis.build_active_neuron_matrices_all_fish",
       "src.active_neuron_analysis.build_pooled_active_trace_diagnostic",
+      "src.data_loading.resolve_lab_root",
       "src.multifish_matrices.build_zscore_response_matrix_for_fish",
       "src.plotting_common.build_stimulus_style_maps",
+      "src.plotting_common.save_publication_figure",
       "src.plotting_diagnostics.plot_active_trace_decision_diagnostic",
+      "src.several_fish_diagnostics.build_left_right_active_overlap_diagnostics",
+      "src.several_fish_diagnostics.build_recruitment_containment_analysis",
+      "src.several_fish_diagnostics.build_shared_control_auc_analysis",
+      "src.several_fish_diagnostics.build_stimulus_panel_display",
       "src.several_fish_figures.build_all_fish_raster_figure",
       "src.several_fish_figures.build_plot_all_fish_mean_zscore_traces",
-      "src.several_fish_figures.plot_left_right_active_overlap_diagnostics",
+      "src.several_fish_figures.plot_all_fish_stimulus_figures",
       "src.several_fish_figures.plot_lifetime_sparseness_analysis",
       "src.several_fish_figures.plot_motion_active_neuron_counts",
+      "src.several_fish_figures.plot_prepared_left_right_active_overlap_diagnostics",
+      "src.several_fish_figures.plot_recruitment_strength_summary",
       "src.several_fish_loading.load_and_preflight_fish_raster_inputs",
       "src.several_fish_reporting.save_analysis_report_run",
       "src.trial_alignment.resolve_selected_stimuli"
@@ -104,6 +114,7 @@
   },
   "notebooks/calcium/exp_07_trans_stat/01_all_fish_raster.ipynb": {
     "imports": [
+      "src.data_loading.resolve_lab_root",
       "src.plotting_common",
       "src.several_fish_diagnostics",
       "src.several_fish_figures",
@@ -111,8 +122,10 @@
       "src.several_fish_reporting"
     ],
     "symbols": [
+      "src.data_loading.resolve_lab_root",
       "src.plotting_common.build_stimulus_style_maps",
       "src.plotting_common.save_publication_figure",
+      "src.several_fish_diagnostics.build_recruitment_containment_analysis",
       "src.several_fish_diagnostics.build_shared_control_auc_analysis",
       "src.several_fish_diagnostics.build_stimulus_panel_display",
       "src.several_fish_figures.build_all_fish_raster_figure",
@@ -121,6 +134,7 @@
       "src.several_fish_figures.plot_left_right_active_overlap_diagnostics",
       "src.several_fish_figures.plot_lifetime_sparseness_analysis",
       "src.several_fish_figures.plot_motion_active_neuron_counts",
+      "src.several_fish_figures.plot_recruitment_strength_summary",
       "src.several_fish_figures.plot_shared_control_auc",
       "src.several_fish_loading.load_and_preflight_fish_raster_inputs",
       "src.several_fish_reporting.save_analysis_report_run"
@@ -154,23 +168,33 @@
   },
   "notebooks/calcium/exp_08_accumulation_ev/01_all_fish_raster.ipynb": {
     "imports": [
+      "src.data_loading.resolve_lab_root",
       "src.multifish_matrices",
       "src.plotting_common",
       "src.plotting_diagnostics",
+      "src.several_fish_diagnostics",
       "src.several_fish_figures",
       "src.several_fish_loading",
       "src.several_fish_reporting",
       "src.trial_alignment"
     ],
     "symbols": [
+      "src.data_loading.resolve_lab_root",
       "src.multifish_matrices.build_zscore_response_matrix_for_fish",
       "src.plotting_common.build_stimulus_style_maps",
+      "src.plotting_common.save_publication_figure",
       "src.plotting_diagnostics.plot_active_trace_decision_diagnostic",
+      "src.several_fish_diagnostics.build_left_right_active_overlap_diagnostics",
+      "src.several_fish_diagnostics.build_recruitment_containment_analysis",
+      "src.several_fish_diagnostics.build_shared_control_auc_analysis",
+      "src.several_fish_diagnostics.build_stimulus_panel_display",
       "src.several_fish_figures.build_all_fish_raster_figure",
       "src.several_fish_figures.build_plot_all_fish_mean_zscore_traces",
-      "src.several_fish_figures.plot_left_right_active_overlap_diagnostics",
+      "src.several_fish_figures.plot_all_fish_stimulus_figures",
       "src.several_fish_figures.plot_lifetime_sparseness_analysis",
       "src.several_fish_figures.plot_motion_active_neuron_counts",
+      "src.several_fish_figures.plot_prepared_left_right_active_overlap_diagnostics",
+      "src.several_fish_figures.plot_recruitment_strength_summary",
       "src.several_fish_loading.load_and_preflight_fish_raster_inputs",
       "src.several_fish_reporting.save_analysis_report_run",
       "src.trial_alignment.compute_response_window_frames",
@@ -188,6 +212,50 @@
       "src.bout_flicker_analysis.build_bout_flicker_position_analysis",
       "src.plotting_bout_position.plot_bout_flicker_position_cell06_style",
       "src.several_fish_loading.load_and_preflight_fish_raster_inputs"
+    ],
+    "syntax_failure_raw_cells": []
+  },
+  "notebooks/calcium/exp_08_accumulation_ev/03_control_onset_recruitment.ipynb": {
+    "imports": [
+      "src.active_neuron_analysis",
+      "src.data_loading",
+      "src.plotting_onset_comparison",
+      "src.several_fish_loading"
+    ],
+    "symbols": [
+      "src.active_neuron_analysis.build_control_bin_overlap",
+      "src.active_neuron_analysis.build_control_onset_comparison",
+      "src.data_loading.resolve_lab_root",
+      "src.plotting_onset_comparison.plot_control_bin_overlap",
+      "src.plotting_onset_comparison.plot_control_onset_heatmaps",
+      "src.plotting_onset_comparison.plot_control_onset_summary",
+      "src.several_fish_loading.load_and_preflight_fish_raster_inputs"
+    ],
+    "syntax_failure_raw_cells": []
+  },
+  "notebooks/calcium/exp_08_accumulation_ev/04_population_trajectories.ipynb": {
+    "imports": [
+      "src.data_loading",
+      "src.plotting_common",
+      "src.plotting_population_trajectories",
+      "src.population_trajectories",
+      "src.several_fish_loading",
+      "src.stimuli_timeline",
+      "src.stimulus_similarity"
+    ],
+    "symbols": [
+      "src.data_loading.resolve_lab_root",
+      "src.plotting_common.save_publication_figure",
+      "src.plotting_population_trajectories.plot_control_distance_overlay",
+      "src.plotting_population_trajectories.plot_control_similarity_curves",
+      "src.plotting_population_trajectories.plot_pooled_population_trajectories",
+      "src.population_trajectories.build_control_pattern_similarity",
+      "src.population_trajectories.build_joint_population_pca",
+      "src.population_trajectories.build_population_trajectory_analysis",
+      "src.population_trajectories.check_population_subsampling",
+      "src.population_trajectories.test_population_separation",
+      "src.several_fish_loading.load_and_preflight_fish_raster_inputs",
+      "src.stimuli_timeline.first_trajectory_difference"
     ],
     "syntax_failure_raw_cells": []
   },
@@ -220,29 +288,36 @@
   "notebooks/calcium/exp_09_rf_memory_inhibition/02_population_analysis.ipynb": {
     "imports": [
       "src.data_loading",
+      "src.plotting_all_fish",
       "src.plotting_common",
       "src.several_fish_diagnostics",
       "src.several_fish_figures",
-      "src.several_fish_loading",
-      "src.several_fish_reporting"
+      "src.several_fish_loading"
     ],
     "symbols": [
       "src.data_loading.resolve_lab_root",
+      "src.plotting_all_fish.plot_stimulus_response_panel_grid",
       "src.plotting_common.save_publication_figure",
+      "src.several_fish_diagnostics.build_phase_control_comparison",
+      "src.several_fish_diagnostics.build_phase_control_shared_nopre_response",
       "src.several_fish_diagnostics.build_phase_population_analysis",
       "src.several_fish_diagnostics.build_phase_recruitment_analysis",
+      "src.several_fish_diagnostics.build_phase_recruitment_strength_inputs",
       "src.several_fish_diagnostics.build_phase_sequence_panel_displays",
+      "src.several_fish_diagnostics.build_phase_sequence_repetition_displays",
       "src.several_fish_diagnostics.build_phase_stimulus_panel_displays",
+      "src.several_fish_diagnostics.reorder_phase_recruitment_rows",
+      "src.several_fish_diagnostics.select_phase_panel_rows",
       "src.several_fish_figures.plot_all_fish_stimulus_figures",
-      "src.several_fish_figures.plot_phase_fish_summary",
-      "src.several_fish_figures.plot_phase_population_comparisons",
-      "src.several_fish_figures.plot_phase_population_relationships",
+      "src.several_fish_figures.plot_phase_control_comparison_summary",
+      "src.several_fish_figures.plot_phase_control_shared_nopre_response",
       "src.several_fish_figures.plot_phase_recruitment_counts",
       "src.several_fish_figures.plot_phase_recruitment_decisions",
       "src.several_fish_figures.plot_phase_recruitment_proportions",
       "src.several_fish_figures.plot_phase_recruitment_rasters",
-      "src.several_fish_loading.load_reviewed_phase_cohort",
-      "src.several_fish_reporting.save_analysis_report_run"
+      "src.several_fish_figures.plot_recruitment_strength_summary",
+      "src.several_fish_loading.align_phase_cohort",
+      "src.several_fish_loading.load_reviewed_phase_cohort"
     ],
     "syntax_failure_raw_cells": []
   },
@@ -336,6 +411,17 @@
       "src.several_fish_selection.build_selected_neuron_summary",
       "src.several_fish_selection.resolve_stimulus_set",
       "src.stimulus_similarity.build_stimulus_vector_similarity"
+    ],
+    "syntax_failure_raw_cells": []
+  },
+  "notebooks/calcium/shared/Significant_traces_all_neurons.ipynb": {
+    "imports": [
+      "src.plotting_single_fish.raster_with_stimuli",
+      "src.significant_trace_detection.compute_noise_model_romano_fast_modular"
+    ],
+    "symbols": [
+      "src.plotting_single_fish.raster_with_stimuli",
+      "src.significant_trace_detection.compute_noise_model_romano_fast_modular"
     ],
     "syntax_failure_raw_cells": []
   },

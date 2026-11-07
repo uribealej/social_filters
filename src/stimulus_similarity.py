@@ -8,6 +8,30 @@ from src.response_metrics import compute_trial_auc_by_neuron
 from src.trial_alignment import compute_response_window_frames
 
 
+def compute_population_pattern_correlation(a, b):
+    """Pearson correlation across neuron identities at matching times.
+
+    Inputs are finite (neurons,time) arrays sharing shape and ordered neurons.
+    Center and normalize each time's vector across neurons. Return (time,).
+    Constant population vectors yield NaN rather than zero. No pairwise neuron
+    deletion, smoothing, time alignment, or amplitude normalization beyond
+    Pearson centering/scaling.
+    Coefficients are dimensionless and clipped to [-1,1] for floating-point error.
+    """
+    a, b = np.asarray(a, dtype=float), np.asarray(b, dtype=float)
+    if (a.ndim != 2 or b.ndim != 2 or a.shape != b.shape
+            or min(*a.shape, *b.shape) < 1 or not np.isfinite(a).all()
+            or not np.isfinite(b).all()):
+        raise ValueError('Require finite neuron-by-time arrays with matching neuron identities/counts.')
+    normalized = []
+    for values in (a, b):
+        centered = values - values.mean(axis=0)
+        norm = np.linalg.norm(centered, axis=0)
+        normalized.append(np.divide(centered, norm, out=np.full_like(centered, np.nan), where=norm > 0))
+    result = (normalized[0] * normalized[1]).sum(axis=0)
+    return np.clip(result, -1, 1)
+
+
 def build_stimulus_vector_similarity(response_matrix, selected_stimuli=None):
     """
     Compute stimulus-vector similarity from a neuron-by-stimulus response matrix.

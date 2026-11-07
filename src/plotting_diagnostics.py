@@ -14,7 +14,7 @@ from src.plotting_common import (
 
 
 def plot_paired_fish_values(table, value_column, condition_order, fish_ids, ax, ylabel,
-                            individual_style="identified", x_values=None):
+                            individual_style="identified"):
     """Plot one value per fish/condition and its equally weighted fish mean.
 
     Args:
@@ -27,8 +27,6 @@ def plot_paired_fish_values(table, value_column, condition_order, fish_ids, ax, 
         ylabel (str): Measurement name and units.
         individual_style (str): identified retains colored paired fish lines;
             anonymous_points uses gray dots and a black mean, labeled Fish/Mean.
-        x_values (sequence or None): Optional actual numeric positions, e.g.
-            unequal blank delays. Defaults retain existing categorical spacing.
 
     Returns:
         Axes: The populated axes. Inputs are not mutated; no files are saved.
@@ -36,14 +34,10 @@ def plot_paired_fish_values(table, value_column, condition_order, fish_ids, ax, 
     if individual_style not in {"identified", "anonymous_points"}:
         raise ValueError("individual_style must be identified or anonymous_points.")
     anonymous = individual_style == "anonymous_points"
-    x = np.arange(len(condition_order), dtype=float) if x_values is None else np.asarray(x_values, dtype=float)
-    if x.shape != (len(condition_order),) or not np.isfinite(x).all() or (np.diff(x) <= 0).any():
-        raise ValueError("x_values must match conditions and be finite and strictly increasing.")
+    x = np.arange(len(condition_order), dtype=float)
     colors = plt.get_cmap("tab10")
     values = []
     offsets = np.linspace(-0.10, 0.10, len(fish_ids)) if len(fish_ids) > 1 else [0.0]
-    if x_values is not None:
-        offsets = np.zeros(len(fish_ids))
     for index, (fid, offset) in enumerate(zip(fish_ids, offsets)):
         rows = table.loc[table["fish_id"] == fid].set_index("condition")
         y = rows[value_column].reindex(condition_order).to_numpy(dtype=float)
@@ -60,9 +54,7 @@ def plot_paired_fish_values(table, value_column, condition_order, fish_ids, ax, 
     np.divide(totals, counts, out=average, where=counts > 0)
     ax.plot(x, average, "D-", color="black", markersize=2.5 if anonymous else 5,
             linewidth=0.75 if anonymous else 1.7, label="Mean" if anonymous else "Fish mean")
-    margin = max(float(np.ptp(x)) * 0.05, 0.1)
-    limits = (-0.5, len(x) - 0.5) if x_values is None else (x[0] - margin, x[-1] + margin)
-    ax.set(xticks=x, xticklabels=condition_order, ylabel=ylabel, xlim=limits)
+    ax.set(xticks=x, xticklabels=condition_order, ylabel=ylabel, xlim=(-0.5, len(x) - 0.5))
     ax.tick_params(axis="x", labelrotation=40)
     for label in ax.get_xticklabels():
         label.set_ha("right")

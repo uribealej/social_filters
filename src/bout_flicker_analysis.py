@@ -7,6 +7,7 @@ import pandas as pd
 
 from src.active_neuron_analysis import build_active_neuron_matrices_all_fish
 from src.trial_alignment import resolve_selected_stimuli
+from src.response_classification import first_persistent_response_onset
 
 
 def build_bout_flicker_position_metadata(
@@ -360,19 +361,10 @@ def _first_persistent_significant_time(
     persistence_frames,
     min_significant_trial_fraction,
 ):
-    active = (
-        (np.asarray(significant_trace, dtype=float) >= float(min_significant_trial_fraction))
-        & (np.asarray(time_relative_s) >= 0)
+    return first_persistent_response_onset(
+        significant_trace, time_relative_s, persistence_frames,
+        min_significant_trial_fraction,
     )
-    if persistence_frames == 1:
-        hits = np.flatnonzero(active)
-        return float(time_relative_s[hits[0]]) if hits.size else np.inf
-    run = 0
-    for index, value in enumerate(active):
-        run = run + 1 if value else 0
-        if run >= persistence_frames:
-            return float(time_relative_s[index - persistence_frames + 1])
-    return np.inf
 
 
 def _window_frames(time_relative_s, center_s, offsets_s, stimulus):

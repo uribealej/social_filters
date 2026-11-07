@@ -508,6 +508,33 @@ def extract_stimulus_chunks(
     return chunked_data, trial_start_positions, movement_start_positions, movement_colors, stim_labels
 
 
+def first_trajectory_difference(trajectory_a, trajectory_b, *, framerate, atol=1e-6):
+    """Compare recorded trajectory CSVs and return first physical difference.
+
+    Paths must contain identical x/y/radius columns (plain or dot-prefixed),
+    finite values, and equal frame counts. Compare the recorded coordinates and
+    radii without rounding or interpolation, using absolute tolerance ``atol``
+    in the CSV's spatial units. Return frame index, seconds from stimulus
+    appearance, and compared columns; identical trajectories return None/NaN.
+    This compares assets, not measured playback or neural-response latency.
+    """
+    if not np.isfinite([framerate, atol]).all() or framerate <= 0 or atol < 0:
+        raise ValueError('Require positive trajectory frame rate and nonnegative tolerance.')
+    a, b = pd.read_csv(trajectory_a), pd.read_csv(trajectory_b)
+    columns = lambda df: [c for c in df if c in {'x', 'y', 'radius'}
+                          or c.endswith(('_x', '_y', '_radius'))]
+    selected = columns(a)
+    if not selected or set(selected) != set(columns(b)) or len(a) != len(b) or not len(a):
+        raise ValueError('Trajectory comparison requires matching spatial columns and frame counts.')
+    aa, bb = a[selected].to_numpy(dtype=float), b[selected].to_numpy(dtype=float)
+    if not np.isfinite(aa).all() or not np.isfinite(bb).all():
+        raise ValueError('Trajectory spatial values must be finite.')
+    different = np.flatnonzero(~np.isclose(aa, bb, atol=atol, rtol=0).all(axis=1))
+    frame = int(different[0]) if different.size else None
+    return dict(frame=frame, time_from_appearance_s=frame / framerate if frame is not None else np.nan,
+                compared_columns=selected)
+
+
 def stimulus_phase_intervals(duration):
     """Return nominal display phases in seconds relative to stimulus appearance.
 

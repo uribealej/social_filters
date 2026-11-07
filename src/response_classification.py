@@ -3,7 +3,40 @@
 import numpy as np
 import pandas as pd
 
-from src.trial_alignment import stimulus_duration_entry, trial_aligned_time_axis
+from src.trial_alignment import (
+    compute_response_window_frames, stimulus_duration_entry, trial_aligned_time_axis,
+)
+
+def first_persistent_response_onset(
+    significant_trace, time_relative_s, persistence_frames=2,
+    min_significant_trial_fraction=0.5,
+):
+    """Return the first sustained consensus onset in seconds, or ``np.inf``.
+
+    Inputs are matching 1D trial-fraction and time arrays. An onset starts a
+    run of ``persistence_frames`` samples at/above the trial-fraction threshold
+    at nonnegative times. Nonfinite signal samples break runs. Callers select
+    their response window before calling; persistence must fit in that window.
+    This is a consensus-trace onset, not a median of single-trial latencies.
+    """
+    trace = np.asarray(significant_trace, dtype=float)
+    times = np.asarray(time_relative_s, dtype=float)
+    if trace.ndim != 1 or trace.shape != times.shape or not np.isfinite(times).all():
+        raise ValueError("Onset requires matching 1D signal and finite time arrays.")
+    if times.size > 1 and not (np.diff(times) > 0).all():
+        raise ValueError("Onset times must be strictly increasing.")
+    if int(persistence_frames) != persistence_frames or persistence_frames < 1:
+        raise ValueError("persistence_frames must be a positive integer.")
+    if not 0 < min_significant_trial_fraction <= 1:
+        raise ValueError("min_significant_trial_fraction must be in (0, 1].")
+    active = np.isfinite(trace) & (trace >= min_significant_trial_fraction) & (times >= 0)
+    run = 0
+    for index, value in enumerate(active):
+        run = run + 1 if value else 0
+        if run >= persistence_frames:
+            return float(times[index - persistence_frames + 1])
+    return np.inf
+
 
 def _has_consecutive_true(bool_vec, min_run_frames):
     bool_vec = np.asarray(bool_vec, dtype=bool)
@@ -73,6 +106,8 @@ def build_active_neuron_matrix_from_trial_raster(
     (n_neurons, n_time, n_reps), with binary values where 1 means significant.
     A repetition is active when it passes both the significant-frame fraction
     and consecutive-epoch rules inside the response window after motion onset.
+    ``motion_onset_s=None`` uses each stimulus's ``static_before_sec`` via the
+    shared window owner, with a response tail of ``2 * tau_s`` seconds.
     """
     if fps_2p <= 0:
         raise ValueError("fps_2p must be > 0")
@@ -134,15 +169,24 @@ def build_active_neuron_matrix_from_trial_raster(
         )
         motion_duration_s = float(duration[motion_duration_key])
 
-        time_s = trial_aligned_time_axis(n_time, fps_2p=fps_2p, t_pre_s=t_pre_s)
-        response_end_s = float(motion_onset_s) + motion_duration_s + tau_s * 2.0
-        response_mask = (time_s >= float(motion_onset_s)) & (time_s < response_end_s)
-        if not np.any(response_mask):
-            raise ValueError(
-                f"Stimulus {stim_name!r} has no frames in the response window "
-                f"{motion_onset_s}..{response_end_s} s. Check t_pre_s, fps_2p, "
-                "and the aligned trace length."
+        if motion_onset_s is None:
+            window = compute_response_window_frames(
+                n_time, fps_2p, t_pre_s=t_pre_s, motion_onset_s=None,
+                motion_duration_s=motion_duration_s, tau_s=tau_s, stimulus=stim,
+                stimuli_durations=stimuli_durations, stimuli_id_map=stimuli_id_map,
+                motion_duration_key=motion_duration_key,
             )
+            response_mask = window["response_mask"]
+        else:
+            time_s = trial_aligned_time_axis(n_time, fps_2p=fps_2p, t_pre_s=t_pre_s)
+            response_end_s = float(motion_onset_s) + motion_duration_s + tau_s * 2.0
+            response_mask = (time_s >= float(motion_onset_s)) & (time_s < response_end_s)
+            if not np.any(response_mask):
+                raise ValueError(
+                    f"Stimulus {stim_name!r} has no frames in the response window "
+                    f"{motion_onset_s}..{response_end_s} s. Check t_pre_s, fps_2p, "
+                    "and the aligned trace length."
+                )
 
         response = arr[:, response_mask, :].astype(bool, copy=False)
         active_reps = classify_trial_raster_activity(

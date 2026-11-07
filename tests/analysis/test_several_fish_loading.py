@@ -113,6 +113,19 @@ class SeveralFishLoadingTests(unittest.TestCase):
                         rsf.load_and_preflight_fish_raster_inputs(settings)
             loader.assert_not_called()
 
+    def test_explicit_lab_root_precedes_legacy_path_lookup(self):
+        """A portable custom Lab root need not sit inside a named OneDrive folder."""
+        lab_root = self.data_base / "custom_lab"
+        (lab_root / "Data" / "2p").mkdir(parents=True)
+        settings = {**self.settings, "lab_root": lab_root}
+        del settings["data_base"]
+        with mock.patch.object(loading.exio, "load_and_align_2p_experiment", return_value=fish_bundle()), \
+                mock.patch.object(loading, "_resolve_cohort_paths") as legacy:
+            result = loading.load_and_preflight_fish_raster_inputs(settings)
+        legacy.assert_not_called()
+        self.assertEqual(result["main_path"], lab_root / "Data" / "2p")
+        self.assertEqual(result["analysis_path"], lab_root / "Analysis")
+
     def test_missing_data_root_fails_before_loading(self):
         """Preserve the descriptive OneDrive lookup failure."""
         with tempfile.TemporaryDirectory() as folder:

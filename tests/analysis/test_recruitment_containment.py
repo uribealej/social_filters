@@ -9,6 +9,8 @@ import pandas as pd
 from src.active_neuron_analysis import compute_active_neuron_containment
 from src.several_fish_selection import build_active_group_masks
 from src.several_fish_diagnostics import build_recruitment_containment_analysis
+from src.response_metrics import compute_motion_decay_auc
+from src.trial_alignment import compute_response_window_frames
 
 
 CONDITIONS = ["Control", "R1", "R2", "R3", "F1", "F2", "F3"]
@@ -157,6 +159,67 @@ class RecruitmentAnalysisTests(unittest.TestCase):
         groups["right"]["rocking"] = groups["right"]["rocking"][:2]
         with self.assertRaisesRegex(ValueError, "matching"):
             build_recruitment_containment_analysis(data, fish_ids, groups, TIMING, ACTIVE, CONDITIONS)
+
+
+class TrajectoryWindowRecruitmentTests(unittest.TestCase):
+    """Activity and AUC use the same trajectory onset and exclusive tail end."""
+
+    def test_recruitment_and_auc_exclude_static_and_late_activity(self):
+        data, fish_ids, groups = synthetic_cohort()
+        times = np.arange(8) - 1.0
+        for fish in data.values():
+            for label, sid in fish['stimuli_id_map'].items():
+                start = 3.0 if label.startswith('F') else 2.0
+                fish['stimuli_durations'][label] = dict(
+                    static_before_sec=start, motion_sec=4.0-start, total_sec=4.0)
+                mask = (times >= start) & (times < 5.0)
+                # A ramp has a known trapezoidal mean; extreme outside values
+                # expose any accidental use of static or post-window samples.
+                z = fish['trial_aligned_traces_z_core'][sid]
+                z[:] = 1000
+                z[:, mask, :] = (3 * times[mask] - 8)[None, :, None]
+                raster = fish['trial_aligned_traces_raster'][sid]
+                raster[:] = 1
+                raster[:, mask, :] = 0
+                raster[0, mask, :] = 1
+        timing = {**TIMING, 'motion_onset_s': None, 'tau_s': 0.5}
+        result = build_recruitment_containment_analysis(
+            data, fish_ids, groups, timing, ACTIVE, CONDITIONS)
+        windows = result['tables']['response_windows']
+        np.testing.assert_allclose(windows['requested_end_s'], 5.0)
+        np.testing.assert_allclose(windows['last_sample_s'], 4.0)
+        self.assertEqual(result['fish_ids'], fish_ids)
+        for fid in fish_ids:
+            fish = data[fid]
+            decisions = result['active_matrices'][fid]
+            np.testing.assert_array_equal(decisions.iloc[0], 1)
+            np.testing.assert_array_equal(decisions.iloc[1:], 0)
+            for label, sid in fish['stimuli_id_map'].items():
+                duration = fish['stimuli_durations'][label]
+                measure = compute_motion_decay_auc(
+                    fish['trial_aligned_traces_z_core'][sid][fish['kept_neuron_indices']],
+                    duration, 1.0, 1.0, decay_s=1.0)
+                expected = 2.5 if label.startswith('F') else 1.0
+                rows = result['tables']['neuron_responses'].query(
+                    'fish_id == @fid and stimulus == @label')
+                np.testing.assert_allclose(rows['normalized_auc'], expected)
+                np.testing.assert_allclose(rows['normalized_auc'], measure['normalized_auc'])
+                np.testing.assert_allclose(rows['raw_auc'], measure['raw_auc'])
+                row = windows.query('fish_id == @fid and stimulus == @label').iloc[0]
+                self.assertEqual(row.start_s, measure['window']['start_s'])
+                self.assertEqual(row.integration_span_s, measure['window']['integration_span_s'])
+
+    def test_metadata_onset_requires_valid_timing_and_keeps_numeric_override(self):
+        for onset in (None, np.nan, -1.0):
+            duration = dict(motion_sec=2.0, static_before_sec=onset)
+            with self.subTest(onset=onset):
+                with self.assertRaisesRegex(ValueError, 'static_before_sec'):
+                    compute_response_window_frames(10, 1, motion_onset_s=None,
+                        stimulus=1, stimuli_durations={1: duration})
+        window = compute_response_window_frames(10, 1, t_pre_s=1,
+            motion_onset_s=2, stimulus=1, tau_s=0.5,
+            stimuli_durations={1: dict(motion_sec=2.0)})
+        np.testing.assert_array_equal(window['frame_indices'], [3, 4, 5])
 
 
 if __name__ == "__main__":

@@ -132,10 +132,116 @@ def plot_stimulus_means(
     return fig, ax, color_by_stim, out_png
 
 
+def _panel_time_bounds(display, ids):
+    """Return {sid: (start, stop)} seconds: explicit time_bounds_s or sample edges."""
+    dt = 1 / display["fps_2p"]
+    return {sid: display.get("time_bounds_s", {}).get(sid,
+        (display["time_s"][sid][0] - dt / 2, display["time_s"][sid][-1] + dt / 2))
+        for sid in ids}
+
+
+def _auto_panel_mean_ylim(displays, mean_mode, show_fish_traces):
+    """Return padded mean-trace limits spanning every prepared condition and 0."""
+    mean_values = []
+    for display in displays:
+        mean_values.extend(display["fish_means"].values()
+            if show_fish_traces or mean_mode == "equal_fish"
+            else (np.nanmean(v, axis=0) for v in display["matrices"].values()))
+    finite = np.concatenate([v[np.isfinite(v)] for v in mean_values])
+    low, high = (min(0, finite.min()), max(0, finite.max())) if finite.size else (-1, 1)
+    pad = max(0.1, (high - low) * 0.06)
+    return (low - pad, high + pad)
+
+
+def _draw_panel_raster(ax, display, sid, z_limits, cmap):
+    """Draw one (neurons, time) matrix in display['neuron_order']; return the image."""
+    times = display["time_s"][sid]
+    dt = 1 / display["fps_2p"]
+    order = display["neuron_order"]
+    return ax.imshow(display["matrices"][sid][order], aspect="auto",
+        interpolation="nearest", origin="upper", cmap=cmap,
+        vmin=z_limits[0], vmax=z_limits[1],
+        extent=[times[0] - dt / 2, times[-1] + dt / 2, len(order) - 0.5, -0.5])
+
+
+def _draw_panel_mean(ax, display, sid, mean_mode, show_fish_traces, mean_ylim):
+    """Draw optional fish traces and the equal-fish or pooled-neuron mean."""
+    times = display["time_s"][sid]
+    colors = plt.get_cmap("tab10")
+    values = display["fish_means"][sid]
+    if show_fish_traces:
+        for index, fid in enumerate(display["fish_ids"]):
+            ax.plot(times, values[index], color=colors(index % 10), alpha=0.65,
+                    linewidth=0.4, label=fid)
+    mean = (np.nanmean(values, axis=0) if mean_mode == "equal_fish"
+            else np.nanmean(display["matrices"][sid], axis=0))
+    ax.plot(times, mean, color="black", linewidth=0.9,
+            label="Equal-fish mean" if mean_mode == "equal_fish" else "Pooled-neuron mean")
+    ax.axhline(0, color="gray", linewidth=0.35, zorder=0)
+    ax.set_ylim(*mean_ylim)
+
+
+def _annotate_panel_phases(ax, display, sid):
+    """Shade native phase timing (phase_trials) or nominal static/active spans."""
+    phase_trials = display.get("phase_trials")
+    if phase_trials is not None:
+        from src.plotting_single_fish import add_phase_annotations
+        trial = phase_trials[sid]
+        anchor = trial.onset_s if display["alignment"] == "sequence" else trial.bout_onset_s
+        add_phase_annotations(ax, trial, anchor)
+        ax.axvline(0, color="#555555", linestyle=":", linewidth=0.45, zorder=3)
+        return
+    for phase, start, stop in display["phases"][sid]:
+        ax.axvspan(start, stop, facecolor="#808080" if phase == "static" else "#4bb8ae",
+                   alpha=0.20 if phase == "static" else 0.10, zorder=2)
+        if phase == "active" and start > 0:
+            ax.axvline(start, color="#248f86", linewidth=0.45, zorder=3)
+    ax.axvline(0, color="#555555", linestyle=":", linewidth=0.45, zorder=3)
+    end = display["phases"][sid][-1][2] if display["phases"][sid] else 0
+    ax.axvline(end, color="#555555", linestyle="--", linewidth=0.5, zorder=3)
+
+
+def _add_panel_phase_legend(fig, has_phase_trials, legend_fontsize):
+    """Place the phase key in the upper-right figure corner, clear of titles."""
+    from matplotlib.patches import Patch
+    phase_handles = ([Patch(facecolor=color, alpha=0.17, label=label) for label, color in
+        [("Preconditioning", "#b59bd6"), ("Blank delay", "#d9dde3"), ("Bout", "#52b9b1")]]
+        if has_phase_trials else
+        [Patch(facecolor="#808080", alpha=0.20, label="Static"),
+         Patch(facecolor="#4bb8ae", alpha=0.10, label="Motion / flicker")])
+    fig.legend(handles=phase_handles,
+               loc="upper right", bbox_to_anchor=(0.985, 0.985),
+               ncol=3 if has_phase_trials else 2,
+               frameon=False, borderaxespad=0, handlelength=1.2,
+               handletextpad=0.4, columnspacing=1.0,
+               fontsize=plt.rcParams["axes.labelsize"] if legend_fontsize is None else legend_fontsize)
+
+
+def _validate_panel_request(display, stimulus_ids, mean_mode, z_limits):
+    """Return validated column stimulus IDs for one prepared panel display."""
+    ids = list(display["stimulus_ids"] if stimulus_ids is None else stimulus_ids)
+    if not ids or len(set(ids)) != len(ids) or not set(ids) <= set(display["stimulus_ids"]):
+        raise ValueError("stimulus_ids must be a nonempty unique subset of the display.")
+    if mean_mode not in {"equal_fish", "pooled_neurons"}:
+        raise ValueError("mean_mode must be 'equal_fish' or 'pooled_neurons'.")
+    if not np.isfinite(z_limits).all() or len(z_limits) != 2 or z_limits[0] >= z_limits[1]:
+        raise ValueError("z_limits must be two finite increasing values.")
+    return ids
+
+
+def _panel_width_ratios(bounds, ids):
+    """Return per-column durations for proportional widths, validating bounds."""
+    if any(not np.isfinite(b).all() or len(b) != 2 or b[1] <= b[0]
+           for b in bounds.values()):
+        raise ValueError("Panel time bounds must be finite increasing (start, stop) seconds.")
+    return [bounds[sid][1] - bounds[sid][0] for sid in ids]
+
+
 def plot_stimulus_response_panels(display, stimulus_ids=None, layout="combined",
                                   figsize=(12, 5), z_limits=(0, 10), mean_ylim=None,
                                   cmap="Greys", title="", mean_mode="equal_fish",
-                                  show_fish_traces=True, proportional_widths=False):
+                                  show_fish_traces=True, proportional_widths=False,
+                                  show_legend=True, legend_fontsize=None):
     """Plot independent trial-mean stimulus columns with one shared neuron order.
 
     Args:
@@ -159,6 +265,9 @@ def plot_stimulus_response_panels(display, stimulus_ids=None, layout="combined",
             display['time_bounds_s'] supplies exact requested (start, stop)
             seconds; otherwise use sample edges. Default keeps equal widths
             and shared limits.
+        show_legend (bool): Draw the phase legend (default True).
+        legend_fontsize (float or None): Phase legend font size; None keeps
+            the rc axes-label size.
 
     Returns:
         tuple: Figure and a 2D axes array (rows, conditions). No saving/showing.
@@ -170,82 +279,35 @@ def plot_stimulus_response_panels(display, stimulus_ids=None, layout="combined",
     """
     from matplotlib.ticker import MaxNLocator
 
-    ids = list(display["stimulus_ids"] if stimulus_ids is None else stimulus_ids)
-    if not ids or len(set(ids)) != len(ids) or not set(ids) <= set(display["stimulus_ids"]):
-        raise ValueError("stimulus_ids must be a nonempty unique subset of the display.")
     if layout not in {"raster", "mean", "combined"}:
         raise ValueError("layout must be raster, mean, or combined.")
-    if mean_mode not in {"equal_fish", "pooled_neurons"}:
-        raise ValueError("mean_mode must be 'equal_fish' or 'pooled_neurons'.")
+    ids = _validate_panel_request(display, stimulus_ids, mean_mode, z_limits)
     is_raster = display.get("trace_type", "zscore") == "raster"
     color_label = "Significant activity (trial fraction)" if is_raster else "Z-score"
     mean_label = "Mean significant\nactivity (fraction)" if is_raster else "Mean\nz-score"
-    if not np.isfinite(z_limits).all() or len(z_limits) != 2 or z_limits[0] >= z_limits[1]:
-        raise ValueError("z_limits must be two finite increasing values.")
     has_raster, has_mean = layout != "mean", layout != "raster"
     nrows = 2 if layout == "combined" else 1
     dt = 1 / display["fps_2p"]
-    bounds = {sid: display.get("time_bounds_s", {}).get(sid,
-        (display["time_s"][sid][0] - dt / 2, display["time_s"][sid][-1] + dt / 2))
-        for sid in ids}
+    bounds = _panel_time_bounds(display, ids)
     gridspec = {"height_ratios": [3, 1.5]} if nrows == 2 else {}
     if proportional_widths:
-        if any(not np.isfinite(b).all() or len(b) != 2 or b[1] <= b[0]
-               for b in bounds.values()):
-            raise ValueError("Panel time bounds must be finite increasing (start, stop) seconds.")
-        gridspec["width_ratios"] = [bounds[sid][1] - bounds[sid][0] for sid in ids]
+        gridspec["width_ratios"] = _panel_width_ratios(bounds, ids)
     fig, axes = plt.subplots(nrows, len(ids), figsize=figsize,
         sharex="col" if proportional_widths else True,
         sharey="row", squeeze=False, gridspec_kw=gridspec)
     fig.subplots_adjust(left=0.10, right=0.90 if has_raster else 0.985,
                         bottom=0.21, top=0.82, wspace=0.12, hspace=0.13)
     if mean_ylim is None:
-        mean_values = (display["fish_means"].values() if show_fish_traces or mean_mode == "equal_fish"
-                       else (np.nanmean(v, axis=0) for v in display["matrices"].values()))
-        finite = np.concatenate([v[np.isfinite(v)] for v in mean_values])
-        low, high = (min(0, finite.min()), max(0, finite.max())) if finite.size else (-1, 1)
-        pad = max(0.1, (high - low) * 0.06)
-        mean_ylim = (low - pad, high + pad)
-    colors = plt.get_cmap("tab10")
+        mean_ylim = _auto_panel_mean_ylim([display], mean_mode, show_fish_traces)
     phase_trials = display.get("phase_trials")
     im = None
-    order = display["neuron_order"]
     for column, sid in enumerate(ids):
-        times = display["time_s"][sid]
         if has_raster:
-            im = axes[0, column].imshow(display["matrices"][sid][order], aspect="auto",
-                interpolation="nearest", origin="upper", cmap=cmap,
-                vmin=z_limits[0], vmax=z_limits[1],
-                extent=[times[0] - dt / 2, times[-1] + dt / 2, len(order) - 0.5, -0.5])
+            im = _draw_panel_raster(axes[0, column], display, sid, z_limits, cmap)
         if has_mean:
-            ax = axes[-1, column]
-            values = display["fish_means"][sid]
-            if show_fish_traces:
-                for index, fid in enumerate(display["fish_ids"]):
-                    ax.plot(times, values[index], color=colors(index % 10), alpha=0.65,
-                            linewidth=0.4, label=fid)
-            mean = (np.nanmean(values, axis=0) if mean_mode == "equal_fish"
-                    else np.nanmean(display["matrices"][sid], axis=0))
-            ax.plot(times, mean, color="black", linewidth=0.9,
-                    label="Equal-fish mean" if mean_mode == "equal_fish" else "Pooled-neuron mean")
-            ax.axhline(0, color="gray", linewidth=0.35, zorder=0)
-            ax.set_ylim(*mean_ylim)
+            _draw_panel_mean(axes[-1, column], display, sid, mean_mode, show_fish_traces, mean_ylim)
         for ax in axes[:, column]:
-            if phase_trials is not None:
-                from src.plotting_single_fish import add_phase_annotations
-                trial = phase_trials[sid]
-                anchor = trial.onset_s if display["alignment"] == "sequence" else trial.bout_onset_s
-                add_phase_annotations(ax, trial, anchor)
-                ax.axvline(0, color="#555555", linestyle=":", linewidth=0.45, zorder=3)
-                continue
-            for phase, start, stop in display["phases"][sid]:
-                ax.axvspan(start, stop, facecolor="#808080" if phase == "static" else "#4bb8ae",
-                           alpha=0.20 if phase == "static" else 0.10, zorder=2)
-                if phase == "active" and start > 0:
-                    ax.axvline(start, color="#248f86", linewidth=0.45, zorder=3)
-            ax.axvline(0, color="#555555", linestyle=":", linewidth=0.45, zorder=3)
-            end = display["phases"][sid][-1][2] if display["phases"][sid] else 0
-            ax.axvline(end, color="#555555", linestyle="--", linewidth=0.5, zorder=3)
+            _annotate_panel_phases(ax, display, sid)
         axes[0, column].set_title(display['stimulus_labels'][sid], pad=3)
         axes[-1, column].xaxis.set_major_locator(MaxNLocator(nbins=3))
         if proportional_widths:
@@ -258,18 +320,8 @@ def plot_stimulus_response_panels(display, stimulus_ids=None, layout="combined",
         cax = fig.add_axes([0.92, 0.21 if nrows == 1 else 0.43, 0.012,
                             0.61 if nrows == 1 else 0.39])
         fig.colorbar(im, cax=cax, label=color_label)
-    # Keep the phase key together in the corner, clear of the stimulus titles.
-    from matplotlib.patches import Patch
-    phase_handles = ([Patch(facecolor=color, alpha=0.17, label=label) for label, color in
-        [("Preconditioning", "#b59bd6"), ("Blank delay", "#d9dde3"), ("Bout", "#52b9b1")]]
-        if phase_trials is not None else
-        [Patch(facecolor="#808080", alpha=0.20, label="Static"),
-         Patch(facecolor="#4bb8ae", alpha=0.10, label="Motion / flicker")])
-    fig.legend(handles=phase_handles,
-               loc="upper right", bbox_to_anchor=(0.985, 0.985), ncol=3 if phase_trials is not None else 2,
-               frameon=False, borderaxespad=0, handlelength=1.2,
-               handletextpad=0.4, columnspacing=1.0,
-               fontsize=plt.rcParams["axes.labelsize"])
+    if show_legend:
+        _add_panel_phase_legend(fig, phase_trials is not None, legend_fontsize)
     if has_mean:
         axes[-1, 0].set_ylabel(mean_label)
         axes[-1, 0].yaxis.set_major_locator(MaxNLocator(nbins=3))
@@ -277,6 +329,132 @@ def plot_stimulus_response_panels(display, stimulus_ids=None, layout="combined",
     fig.supxlabel(xlabel, y=0.02, fontsize=plt.rcParams["axes.labelsize"])
     if title:
         fig.suptitle(title, x=0.10, y=0.965, ha="left")
+    return fig, axes
+
+
+def plot_stimulus_response_panel_grid(row_displays, row_labels, stimulus_ids=None,
+                                      show_traces=False, figsize=(6, 8), z_limits=(0, 10),
+                                      mean_ylim=None, cmap="Greys", title="",
+                                      mean_mode="pooled_neurons", show_fish_traces=False,
+                                      proportional_widths=False, show_legend=True,
+                                      legend_fontsize=None, color_label=None,
+                                      mean_label=None):
+    """Stack prepared panel displays as rows of one condition-column grid.
+
+    Args:
+        row_displays (sequence): Nonempty panel displays, one per figure row
+            (for example one single-repetition display each). All share
+            stimulus_ids, neuron_order, fish/neuron identities, time axes and
+            alignment; matrices are (neurons, time), fish_means (fish, time).
+        row_labels (sequence): One raster y-axis label per row (may contain
+            newlines), e.g. 'Rep 2'.
+        stimulus_ids (sequence or None): Nonempty column subset in order.
+        show_traces (bool): Add a mean-trace axis below every raster row.
+        figsize (tuple): Final figure width/height in inches.
+        z_limits (tuple): Shared color limits in the displayed trace units.
+        mean_ylim (tuple or None): Shared mean-trace limits; None spans every
+            prepared condition of every row (comparable across sides).
+        cmap (str): Raster colormap.
+        title (str): Optional short heading.
+        mean_mode (str): pooled_neurons (default) or equal_fish.
+        show_fish_traces (bool): Thin individual-fish traces under each mean.
+        proportional_widths (bool): Size columns by their own time spans on a
+            common physical seconds scale, as plot_stimulus_response_panels.
+        show_legend (bool), legend_fontsize (float or None): Phase legend
+            controls; None keeps the rc axes-label size.
+        color_label, mean_label (str or None): Colorbar and mean-axis labels.
+            None uses 'Z-score' / 'Mean z-score', or for significant traces
+            'Significant activity (0/1)' / 'Fraction active'.
+
+    Returns:
+        tuple: Figure and a 2D axes array (figure rows, conditions). With
+        traces each display contributes a raster row followed by a mean row.
+        Panels reuse plot_stimulus_response_panels' drawing routines, so row
+        order and phase shading match. No saving, showing or data mutation.
+    """
+    from matplotlib.ticker import MaxNLocator
+
+    row_displays, row_labels = list(row_displays), list(row_labels)
+    if not row_displays or len(row_labels) != len(row_displays):
+        raise ValueError("row_displays must be nonempty with one label per row.")
+    first = row_displays[0]
+    ids = _validate_panel_request(first, stimulus_ids, mean_mode, z_limits)
+    identity = ["fish_id", "neuron_id"]
+    for display in row_displays[1:]:
+        if (list(display["stimulus_ids"]) != list(first["stimulus_ids"])
+                or display["alignment"] != first["alignment"]
+                or not np.array_equal(display["neuron_order"], first["neuron_order"])
+                or not np.array_equal(display["row_metadata"][identity].to_numpy(),
+                                      first["row_metadata"][identity].to_numpy())
+                or any(not np.array_equal(display["time_s"][sid], first["time_s"][sid])
+                       for sid in ids)):
+            raise ValueError("Grid rows must share conditions, neuron order and identities, "
+                             "alignment and time axes.")
+    is_raster = first.get("trace_type", "zscore") == "raster"
+    if color_label is None:
+        color_label = "Significant activity (0/1)" if is_raster else "Z-score"
+    if mean_label is None:
+        mean_label = "Fraction\nactive" if is_raster else "Mean\nz-score"
+    per_row = 2 if show_traces else 1
+    nrows = per_row * len(row_displays)
+    dt = 1 / first["fps_2p"]
+    bounds = _panel_time_bounds(first, ids)
+    width_ratios = _panel_width_ratios(bounds, ids) if proportional_widths else None
+    # Blank spacer rows separate repetition blocks more than raster and trace.
+    block = [3, 1.5] if show_traces else [3]
+    spacer = 0.7 if show_traces else 0.45
+    heights = [h for index in range(len(row_displays))
+               for h in ([spacer] if index else []) + block]
+    height_in = figsize[1]
+    fig = plt.figure(figsize=figsize)
+    grid = fig.add_gridspec(len(heights), len(ids), height_ratios=heights,
+        width_ratios=width_ratios, left=0.12, right=0.90,
+        bottom=0.42 / height_in, top=1 - 0.48 / height_in, wspace=0.12, hspace=0.12)
+    axes = np.empty((nrows, len(ids)), dtype=object)
+    for row in range(nrows):
+        grid_row = row + (row // per_row)  # Skip one spacer per earlier block.
+        for column in range(len(ids)):
+            axes[row, column] = fig.add_subplot(grid[grid_row, column],
+                sharex=axes[0, column if proportional_widths else 0] if row or column else None,
+                sharey=axes[row, 0] if column else None)
+            axes[row, column].tick_params(labelbottom=row == nrows - 1, labelleft=column == 0)
+    if show_traces and mean_ylim is None:
+        mean_ylim = _auto_panel_mean_ylim(row_displays, mean_mode, show_fish_traces)
+    im = None
+    for index, (display, label) in enumerate(zip(row_displays, row_labels)):
+        raster_row = index * per_row
+        for column, sid in enumerate(ids):
+            im = _draw_panel_raster(axes[raster_row, column], display, sid, z_limits, cmap)
+            if show_traces:
+                _draw_panel_mean(axes[raster_row + 1, column], display, sid,
+                                 mean_mode, show_fish_traces, mean_ylim)
+            for ax in axes[raster_row:raster_row + per_row, column]:
+                _annotate_panel_phases(ax, display, sid)
+        axes[raster_row, 0].set_ylabel(label)
+        if show_traces:
+            axes[raster_row + 1, 0].set_ylabel(mean_label)
+            axes[raster_row + 1, 0].yaxis.set_major_locator(MaxNLocator(nbins=3))
+    for column, sid in enumerate(ids):
+        axes[0, column].set_title(first["stimulus_labels"][sid], pad=3)
+        axes[-1, column].xaxis.set_major_locator(MaxNLocator(nbins=3))
+        if proportional_widths:
+            axes[0, column].set_xlim(*bounds[sid])
+    if not proportional_widths:
+        axes[0, 0].set_xlim(min(first["time_s"][sid][0] - dt / 2 for sid in ids),
+                            max(first["time_s"][sid][-1] + dt / 2 for sid in ids))
+    top = axes[0, -1].get_position()
+    bottom = axes[nrows - per_row, -1].get_position()
+    cax = fig.add_axes([0.92, bottom.y0, 0.012, top.y1 - bottom.y0])
+    colorbar = fig.colorbar(im, cax=cax, label=color_label)
+    if is_raster and tuple(z_limits) == (0, 1):
+        colorbar.set_ticks([0, 1])  # Single-trial significant traces are binary.
+    has_phase_trials = first.get("phase_trials") is not None
+    if show_legend:
+        _add_panel_phase_legend(fig, has_phase_trials, legend_fontsize)
+    xlabel = f"From {first['alignment']} onset (s)" if has_phase_trials else "Time (s)"
+    fig.supxlabel(xlabel, y=0.08 / height_in, va="bottom", fontsize=plt.rcParams["axes.labelsize"])
+    if title:
+        fig.suptitle(title, x=0.12, y=1 - 0.1 / height_in, ha="left")
     return fig, axes
 
 

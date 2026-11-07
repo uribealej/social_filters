@@ -1,7 +1,7 @@
 # Exp 9 analysis: review handoff
 
 Continue reviewing `02_population_analysis.ipynb` with the user. Refer to its
-stable **Cell 01-10** labels, not kernel execution counters such as `In[57]`.
+stable **Cell 01-08** labels (with 04a-d, 06b-e and 07a-d), not kernel execution counters such as `In[57]`.
 The notebook is implemented; the next task is to inspect and discuss its results
 and fix specific issues the user identifies.
 
@@ -10,18 +10,28 @@ and fix specific issues the user identifies.
 | Cell | Purpose |
 | --- | --- |
 | 01 | Imports and shared `src` helpers |
-| 02 | Fish selection, paths, phase windows, activity thresholds and display settings |
+| 02 | Fish selection, paths, phase windows, activity thresholds and display settings; `ANALYSIS_REPETITIONS` / `ANALYSIS_MIN_ACTIVE_REPS` (the one repetition switch for 04d labels and 06c-08) |
 | 03 | Readiness table, included fish and saved detector settings |
 | 04a | Prepare shared native measurements/recruitment and pooled left/right orders for both alignments |
 | 04b | Pooled z-score/significant panels with optional traces below and optional Fig. 07 SVG export |
 | 04c | Companion full-sequence panels: keep preconditioning and the complete blank delay, then 15 s after bout offset; reuse 04a's exact rows/repetitions |
+| 04d | Same 04c window and rows without trial averaging: one row of panels per repetition (`PER_REP_REPETITIONS`, default all four), one column per condition, per side and trace type; significant panels are single-trial 0/1 traces; repetitions outside `PER_REP_ANALYSIS_REPETITIONS` (default Cell 02's `ANALYSIS_REPETITIONS`, trials 2-4) are labelled excluded from analyses; optional pooled-neuron mean below each row; optional SVG |
 | 05 | Per-trial/per-neuron/per-fish measurements and native sample coverage |
-| 06 | Bout AUC, peak and active-neuron fractions in both windows |
-| 06b | Significant recruitment from trials 2-4: one mean preconditioning panel, C1/S1-S5 bouts, counts and percentages for C1 overlap and new after own preconditioning; C2 excluded |
-| 07 | Preconditioning, early/late change, pre-bout level, corrected AUC and repetition consistency |
-| 08 | Paired control comparisons and delay curves |
-| 09 | Preconditioning/bout memberships, neuron scatterplots and descriptive correlations |
-| 10 | Optional report export; `SAVE_OUTPUTS = False` by default |
+| 06b | Significant recruitment from trials 2-4: one mean preconditioning panel, C1/S1-S5 bouts, counts and percentages for C1 overlap and new after own preconditioning; C2 excluded (unchanged, 0-3.6 s) |
+| 06c | Prepare once: Cell 02's `ANALYSIS_REPETITIONS` (default `(2, 3, 4)`, `(1, 2, 3, 4)` = all trials) with `ANALYSIS_MIN_ACTIVE_REPS=2` sets the rule for 06d-08; 15 s-recovery copy of the cohort (`align_phase_cohort`), `bout_10s`/`bout_15s`/`pre_bout` (-2 to 0 s) measurements, recruitment at 0-10 s (bars) and 0-15 s (rasters), C2-versus-C1 comparison, the 07a z-score full-sequence rows (own repetitions, not Cell 04a's) and the three-row summary inputs; 04a-06b results are unchanged |
+| 06d | 0-10 s shared-with-C1 / new-after-own-preconditioning counts and percentages: slate-blue equal-fish bars, sage fish dots, no lines or fish identities; optional SVG |
+| 06e | 0-15 s significant rasters and decision diagnostics (bouts 0-15 s, full 8.1 s preconditioning); rows default to preconditioning pool first, then all other neurons by C1 bout z-score AUC (0-15 s, high to low), or 06b grouping (`RASTER15_SORT='groups'`); `RASTER15_ROWS_TOP_DOWN=True` (default) puts row 1 (the pool) at the top, `False` keeps 06b's bottom-up order; no row labels, membership strips, legend or group lines by default; optional SVG |
+| 07a | C2 versus C1 per side (no S stimuli): rows active in the C2 bout, grouped by own (distant) preconditioning and C1-bout activity; 06b-style raster and decisions (0-15 s) and 04c-style z-score full sequence (5 s before onset to 15 s after bout offset) restricted to those rows, with their mean; all three share one vertical orientation (first group at the bottom); optional SVG |
+| 07b | C2 versus C1 quantification at 0-10 s: C2-active counts, % also active in C2 pre and in the C1 bout, and the Cell 08 three-row summary for C1/C2; optional SVG |
+| 07c | Prepare: neurons active in both the C1 and C2 bouts but not in C2's own preconditioning (07a group "C1 bout shared (no C2 pre)"; 06c's 0-10 s `c2_counts`, `ANALYSIS_REPETITIONS`, missing decisions excluded); optional `SHARED_NOPRE_BASELINE='pre_bout'` subtracts each trial's -2 to 0 s pre-bout mean z (C2 preconditioning carry-over); per-neuron 0-10 s mean z for C1 and C2, per-fish means (fish without neurons missing), equal-fish means and bout-aligned time courses; tables of neurons per fish |
+| 07d | Per side: C1/C2 mean z-score time course (-5 to +15 s around bout onset, optional SEM band, 0-10 s window and bout shaded) above paired per-fish 0-10 s mean z (slate-blue equal-fish bars, sage fish dots, optional lines) with the C1 − C2 difference; baseline-corrected values are labelled and their SVGs end in `_baseline`; optional SVG |
+| 08 | Exp 8 Cell 6c-style population activity, recruitment and shared-with-C1 strength (0-10 s, `ANALYSIS_REPETITIONS`, default trials 2-4, >= 2/3), C1/C2/S1-S5; optional SVG |
+
+All figure cells have size (mm), font, legend and optional SVG controls. SVGs go to
+`<LAB_ROOT>/Results/Paper/figures/main/fig07/assets/generated` with `exp09_` names;
+`SAVE_..._SVG=False` by default. The old Cells 06-10 (AUC/peak plots,
+preconditioning metrics, paired comparisons, memberships/correlations and the
+report export) were removed together with their unused `src` helpers.
 
 Cell 06b's stable preconditioning pool requires at least 75% of the selected
 15 presentations to pass the existing native-window activity rule: **12/15**.
@@ -63,8 +73,8 @@ new-after-preconditioning counts still use each stimulus's own preconditioning.
   is the fraction of displayed repetitions active, not a new detector result.
 - `SAVE_PANEL_SVG=False` displays only. True writes the displayed panels to
   `<LAB_ROOT>/Results/Paper/figures/main/fig07/assets/generated` as
-  `exp09_pooled_panel_<alignment>_<type>_<side>_<layout>.svg`, independently of
-  Cell 10's report. All retained neurons and native measurements remain fixed.
+  `exp09_pooled_panel_<alignment>_<type>_<side>_<layout>.svg`. All retained
+  neurons and native measurements remain fixed.
 - Cell 04c independently redraws the complete sequence with 5 s before sequence
   onset and `DELAY_PANEL_POST_S=15.0` seconds after bout **offset**. It extracts
   the longer display from saved continuous traces and reuses the exact cached
@@ -76,23 +86,30 @@ new-after-preconditioning counts still use each stimulus's own preconditioning.
   `SAVE_DELAY_PANEL_SVG=False` defaults off; True exports
   separate `exp09_sequence_delay_panel_15s_<type>_<side>_<layout>.svg` files to
   the same Fig. 07 directory. Block-crossing windows fail explicitly.
-- Bout measurement windows are [0, 3.6) and [0, 8.6) seconds from logged bout
-  onset. Use actual event-relative sample times, without interpolation, and
+- Cell 04d draws the same full-sequence window and cached rows once per
+  repetition (no averaging): rows are repetitions, columns conditions, with
+  04c's common seconds scale. Significant panels are each trial's saved 0/1
+  trace. `SAVE_PER_REP_SVG=False` defaults off; True exports
+  `exp09_sequence_delay_panel_15s_per_rep_<type>_<side>.svg` to Fig. 07.
+- Cells 04a-06b measure bouts in [0, 3.6) and [0, 8.6) seconds from logged bout
+  onset; Cells 06c-08 use [0, 10) (bars, summary) and [0, 15) (rasters) on a
+  15 s-recovery cohort. Windows beyond the aligned samples fail explicitly. Use actual event-relative sample times, without interpolation, and
   report selected sample counts and coverage.
 - AUC is signed z-score seconds. Calculate metrics per neuron/repetition, then
   average repetitions within neurons and neurons within fish. Across-fish means
   give each fish equal weight regardless of neuron count.
 - A passing trial has at least 10% significant frames and a consecutive active
   epoch of at least 1 second. A neuron is active when at least 2/4 trials pass.
+  Cell 06b uses repetitions 2-4 and requires at least 2/3 passing trials; Cells
+  06c-08 follow Cell 02's `ANALYSIS_REPETITIONS` (same default; `(1, 2, 3, 4)`
+  uses all trials with at least 2/4), and their titles show the repetitions used.
   Settings remain configurable. Keep the same selected-neuron denominator;
   incomplete classifications produce missing fractions with valid counts.
-- Preconditioning is measured only during its explicit phase, including an
-  early/late comparison using its two halves. C1's absent phase is not applicable,
-  not zero. The two-second pre-bout level describes ongoing activity, which can
-  include conditioning activity. Bout-window activity is not necessarily caused
-  by the bout; correlations and control differences remain descriptive.
-- Keep left and right separate. Compare conditioned stimuli against same-side
-  C1, C2 against S1, and S1-S5 against their actual unequal blank delays.
+- Preconditioning is measured only during its explicit 8.1 s phase. C1's
+  absent phase is not applicable, not zero. Bout-window activity is not
+  necessarily caused by the bout; control differences remain descriptive.
+- Keep left and right separate. Conditioned stimuli are compared with same-side
+  C1 (Cells 06b-06e, 08); Cell 07 compares C2 with C1 without S stimuli.
 - Cell 06b retains the counts and adds the percentage of C1-responsive neurons
   also responsive to each stimulus: shared C1/stimulus count divided by the
   same-side C1 count, per fish. Stimulus-only neurons are excluded. Bars average
@@ -151,18 +168,11 @@ response metrics/classification, pooling, plotting and reporting remain in their
 existing owners. Extend compatible helpers rather than copying calculations
 into notebooks or creating duplicate experiment-specific implementations.
 
-Cell 10 reuses the report writer. When enabled, it writes configuration,
-readiness, metric tables, original-neuron display mappings and figures under:
+The population notebook writes only optional figure SVGs (Fig. 07 directory
+above) and never overwrites individual-fish caches. The former Cell 10 report
+export was removed.
 
-```text
-Lab/Results/Paper/2p_derived/Exp_9_RF_memory_inhibition/reports/<timestamp>_population_analysis/
-```
-
-The population notebook never overwrites individual-fish caches. Validation
-reports are local under `.test_cache/exp9/population_run_final/`; cache hashes
-were unchanged after the test save.
-
-The updated Cell 01-05 chain was executed on all eight reviewed fish. Checks
+Before the Cells 06c-08 rewrite, the Cell 01-05 chain was executed on all eight reviewed fish. Checks
 matched every panel's selected-trial means, original identities, exact Cell 06b
 order and pooled mean; both sequence/bout alignments and the raster-only switch
 were exercised. False/True SVG saving was checked with writes redirected to
@@ -174,8 +184,8 @@ claim a fresh full-notebook run.
 
 An earlier stale plotting-definition problem in the individual notebook was
 resolved by recompiling the current plotting source in its imports cell.
-The population notebook's Cell 01 also refreshes diagnostics and figure helpers
-from current source. If an existing kernel cannot find a newly added helper,
+The population notebook's Cell 01 also refreshes the timing, loading, ordering,
+panel, diagnostics and figure helpers from current source. If an existing kernel cannot find a newly added helper,
 rerun Cell 01, then rerun the affected analysis cell; loaded data can be reused.
 If a helper reports an unexpected keyword, inspect the loaded module path and
 signature before assuming that the current source lacks that parameter.
@@ -187,4 +197,4 @@ signature before assuming that the current source lacks that parameter.
 > when discussing results. First check Cell 03: I have run other fish, so verify
 > their saved output paths and save settings before requesting recomputation.
 > Reuse existing `src` functions and preserve individual-fish caches. We will
-> review the rasters, bout-window metrics and preconditioning comparisons together.
+> review the recruitment rasters/bars, the C2-versus-C1 cells and the summary together.

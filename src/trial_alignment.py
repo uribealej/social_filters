@@ -3,18 +3,30 @@
 import numpy as np
 
 
-def select_event_window(time_s, start_s, stop_s):
+def select_event_window(time_s, start_s, stop_s, sample_period_s=None):
     """Select native sample centers in [start, stop), without interpolation.
 
     Times are seconds relative to the recorded event, strictly increasing.
     Equal bounds represent an absent phase and return no indices. Report
     selected sample coverage separately from requested scientific duration.
+    Optional sample_period_s (seconds) enables a coverage check: a nonempty
+    window that would include samples before the first or after the last
+    available sample (one period beyond either edge) raises ValueError instead
+    of being silently truncated. The default (None) keeps the unchecked behavior.
     """
     times = np.asarray(time_s, dtype=float)
     if times.ndim != 1 or not np.isfinite(times).all() or (np.diff(times) <= 0).any():
         raise ValueError("Sample times must be finite, 1D and strictly increasing.")
     if not np.isfinite([start_s, stop_s]).all() or stop_s < start_s:
         raise ValueError("Invalid explicit response window.")
+    if sample_period_s is not None and stop_s > start_s and len(times):
+        tolerance = 1e-9
+        if (times[0] - sample_period_s >= start_s - tolerance
+                or times[-1] + sample_period_s < stop_s - tolerance):
+            raise ValueError(
+                f"Requested window [{start_s:g}, {stop_s:g}) s exceeds the available aligned "
+                f"samples ({times[0]:.3f} to {times[-1]:.3f} s); extend the alignment "
+                "(e.g. a longer recovery_s) instead of truncating the measurement.")
     indices = np.flatnonzero((times >= start_s) & (times < stop_s))
     return dict(frame_indices=indices, requested_start_s=float(start_s),
                 requested_stop_s=float(stop_s), n_samples=len(indices),
@@ -364,7 +376,10 @@ def compute_response_window_frames(
     The response window starts at ``motion_onset_s`` and ends at
     ``motion_onset_s + motion_duration_s + tau_s * 2``. When
     ``motion_duration_s`` is omitted, it is read from ``stimuli_durations`` for
-    ``stimulus`` using ``motion_duration_key``.
+    ``stimulus`` using ``motion_duration_key``. Set ``motion_onset_s=None`` to
+    use that stimulus's ``static_before_sec`` as its motion onset instead of
+    a fixed start. Metadata onsets must be finite and nonnegative. Numeric
+    onsets retain the existing window behavior; the end is exclusive.
     """
     if n_time is None or int(n_time) <= 0:
         raise ValueError("n_time must be a positive integer.")
@@ -377,10 +392,10 @@ def compute_response_window_frames(
         raise ValueError("tau_s must be >= 0")
 
     resolved_stimulus = stimulus
-    if motion_duration_s is None:
+    if motion_duration_s is None or motion_onset_s is None:
         if stimulus is None:
             raise ValueError(
-                "stimulus is required when motion_duration_s is not provided."
+                "stimulus is required when motion_duration_s or motion_onset_s is not provided."
             )
         resolved_stimulus, duration = _stimulus_duration_entry(
             stimulus,
@@ -388,7 +403,16 @@ def compute_response_window_frames(
             stimuli_id_map=stimuli_id_map,
             motion_duration_key=motion_duration_key,
         )
-        motion_duration_s = duration[motion_duration_key]
+        if motion_duration_s is None:
+            motion_duration_s = duration[motion_duration_key]
+        if motion_onset_s is None:
+            onset = duration.get("static_before_sec")
+            if onset is None or not np.isfinite(float(onset)) or float(onset) < 0:
+                raise ValueError(
+                    f"Stimulus {resolved_stimulus!r} requires finite, nonnegative static_before_sec "
+                    "when motion_onset_s=None."
+                )
+            motion_onset_s = float(onset)
 
     motion_duration_s = float(motion_duration_s)
     if motion_duration_s < 0:

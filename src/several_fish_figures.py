@@ -14,7 +14,7 @@ from src.several_fish_diagnostics import (
     build_all_fish_raster_inputs, build_high_sparseness_raster_data,
     build_lifetime_sparseness_summary, build_motion_active_counts,
     build_overlap_diagnostic_data, build_pooled_mean_trace_by_stimulus,
-    build_stimulus_panel_display,
+    build_stimulus_panel_display, build_left_right_active_overlap_diagnostics,
 )
 from src.several_fish_reporting import slugify_label
 
@@ -134,44 +134,86 @@ def plot_phase_cohort_means(display, figsize=(20, 7)):
     return fig, axes
 
 
-def plot_phase_fish_summary(table, value_column, side_conditions, fish_ids,
-                            window, ylabel, figsize=(13, 4), title=""):
-    """Use the existing paired-fish plot for side-separated phase metrics."""
-    fig, axes = plt.subplots(1, len(side_conditions), figsize=figsize, sharey=True,
-                              squeeze=False, layout="constrained")
-    for ax, (side, conditions) in zip(axes.flat, side_conditions.items()):
-        rows = table.loc[table.side.eq(side) & table.window.eq(window)]
-        plot_diagnostics.plot_paired_fish_values(rows, value_column, conditions, fish_ids, ax, ylabel)
-        ax.set_title(side.capitalize())
-        if value_column == "active_fraction" or value_column == "fraction":
-            ax.set_ylim(-0.03, 1.03)
-    handles, labels = axes[0, 0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="lower center", bbox_to_anchor=(0.5, -0.10), ncol=min(5, len(labels)), frameon=False)
-    fig.suptitle(f"{title or value_column} | {window} | {len(fish_ids)} fish")
-    fig.canvas.draw()
-    return fig, axes
+def _phase_cohort_label(display):
+    """Return 'SINGLE-FISH preview' or 'N fish' for a phase display bundle."""
+    n_fish = (len(display["fish_ids"]) if "fish_ids" in display
+              else display["row_metadata"].fish_id.nunique())
+    return "SINGLE-FISH preview" if n_fish == 1 else f"{n_fish} fish"
 
 
-def plot_phase_recruitment_rasters(recruitment, side, figsize=(20, 9)):
+def _phase_row_segments(display):
+    """Return (boundaries, [(label, center)]) for the displayed row order.
+
+    Group-sorted displays use membership-group changes; a reordered display
+    (``row_segments`` from ``reorder_phase_recruitment_rows``) uses only its own
+    nonempty segments, so no intra-group boundaries are implied.
+    """
+    if "row_segments" in display:
+        segments = [(label, start, stop) for label, start, stop in display["row_segments"] if stop > start]
+        boundaries = [start - 0.5 for _, start, _ in segments[1:]]
+        return boundaries, [(f"{label} ({stop - start})", (start + stop - 1) / 2) for label, start, stop in segments]
+    groups = display["displayed_row_metadata"].group.to_numpy()
+    labels = []
+    for group in np.unique(groups):
+        positions = np.flatnonzero(groups == group)
+        labels.append((f"{display['group_labels'][group]} ({len(positions)})", positions.mean()))
+    return list(np.flatnonzero(np.diff(groups)) + 0.5), sorted(labels, key=lambda item: item[1])
+
+
+def plot_phase_recruitment_rasters(recruitment, side, figsize=(20, 9), show_row_labels=True,
+                                   show_legend=True, legend_fontsize=8, show_colorbar=True,
+                                   show_title=True, panel_fontsize=None, compact_layout=False,
+                                   window_label=None, show_membership_strips=True,
+                                   show_group_lines=True, rows_top_down=False):
     """One pooled preconditioning panel followed by control/condition bout panels.
 
     Grayscale is the fraction of selected trials with significant activity,
     averaged across conditioned stimuli only in the preconditioning panel.
     Membership strips use native-window classifications; rows stay identical
     across panels. Returns (figure, axes), without changing prepared inputs.
+
+    Works for ``build_phase_recruitment_analysis`` and
+    ``build_phase_control_comparison`` results. Optional display keys
+    (``panel_titles``, ``pre_strip_label``, ``strip_labels``,
+    ``row_description``) replace the default Cell 06b wording.
+
+    Appearance options (defaults reproduce the original figure):
+        show_row_labels (bool): False hides group tick labels and leader lines
+            (rows keep their sorted grouping and dotted group boundaries).
+        show_legend (bool) / legend_fontsize (float): membership-strip legend.
+        show_colorbar (bool): grayscale colorbar.
+        show_title (bool): figure suptitle.
+        panel_fontsize (float or None): panel titles, x labels and ticks; None
+            keeps the original 10/9/8 pt sizes.
+        compact_layout (bool): for small fixed-size (mm) exports. The legend is
+            placed inside the canvas (constrained layout reserves its space, so
+            fixed-size SVGs do not clip it) and the preconditioning x label is
+            shortened to 'From pre onset (s)'. False keeps the original layout.
+        window_label (str or None): appended to the title, e.g.
+            'bouts 0-15 s after onset'.
+        show_membership_strips (bool): False removes the coloured membership
+            strip at the right edge of every panel.
+        show_group_lines (bool): False removes the dotted row-boundary lines.
+            A display reordered by ``reorder_phase_recruitment_rows`` draws only
+            its pre/rest boundary, never membership-group boundaries.
+        rows_top_down (bool): True draws the first row of ``neuron_order`` at
+            the top (rows, strips, group lines and row labels flip together).
+            False keeps the original bottom-to-top order.
     """
     from matplotlib.colors import ListedColormap
     from matplotlib.patches import Patch
 
     display = recruitment["displays"][side]
     conditions, order = display["conditions"], display["neuron_order"]
+    if not len(order):
+        raise ValueError(f"{side}: no neurons to display.")
     panels = ["preconditioning", *conditions]
+    titles = display.get("panel_titles", {})
     fig, axes = plt.subplots(1, len(panels), figsize=figsize, sharey=True,
         squeeze=False, layout="constrained")
     axes = axes[0]
     colors = ["#eeeeee", "#377eb8", "#ff8c28", "#984ea3", "#777777"]
-    groups = display["displayed_row_metadata"].group.to_numpy()
-    boundaries = np.flatnonzero(np.diff(groups)) + 0.5
+    boundaries, segment_labels = _phase_row_segments(display)
     for ax, panel in zip(axes, panels):
         values = display["matrices"][panel][order]
         times = display["time_s"][panel]
@@ -184,76 +226,118 @@ def plot_phase_recruitment_rasters(recruitment, side, figsize=(20, 9)):
             codes = np.where(np.isfinite(codes), codes, 2)
             cmap = ListedColormap(["#eeeeee", "#4daf4a", "#777777"])
             limit = 2
-            ax.set_title("Preconditioning\nConditioned-stimulus mean", fontsize=9)
-            ax.set_xlabel("From preconditioning onset (s)", fontsize=8)
+            ax.set_title(titles.get(panel, "Preconditioning\nConditioned-stimulus mean"),
+                         fontsize=panel_fontsize or 9)
+            ax.set_xlabel("From pre onset (s)" if compact_layout else "From preconditioning onset (s)",
+                          fontsize=panel_fontsize or 8)
         else:
             codes = display["membership_codes"][panel][order]
             cmap, limit = ListedColormap(colors), 4
-            ax.set_title(panel + " bout", fontsize=10)
-            ax.set_xlabel("From bout onset (s)", fontsize=8)
-        strip = ax.inset_axes([0.973, 0, 0.027, 1])
-        strip.imshow(codes[:, None], aspect="auto", origin="lower", interpolation="nearest",
-            cmap=cmap, vmin=0, vmax=limit)
-        strip.set_axis_off()
-        for boundary in boundaries:
+            ax.set_title(titles.get(panel, panel + " bout"), fontsize=panel_fontsize or 10)
+            ax.set_xlabel("From bout onset (s)", fontsize=panel_fontsize or 8)
+        if show_membership_strips:
+            strip = ax.inset_axes([0.973, 0, 0.027, 1])
+            strip.imshow(codes[:, None], aspect="auto", origin="lower", interpolation="nearest",
+                cmap=cmap, vmin=0, vmax=limit)
+            strip.set_axis_off()
+            if rows_top_down:
+                strip.invert_yaxis()
+        for boundary in boundaries if show_group_lines else []:
             ax.axhline(boundary, color="#555555", linestyle=":", linewidth=0.5)
-        ax.tick_params(labelsize=8)
-    centers, labels = [], []
-    for group in np.unique(groups):
-        positions = np.flatnonzero(groups == group)
-        centers.append(positions.mean())
-        labels.append(f"{display['group_labels'][group]} ({len(positions)})")
-    # Keep labels for small recruitment groups readable, with leaders to rows.
-    label_positions = []
-    for center in centers:
-        label_positions.append(max(center, label_positions[-1] + len(order) * 0.025)
-                               if label_positions else center)
-    axes[0].set(yticks=label_positions, yticklabels=labels, ylabel="Same pooled neurons in every panel")
-    from matplotlib.transforms import blended_transform_factory
-    transform = blended_transform_factory(axes[0].transAxes, axes[0].transData)
-    for actual, position in zip(centers, label_positions):
-        if actual != position:
-            axes[0].plot([-0.035, 0], [position, actual], transform=transform,
-                color="#555555", linewidth=0.5, clip_on=False)
-    fig.colorbar(im, ax=axes.tolist(), label="Significant-frame fraction", shrink=0.7, pad=0.015)
-    pre_label = f"Preconditioning-active in >= {recruitment['pre_active_fraction']:.0%} of presentations"
-    fig.legend(handles=[Patch(color="#4daf4a", label=pre_label)]
-        + [Patch(color=colors[i], label=label) for i, label in
-           [(1, "Shared with C1"), (2, "New after own preconditioning"),
-            (3, "Both memberships"), (4, "Unclassified")]],
-        loc="lower center", bbox_to_anchor=(0.5, -0.065), ncol=3, frameon=False, fontsize=8)
-    n_fish = display["row_metadata"].fish_id.nunique()
-    cohort_label = "SINGLE-FISH preview" if n_fish == 1 else f"{n_fish} fish"
-    fig.suptitle(f"{side.capitalize()} | {cohort_label} | significant activity | repetitions "
-        f"{', '.join(map(str, display['repetitions']))} | {len(order)} neurons\n"
-        "Rows: consistent preconditioning, C1-active, additional bout recruitment by condition, other")
+        ax.tick_params(labelsize=panel_fontsize or 8)
+    if show_row_labels:
+        labels = [label for label, _ in segment_labels]
+        centers = [center for _, center in segment_labels]
+        # Keep labels for small recruitment groups readable, with leaders to rows.
+        label_positions = []
+        for center in centers:
+            label_positions.append(max(center, label_positions[-1] + len(order) * 0.025)
+                                   if label_positions else center)
+        axes[0].set(yticks=label_positions, yticklabels=labels, ylabel="Same pooled neurons in every panel")
+        from matplotlib.transforms import blended_transform_factory
+        transform = blended_transform_factory(axes[0].transAxes, axes[0].transData)
+        for actual, position in zip(centers, label_positions):
+            if actual != position:
+                axes[0].plot([-0.035, 0], [position, actual], transform=transform,
+                    color="#555555", linewidth=0.5, clip_on=False)
+    else:
+        axes[0].set_yticks([])
+        axes[0].set_ylabel("Neurons", fontsize=panel_fontsize)
+    if rows_top_down:
+        axes[0].invert_yaxis()  # shared y: every panel flips together
+    if show_colorbar:
+        fig.colorbar(im, ax=axes.tolist(), label="Significant-frame fraction", shrink=0.7, pad=0.015)
+    if show_legend:
+        pre_label = display.get("pre_strip_label",
+            f"Preconditioning-active in >= {recruitment.get('pre_active_fraction', np.nan):.0%} of presentations")
+        strip_labels = display.get("strip_labels", {1: "Shared with C1", 2: "New after own preconditioning",
+                                                    3: "Both memberships", 4: "Unclassified"})
+        placement = (dict(loc="outside lower center") if compact_layout
+                     else dict(loc="lower center", bbox_to_anchor=(0.5, -0.065)))
+        fig.legend(handles=[Patch(color="#4daf4a", label=pre_label)]
+            + [Patch(color=colors[i], label=label) for i, label in sorted(strip_labels.items())],
+            ncol=3, frameon=False, fontsize=legend_fontsize, **placement)
+    if show_title:
+        window_text = f" | {window_label}" if window_label else ""
+        description = display.get("row_description",
+            "Rows: consistent preconditioning, C1-active, additional bout recruitment by condition, other")
+        if rows_top_down:  # Always state the flipped direction; defaults keep old titles.
+            description = description.replace("bottom to top", "top to bottom")
+            if "top to bottom" not in description:
+                description = description.replace("Rows:", "Rows, top to bottom:", 1)
+        fig.suptitle(f"{side.capitalize()} | {_phase_cohort_label(display)} | significant activity | repetitions "
+            f"{', '.join(map(str, display['repetitions']))}{window_text} | {len(order)} neurons\n"
+            + description)
     fig.canvas.draw()
     return fig, axes
 
 
-def plot_phase_recruitment_decisions(recruitment, side, figsize=(14, 8)):
+def plot_phase_recruitment_decisions(recruitment, side, figsize=(14, 8), show_row_labels=True,
+                                     show_title=True, compact_layout=False, panel_fontsize=None,
+                                     window_label=None, show_group_lines=True,
+                                     rows_top_down=False):
     """Reuse the Exp 7 trace/decision diagnostic with strict 0/1 phase columns.
 
     Preconditioning decisions use the pooled trial fraction; bout decisions
     retain the per-condition passing-repetition rule. NaN is gray, not zero.
     Returns figure and (trace axis, decision axis) with the same row ordering
-    and orientation as the recruitment rasters.
+    and orientation as the recruitment rasters. Also accepts
+    ``build_phase_control_comparison`` results (optional display keys
+    ``decision_labels`` and ``decision_title``). show_row_labels=False hides
+    neuron-index ticks; show_title=False omits the suptitle. Defaults reproduce
+    the original figure.
+
+    compact_layout=True is for small fixed-size (mm) exports: 'Preconditioning'
+    becomes 'Pre', decision tick labels are vertical, and the layout is
+    re-fitted (tight layout) so x labels, rotated ticks and colorbar labels
+    stay inside the canvas without overlapping. panel_fontsize (pt) sets every
+    title, label, tick and colorbar text; None keeps rcParams sizes.
+    window_label (str or None) is appended to the title. show_group_lines=False
+    removes the dotted row-boundary lines (a reordered display has only its
+    pre/rest boundary). rows_top_down=True draws the first row of
+    ``neuron_order`` at the top, matching rasters drawn with the same option.
     """
     from matplotlib.colors import ListedColormap
 
     display = recruitment["displays"][side]
-    keys = ["preconditioning", *display["conditions"]]
+    keys =["preconditioning", *display["conditions"]]
+    if not len(display["neuron_order"]):
+        raise ValueError(f"{side}: no neurons to display.")
     blocks = [display["matrices"][key] for key in keys]
+    labels = display.get("decision_labels", ["Preconditioning", *display["conditions"]])
+    if compact_layout:
+        labels = ["Pre" if label == "Preconditioning" else label for label in labels]
     diagnostic = dict(trace_matrix=np.concatenate(blocks, axis=1),
         decision_matrix=display["decision_matrix"],
-        stim_labels=["Preconditioning", *display["conditions"]],
+        stim_labels=labels,
         trace_block_widths=[block.shape[1] for block in blocks], combine_mode="mean")
     decision_cmap = ListedColormap(["white", "black"]).with_extremes(bad="#999999")
     fig, axes, _ = plot_diagnostics.plot_active_trace_decision_diagnostic(
         diagnostic, fps_2p=display["fps_2p"], t_pre_s=0,
         neuron_order=display["neuron_order"], figsize=figsize,
         decision_cmap=decision_cmap, trace_title="Mean significant activity")
-    axes[0].invert_yaxis()
+    if not rows_top_down:
+        axes[0].invert_yaxis()  # imshow default is top-down; original is bottom-up
     axes[0].get_subplotspec().get_gridspec().update(wspace=0.45)
     axes[0].images[0].colorbar.set_label("Mean significant activity")
     axes[1].set_title("Binary active decision")
@@ -261,76 +345,169 @@ def plot_phase_recruitment_decisions(recruitment, side, figsize=(14, 8)):
     axes[1].images[0].colorbar.set_label("0 inactive / 1 active")
     for boundary in np.arange(len(keys) - 1) + 0.5:
         axes[1].axvline(boundary, color="#cccccc", linewidth=0.5)
-    groups = display["displayed_row_metadata"].group.to_numpy()
-    for boundary in np.flatnonzero(np.diff(groups)) + 0.5:
+    boundaries, _ = _phase_row_segments(display)
+    for boundary in boundaries if show_group_lines else []:
         for ax in axes:
             ax.axhline(boundary, color="#555555", linestyle=":", linewidth=0.5)
-    pool = recruitment["preconditioning_pool"].loc[lambda t: t.side.eq(side)]
-    expected, minimum = int(pool.n_expected_trials.iloc[0]), int(pool.min_passing_trials.iloc[0])
-    n_fish = display["row_metadata"].fish_id.nunique()
-    cohort_label = "SINGLE-FISH preview" if n_fish == 1 else f"{n_fish} fish"
-    fig.suptitle(f"{side.capitalize()} | {cohort_label} | preconditioning: >= {minimum}/{expected} passing trials | "
-        f"bouts: >= {recruitment['min_active_reps']}/{len(display['repetitions'])} | "
-        "repetitions " + ", ".join(map(str, display["repetitions"])))
+    if not show_row_labels:
+        axes[0].set_yticks([])
+        axes[0].set_ylabel("Neurons")
+    if show_title:
+        if "decision_title" in display:
+            rule = display["decision_title"]
+        else:
+            pool = recruitment["preconditioning_pool"].loc[lambda t: t.side.eq(side)]
+            expected, minimum = int(pool.n_expected_trials.iloc[0]), int(pool.min_passing_trials.iloc[0])
+            rule = (f"preconditioning: >= {minimum}/{expected} passing trials | "
+                    f"bouts: >= {recruitment['min_active_reps']}/{len(display['repetitions'])}")
+        window_text = f" | {window_label}" if window_label else ""
+        fig.suptitle(f"{side.capitalize()} | {_phase_cohort_label(display)} | {rule} | "
+            "repetitions " + ", ".join(map(str, display["repetitions"])) + window_text,
+            **({} if panel_fontsize is None else dict(fontsize=panel_fontsize)))
+    if panel_fontsize is not None:
+        for ax in fig.axes:
+            for text in [ax.title, ax.xaxis.label, ax.yaxis.label,
+                         *ax.get_xticklabels(), *ax.get_yticklabels()]:
+                text.set_fontsize(panel_fontsize)
+    if compact_layout:
+        plt.setp(axes[1].get_xticklabels(), rotation=90, ha="center")
+        # Re-fit margins and gaps to the real text extents (fixed-size exports
+        # use the canvas as drawn, so nothing may fall outside it). Matplotlib
+        # flags the hand-built GridSpec as not tight_layout-compatible, but the
+        # re-fit is correct for this single-row layout (checked on rendered figures).
+        import warnings
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=".*not compatible with tight_layout.*")
+            fig.tight_layout(rect=(0, 0, 1, 0.95 if show_title else 1), pad=0.4, w_pad=0.6)
+    fig.canvas.draw()
+    return fig, axes
+
+
+def _plot_fish_bar_panels(table, fish_ids, side_conditions, metrics, figsize, title,
+                          proportion=False, fish_color=None, mean_color=None,
+                          show_fish_identity=True, show_legend=True, legend_fontsize=8,
+                          value_fontsize=8, show_values=True, show_title=True,
+                          compact_layout=False):
+    """Equal-fish mean bars with per-fish points, rows = metrics, columns = sides.
+
+    table has one row per fish_id/side/condition with numeric metric columns.
+    metrics are (column, title, ylabel) tuples or dicts with those keys plus
+    optional ``conditions`` (side -> categories for that row) and
+    ``proportion`` (percent axis for that row). Bars average defined fish
+    values equally; missing values are N/A, never zero.
+    show_fish_identity=True draws tab10 connected points with a fish-ID legend
+    (original style); False draws single-color dots without lines and a
+    'Fish'/'Mean' legend. fish_color/mean_color default to the original gray
+    bars and tab10 points (or '0.4' anonymous dots).
+    compact_layout=True (for fixed-size mm exports) keeps the legend inside
+    the canvas and writes each mean value above the higher of its bar and its
+    highest fish dot, so dots do not cover it. False keeps the original layout.
+    """
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
+
+    specs = [dict(zip(("metric", "title", "ylabel"), spec)) if not isinstance(spec, dict) else dict(spec)
+             for spec in metrics]
+    fig, axes = plt.subplots(len(specs), len(side_conditions), figsize=figsize,
+        sharey="row", squeeze=False, layout="constrained")
+    colors = plt.get_cmap("tab10")
+    bar_color = "#cccccc" if mean_color is None else mean_color
+    dot_color = "0.4" if fish_color is None else fish_color
+    for j, side in enumerate(side_conditions):
+        for i, spec in enumerate(specs):
+            conditions = list(spec.get("conditions", side_conditions)[side])
+            as_percent = spec.get("proportion", proportion)
+            ax = axes[i, j]
+            values = table.loc[table.side.eq(side)].pivot(index="fish_id", columns="condition", values=spec["metric"])
+            values = values.reindex(index=fish_ids, columns=conditions)
+            x = np.arange(len(conditions))
+            means = values.mean(axis=0).to_numpy()
+            bars = ax.bar(x, means, color=bar_color, width=0.65, zorder=1)
+            if show_values and compact_layout:
+                tops = np.fmax(means, values.max(axis=0).to_numpy(dtype=float))
+                for position, (mean, top) in enumerate(zip(means, tops)):
+                    if np.isfinite(mean):
+                        ax.annotate(f"{mean:.1%}" if as_percent else f"{mean:.1f}", (position, top),
+                            xytext=(0, 2.5), textcoords="offset points", ha="center", va="bottom",
+                            fontsize=value_fontsize, annotation_clip=False)
+            elif show_values:
+                labels = [(f"{v:.1%}" if as_percent else f"{v:.1f}") if np.isfinite(v) else "N/A" for v in means]
+                ax.bar_label(bars, labels=labels, padding=4, fontsize=value_fontsize)
+            for position in np.flatnonzero(~np.isfinite(means)):
+                ax.text(position, 0.025, "N/A", transform=ax.get_xaxis_transform(),
+                        ha="center", fontsize=value_fontsize, color="#555555")
+            for k, fid in enumerate(fish_ids):
+                offset = x + (k - (len(fish_ids) - 1) / 2) * 0.025
+                if show_fish_identity:
+                    ax.plot(offset, values.loc[fid], ".-", linewidth=0.5, markersize=5,
+                        color=colors(k % 10) if fish_color is None else fish_color,
+                        alpha=0.75, label=fid, zorder=2)
+                else:
+                    ax.plot(offset, values.loc[fid], "o", linestyle="none", markersize=2.5,
+                        color=dot_color, alpha=0.9, zorder=2, label="_nolegend_")
+            ax.set(xticks=x, xticklabels=conditions, ylabel=spec["ylabel"],
+                   title=f"{side.capitalize()}: {spec['title']}")
+            ax.set_xlim(-0.5, len(conditions) - 0.5)
+            ax.set_ylim(bottom=0)
+            ax.margins(y=0.15)
+            if as_percent:
+                ax.set_ylim(0, 1.18 if compact_layout and show_values else 1.12)
+                ax.set_yticks(np.linspace(0, 1, 5))
+                ax.yaxis.set_major_formatter(PercentFormatter(xmax=1))
+            elif compact_layout and show_values and np.isfinite(tops).any():
+                # Headroom for the value text above the highest dot (rows share y).
+                ax.set_ylim(0, max(ax.get_ylim()[1], float(np.nanmax(tops)) * 1.18))
+    if show_legend:
+        if show_fish_identity:
+            handles, labels = axes[0, 0].get_legend_handles_labels()
+            ncol = min(4, len(fish_ids))
+        else:
+            handles = [Line2D([], [], marker="o", linestyle="none", markersize=3, color=dot_color, label="Fish"),
+                       Patch(color=bar_color, label="Mean")]
+            labels, ncol = ["Fish", "Mean"], 2
+        placement = (dict(loc="outside lower center") if compact_layout
+                     else dict(loc="lower center", bbox_to_anchor=(0.5, -0.07)))
+        fig.legend(handles, labels, ncol=ncol, frameon=False, fontsize=legend_fontsize, **placement)
+    if show_title:
+        # Compact (narrow, per-side) figures wrap long titles to the figure width.
+        fig.suptitle(title, wrap=compact_layout)
     fig.canvas.draw()
     return fig, axes
 
 
 def _plot_phase_recruitment_summary(recruitment, fish_ids, side_conditions, metrics, figsize,
-                                    proportion=False):
-    """Render selected per-fish recruitment metrics with equal-fish mean bars."""
-    fig, axes = plt.subplots(len(metrics), len(side_conditions), figsize=figsize,
-        sharey="row", squeeze=False, layout="constrained")
-    table = recruitment["fish_summary"]
-    colors = plt.get_cmap("tab10")
-    for j, (side, conditions) in enumerate(side_conditions.items()):
-        for i, (metric, title, ylabel) in enumerate(metrics):
-            ax = axes[i, j]
-            values = table.loc[table.side.eq(side)].pivot(index="fish_id", columns="condition", values=metric)
-            values = values.reindex(index=fish_ids, columns=conditions)
-            x = np.arange(len(conditions))
-            means = values.mean(axis=0).to_numpy()
-            bars = ax.bar(x, means, color="#cccccc", width=0.65, zorder=1)
-            labels = [(f"{v:.1%}" if proportion else f"{v:.1f}") if np.isfinite(v) else "N/A" for v in means]
-            ax.bar_label(bars, labels=labels,
-                         padding=4, fontsize=8)
-            for position in np.flatnonzero(~np.isfinite(means)):
-                ax.text(position, 0.025, "N/A", transform=ax.get_xaxis_transform(),
-                        ha="center", fontsize=8, color="#555555")
-            for k, fid in enumerate(fish_ids):
-                ax.plot(x + (k - (len(fish_ids) - 1) / 2) * 0.025,
-                    values.loc[fid], ".-", linewidth=0.5, markersize=5,
-                    color=colors(k % 10), alpha=0.75, label=fid, zorder=2)
-            ax.set(xticks=x, xticklabels=conditions, ylabel=ylabel, title=f"{side.capitalize()}: {title}")
-            ax.set_xlim(-0.5, len(conditions) - 0.5)
-            ax.set_ylim(bottom=0)
-            ax.margins(y=0.15)
-            if proportion:
-                ax.set_ylim(0, 1.12)
-                ax.set_yticks(np.linspace(0, 1, 5))
-                ax.yaxis.set_major_formatter(PercentFormatter(xmax=1))
-    handles, labels = axes[0, 0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="lower center", bbox_to_anchor=(0.5, -0.07),
-        ncol=min(4, len(fish_ids)), frameon=False, fontsize=8)
+                                    proportion=False, window_label=None, **style):
+    """Render selected per-fish recruitment metrics with equal-fish mean bars.
+
+    window_label (str or None) is added to the title, e.g. 'bouts 0-10 s after onset'.
+    """
     repetitions = next(iter(recruitment["displays"].values()))["repetitions"]
     cohort_label = "SINGLE-FISH preview" if len(fish_ids) == 1 else f"{len(fish_ids)} fish"
     title = (cohort_label + " | significant activity | repetitions " + ", ".join(map(str, repetitions))
+             + (f" | {window_label}" if window_label else "")
              + " | bars: equal-fish means; points: individual fish")
     if proportion:
         title += "\nPercentages calculated per fish; denominators shown on each row"
-    fig.suptitle(title)
-    fig.canvas.draw()
-    return fig, axes
+    return _plot_fish_bar_panels(recruitment["fish_summary"], fish_ids, side_conditions, metrics,
+                                 figsize, title, proportion=proportion, **style)
 
 
-def plot_phase_recruitment_counts(recruitment, fish_ids, side_conditions, figsize=(13, 8)):
-    """Equal-fish mean count bars and individual fish points for two memberships."""
+def plot_phase_recruitment_counts(recruitment, fish_ids, side_conditions, figsize=(13, 8), **style):
+    """Equal-fish mean count bars and individual fish points for two memberships.
+
+    Optional style keywords (defaults reproduce the original figure): fish_color,
+    mean_color (bar color), show_fish_identity (False: single-color dots, no
+    lines, Fish/Mean legend), show_legend, legend_fontsize, value_fontsize,
+    show_values (bar value labels), show_title, compact_layout (legend inside
+    fixed-size canvases, value labels above the fish dots) and window_label
+    (title text, e.g. 'bouts 0-10 s after onset').
+    """
     metrics = [("n_shared_c1", "Shared with C1 during bout", "Neuron count"),
                ("n_new_after_pre", "New after own preconditioning", "Neuron count")]
-    return _plot_phase_recruitment_summary(recruitment, fish_ids, side_conditions, metrics, figsize)
+    return _plot_phase_recruitment_summary(recruitment, fish_ids, side_conditions, metrics, figsize, **style)
 
 
-def plot_phase_recruitment_proportions(recruitment, fish_ids, side_conditions, figsize=(13, 8)):
+def plot_phase_recruitment_proportions(recruitment, fish_ids, side_conditions, figsize=(13, 8), **style):
     """Plot C1 overlap and new-after-preconditioning fractions in separate rows.
 
     Args:
@@ -340,6 +517,7 @@ def plot_phase_recruitment_proportions(recruitment, fish_ids, side_conditions, f
         fish_ids (sequence): Fish order for individual points and equal-fish means.
         side_conditions (dict): Side to ordered conditions, starting with C1.
         figsize (tuple): Figure dimensions in inches.
+        **style: Same optional appearance keywords as plot_phase_recruitment_counts.
 
     Returns:
         tuple: Figure and axes with shape (2, number of sides). Fractions are
@@ -356,88 +534,150 @@ def plot_phase_recruitment_proportions(recruitment, fish_ids, side_conditions, f
         ("fraction_new_after_pre", "New after own preconditioning",
          "New after preconditioning /\nall retained neurons (%)")]
     return _plot_phase_recruitment_summary(
-        recruitment, fish_ids, side_conditions, metrics, figsize, proportion=True)
+        recruitment, fish_ids, side_conditions, metrics, figsize, proportion=True, **style)
 
 
-def plot_phase_population_comparisons(analysis, fish_ids, side_conditions, bout_windows,
-                                      comparison_pairs, delay_conditions, figsize=(14, 10)):
-    """Paired differences and physical-delay curves through the existing fish plot."""
-    figures = {}
-    metrics = [("auc_z_s", "AUC (z-score s)"), ("peak_z", "Peak z-score"), ("active_fraction", "Active-neuron fraction")]
-    for window in bout_windows:
-        for kind in ("differences", "delay"):
-            fig, axes = plt.subplots(3, len(side_conditions), figsize=figsize,
-                                      sharey="row", squeeze=False, layout="constrained")
-            for j, (side, conditions) in enumerate(side_conditions.items()):
-                for i, (metric, label) in enumerate(metrics):
-                    ax = axes[i, j]
-                    if kind == "differences":
-                        names = [name for name, (a, b) in comparison_pairs.items() if a in conditions and b in conditions]
-                        table = analysis["paired_differences"].loc[lambda t: t.side.eq(side) & t.window.eq(window) & t.metric.eq(metric)].copy()
-                        table["condition"] = table["comparison"]
-                        plot_diagnostics.plot_paired_fish_values(table, "difference", names, fish_ids, ax, label + " difference")
-                        ax.axhline(0, color="gray", linewidth=0.6)
-                    else:
-                        names = delay_conditions[side]
-                        table = analysis["fish_summary"].loc[lambda t: t.side.eq(side) & t.window.eq(window)]
-                        delays = table.groupby("condition").delay_s.first().reindex(names).to_numpy()
-                        plot_diagnostics.plot_paired_fish_values(table, metric, names, fish_ids, ax, label, x_values=delays)
-                        ax.set_xticklabels([f"{x:g}" for x in delays], rotation=45, ha="right", fontsize=8)
-                        ax.set_xlabel("Blank delay (s)")
-                        if metric == "active_fraction":
-                            ax.set_ylim(-0.03, 1.03)
-                    if i == 0:
-                        ax.set_title(side.capitalize())
-            handles, labels = axes[0, 0].get_legend_handles_labels()
-            fig.legend(handles, labels, loc="lower center", bbox_to_anchor=(0.5, -0.05), ncol=min(5, len(labels)), frameon=False)
-            fig.suptitle(f"{kind.capitalize()} | {window} | {len(fish_ids)} fish")
-            fig.canvas.draw()
-            figures[f"{kind}_{window}"] = fig
-    return figures
+def plot_phase_control_comparison_summary(comparison, fish_ids, figsize=(13, 8), **style):
+    """Bars for a ``build_phase_control_comparison`` result (e.g. C2 vs C1).
+
+    Row 1: number of test-bout-active neurons per fish. Row 2: percentage of
+    those neurons also active during the test's own preconditioning and during
+    the reference bout (per fish, then equal-fish mean). Columns are sides.
+    Style keywords match plot_phase_recruitment_counts; the default here is
+    still the original identified style, so pass show_fish_identity=False,
+    fish_color and mean_color for the anonymous publication style. The title
+    states the bout window in seconds from ``comparison['bout_bounds']``.
+    Returns (figure, axes with shape (2, number of sides)).
+    """
+    categories = comparison["categories"]
+    test_label = next(iter(categories.values()))[0]
+    metrics = [dict(metric="n_count", title=f"{test_label}-active neurons", ylabel="Neuron count",
+                    conditions={side: names[:1] for side, names in categories.items()}, proportion=False),
+               dict(metric="fraction_of_test", title=f"Also active, % of {test_label}-active",
+                    ylabel=f"% of {test_label}-active\nneurons",
+                    conditions={side: names[1:] for side, names in categories.items()}, proportion=True)]
+    repetitions = comparison["repetitions"]
+    cohort_label = "SINGLE-FISH preview" if len(fish_ids) == 1 else f"{len(fish_ids)} fish"
+    start, stop = comparison["bout_bounds"]
+    title = (f"{cohort_label} | significant activity | bouts {start:g}-{stop:g} s after onset | repetitions "
+             + ", ".join(map(str, repetitions)) + f" (>= {comparison['min_active_reps']} passing)")
+    return _plot_fish_bar_panels(comparison["fish_summary"], fish_ids, categories, metrics,
+                                 figsize, title, **style)
 
 
-def plot_phase_population_relationships(analysis, fish_ids, side_conditions, bout_windows,
-                                       membership_figsize=(14, 12), scatter_figsize=(20, 7)):
-    """Descriptive phase memberships and within-fish neuron scatterplots."""
-    figures = {}
-    categories = ["preconditioning_only", "bout_only", "both", "neither"]
-    colors = plt.get_cmap("tab10")
-    for window in bout_windows:
-        fig, axes = plt.subplots(4, len(side_conditions), figsize=membership_figsize,
-                                  sharey=True, squeeze=False, layout="constrained")
-        for i, category in enumerate(categories):
-            for j, (side, conditions) in enumerate(side_conditions.items()):
-                table = analysis["phase_memberships"].loc[lambda t: t.side.eq(side) & t.window.eq(window) & t.category.eq(category)]
-                plot_diagnostics.plot_paired_fish_values(table, "fraction", conditions, fish_ids, axes[i, j], category.replace("_", " "))
-                axes[i, j].set_ylim(-0.03, 1.03)
-                if i == 0:
-                    axes[i, j].set_title(side.capitalize())
-        fig.suptitle(f"Phase memberships | {window} | C1 not applicable")
-        handles, labels = axes[0, 0].get_legend_handles_labels()
-        fig.legend(handles, labels, loc="lower center", bbox_to_anchor=(0.5, -0.03), ncol=min(5, len(labels)), frameon=False)
-        fig.canvas.draw()
-        figures[f"memberships_{window}"] = fig
-        conditions = [c for group in side_conditions.values() for c in group]
-        fig, axes = plt.subplots(2, int(np.ceil(len(conditions) / 2)), figsize=scatter_figsize,
-                                 sharex=True, sharey=True, squeeze=False, layout="constrained")
-        for ax, condition in zip(axes.flat, conditions):
-            rows = analysis["phase_relationships"].loc[lambda t: t.condition.eq(condition) & t.window.eq(window)]
-            for i, fid in enumerate(fish_ids):
-                points = rows.loc[rows.fish_id.eq(fid)]
-                ax.scatter(points.preconditioning_auc, points.bout_auc, s=3, alpha=0.25, color=colors(i % 10), label=fid)
-            ax.set_title(condition, fontsize=10)
-            if rows.empty:
-                ax.text(0.5, 0.5, "Not applicable", ha="center", transform=ax.transAxes, fontsize=8)
-        for ax in axes[-1]:
-            ax.set_xlabel("Preconditioning AUC (z s)", fontsize=8)
-        for ax in axes[:, 0]:
-            ax.set_ylabel("Bout-window AUC (z s)")
-        fig.suptitle(f"Within-fish neuron relationships | {window}; descriptive correlations in tables")
-        handles, labels = axes[0, 0].get_legend_handles_labels()
-        fig.legend(handles, labels, loc="lower center", bbox_to_anchor=(0.5, -0.05), ncol=min(5, len(labels)), markerscale=3, frameon=False)
-        fig.canvas.draw()
-        figures[f"relationships_{window}"] = fig
-    return figures
+def plot_phase_control_shared_nopre_response(response, side, figsize=(70 / 25.4, 110 / 25.4),
+                                             reference_color="0.25", test_color="#C2703D",
+                                             fish_color="#9AAF9F", mean_color="#385F73",
+                                             show_sem=True, show_fish_lines=False, shade_window=True,
+                                             shade_bout=True, window_color="0.93", bout_color="#E9DFC9",
+                                             show_legend=True, legend_fontsize=None, value_fontsize=None,
+                                             show_values=True, show_difference=True, show_title=True,
+                                             shade_baseline=True, baseline_color="#D5E1EA"):
+    """Time course and paired per-fish mean z-score of shared, test-pre-inactive neurons.
+
+    Draws one side of a ``build_phase_control_shared_nopre_response`` result.
+    Top: equal-fish mean bout-aligned z-score of the selected neurons for the
+    reference (e.g. C1) and test (e.g. C2) bouts over ``trace_window_s``, with
+    optional SEM-across-fish shading, the quantification window
+    (``bout_bounds``) and the bout (0 to its duration) shaded. Bottom: per-fish
+    window mean z for both bouts; bars are equal-fish means (``mean_color``),
+    dots are fish (``fish_color``, no identity), optional thin lines join each
+    fish's pair. Fish without selected neurons are missing (not zero).
+    ``show_difference`` writes the equal-fish mean reference - test difference
+    above the bars; ``show_values`` labels each bar. When the response was
+    baseline-corrected (``response['baseline_window_s']`` set), the y labels and
+    title say so (e.g. 'Mean z-score − pre-bout') and ``shade_baseline`` shades
+    the baseline span in ``baseline_color``; uncorrected figures are unchanged.
+
+    Returns:
+        tuple: Figure and a length-2 Axes array (time course, bars). No files
+        are written and nothing is displayed.
+    """
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
+
+    traces = response["traces"][side]
+    fish = response["fish_summary"].loc[response["fish_summary"].side.eq(side)].set_index("fish_id")
+    fish = fish.reindex(response["fish_ids"])
+    summary = response["cohort_summary"].set_index("side").loc[side]
+    labels = [f"{summary.reference_label} bout", f"{summary.test_label} bout"]
+    start, stop = response["bout_bounds"]
+    baseline = response.get("baseline_window_s")
+    base_name = None if baseline is None else ("pre-bout" if baseline[1] <= 0 else "baseline")
+    z_label = "Mean z-score" if baseline is None else f"Mean z-score − {base_name}"
+    fig, axes = plt.subplots(2, 1, figsize=figsize, layout="constrained",
+                             gridspec_kw=dict(height_ratios=(1.15, 1)))
+    ax = axes[0]
+    time = traces["time_s"]
+    if shade_window:
+        ax.axvspan(start, stop, color=window_color, lw=0, zorder=0)
+    if baseline is not None and shade_baseline:
+        ax.axvspan(*baseline, color=baseline_color, lw=0, zorder=0.5)
+    if shade_bout:
+        ax.axvspan(0, traces["bout_duration_s"]["reference"], color=bout_color, lw=0, zorder=0.5)
+    ax.axhline(0, color="0.6", lw=0.4, zorder=1)
+    for key, label, color in (("reference", labels[0], reference_color), ("test", labels[1], test_color)):
+        mean, sem = traces[f"{key}_mean"], traces[f"{key}_sem"]
+        if show_sem:
+            ax.fill_between(time, mean - sem, mean + sem, color=color, alpha=0.22, lw=0, zorder=2)
+        ax.plot(time, mean, color=color, lw=1.0, label=label, zorder=3)
+    ax.set(xlim=(time[0], time[-1]), xlabel="Time from bout onset (s)", ylabel=z_label)
+    ax.spines[["top", "right"]].set_visible(False)
+    ax = axes[1]
+    values = fish[["reference_mean_z", "test_mean_z"]].to_numpy(dtype=float)
+    means = np.array([summary.reference_mean_z, summary.test_mean_z], dtype=float)
+    x = np.arange(2)
+    ax.bar(x, np.nan_to_num(means), color=mean_color, width=0.6, zorder=1)
+    offsets = (np.arange(len(values)) - (len(values) - 1) / 2) * 0.03
+    for offset, pair in zip(offsets, values):
+        ax.plot(x + offset, pair, "o", linestyle="-" if show_fish_lines else "none",
+                lw=0.4, markersize=2.5, color=fish_color, alpha=0.9, zorder=2)
+    ax.axhline(0, color="0.6", lw=0.4, zorder=0)
+    finite = np.concatenate([values[np.isfinite(values)], means[np.isfinite(means)], [0.0]])
+    low, high = finite.min(), finite.max()
+    pad = max((high - low) * 0.18, 0.1)
+    ax.set_ylim(low - (pad if low < 0 else 0), high + 1.6 * pad)
+    fontsize = value_fontsize or plt.rcParams["font.size"]
+    label_gap = 0.05 * (ax.get_ylim()[1] - ax.get_ylim()[0])
+    for position, mean in enumerate(means):
+        if not np.isfinite(mean):
+            ax.text(position, 0.03, "N/A", transform=ax.get_xaxis_transform(), ha="center",
+                    fontsize=fontsize, color="#555555")
+        elif show_values:
+            column = values[:, position]
+            top = np.nanmax(np.append(column[np.isfinite(column)], mean))
+            ax.annotate(f"{mean:.2f}", (position, max(top, 0) + label_gap), xytext=(0, 1), textcoords="offset points",
+                        ha="center", va="bottom", fontsize=fontsize, annotation_clip=False)
+    if show_difference:
+        delta = summary.delta_mean_z
+        text = (f"{summary.reference_label} − {summary.test_label} = {delta:+.2f} z"
+                if np.isfinite(delta) else f"{summary.reference_label} − {summary.test_label}: N/A")
+        ax.set_title(f"{text} (n = {summary.n_fish_defined}/{summary.n_fish} fish)", fontsize=fontsize, pad=3)
+    ax.set(xticks=x, xticklabels=labels, xlim=(-0.6, 1.6),
+           ylabel=f"{z_label}\n({start:g}-{stop:g} s)")
+    ax.spines[["top", "right"]].set_visible(False)
+    if show_legend:
+        handles = [Line2D([], [], color=reference_color, lw=1, label=labels[0]),
+                   Line2D([], [], color=test_color, lw=1, label=labels[1])]
+        if shade_window:
+            handles.append(Patch(color=window_color, label=f"{start:g}-{stop:g} s window"))
+        if shade_bout:
+            handles.append(Patch(color=bout_color, label="Bout"))
+        if baseline is not None and shade_baseline:
+            handles.append(Patch(color=baseline_color, label=f"{base_name.capitalize()} {baseline[0]:g} to {baseline[1]:g} s"))
+        handles += [Line2D([], [], marker="o", linestyle="none", markersize=3, color=fish_color, label="Fish"),
+                    Patch(color=mean_color, label="Mean")]
+        fig.legend(handles=handles, loc="outside lower center", ncol=3, frameon=False,
+                   fontsize=legend_fontsize, handlelength=1.2, columnspacing=0.9)
+    if show_title:
+        repetitions = ", ".join(map(str, response["repetitions"]))
+        corrected = ("" if baseline is None else
+                     f" | minus {base_name} mean ({baseline[0]:g} to {baseline[1]:g} s)")
+        fig.suptitle(f"{side.capitalize()} | active in {labels[0]} and {labels[1]}, not in "
+                     f"{summary.test_label} pre | {summary.n_selected_total} neurons | "
+                     f"repetitions {repetitions}{corrected}", wrap=True)
+    fig.canvas.draw()
+    return fig, axes
 
 
 def _summary_axes(figsize, separate, sharey=True, sharex=False):
@@ -980,10 +1220,11 @@ def build_all_fish_stimulus_figures(all_fish_data, fish_ids, stim_order, referen
 def plot_all_fish_stimulus_figures(prepared, side_stimuli, z_limits=(0, 10),
                                    mean_ylim=None, raster_figsize=(12, 3.5),
                                    mean_figsize=(12, 3.5), combined_figsize=(12, 5),
-                                   cmap="Greys",
+                                   cmap="Greys", side_order_sources=None,
                                    layouts=("raster", "mean", "combined"),
                                    mean_mode="equal_fish", show_fish_traces=True,
-                                   proportional_widths=False):
+                                   proportional_widths=False, show_legend=True,
+                                   legend_fontsize=None):
     """Redraw all side/layout variants from a previously sorted display.
 
     prepared is the unchanged build_stimulus_panel_display result; side_stimuli
@@ -999,7 +1240,15 @@ def plot_all_fish_stimulus_figures(prepared, side_stimuli, z_limits=(0, 10),
     proportional_widths=True ends each column at its own time bounds and sizes
     its width by duration, preserving a common physical seconds scale. Default
     False preserves equal-width columns with shared x limits.
+    show_legend/legend_fontsize control the phase legend (None keeps the
+    axes-label font size); defaults preserve the existing figure.
 
+    Optional side_order_sources maps requested sides to cached
+    build_left_right_active_overlap_diagnostics results. Reuse their exact
+    diagnostic_neuron_order after checking fish/retained/source row identities
+    and a complete permutation. Each side then uses its own display, returned
+    as side_displays in addition to the existing result keys. No neurons are
+    filtered, z-scores/means rescaled, or activity decisions recalculated.
     """
     layouts = tuple(layouts)
     if (not layouts or len(set(layouts)) != len(layouts)
@@ -1010,9 +1259,33 @@ def plot_all_fish_stimulus_figures(prepared, side_stimuli, z_limits=(0, 10),
     if not side_stimuli or any(not ids or len(set(ids)) != len(ids)
         or not set(ids) <= set(prepared["stimulus_ids"]) for ids in side_stimuli.values()):
         raise ValueError("side_stimuli must contain nonempty unique subsets of stim_order.")
+    side_displays = {}
+    if side_order_sources is not None:
+        if not set(side_stimuli) <= set(side_order_sources):
+            raise ValueError("side_order_sources must include every requested side.")
+        columns = ["fish_id", "neuron_id", "source_neuron_index"]
+        expected_rows = prepared["row_metadata"][columns].to_numpy()
+        n_rows = len(expected_rows)
+        for side in side_stimuli:
+            source = side_order_sources[side]
+            rows = source.get("source_row_metadata")
+            if (rows is None or not set(columns) <= set(rows.columns)
+                    or not np.array_equal(rows[columns].to_numpy(), expected_rows)):
+                raise ValueError(f"{side}: cached order source identities differ from stimulus panel rows; rerun preparation.")
+            diagnostic_rows = source["active_trace_diagnostic"]["row_metadata"]
+            if not np.array_equal(diagnostic_rows[["fish_id", "neuron_id"]].to_numpy(), expected_rows[:, :2]):
+                raise ValueError(f"{side}: cached diagnostic rows differ from the source identities.")
+            order = np.asarray(source["diagnostic_neuron_order"])
+            if (order.shape != (n_rows,) or not np.issubdtype(order.dtype, np.integer)
+                    or (order < 0).any() or (order >= n_rows).any()
+                    or not (np.bincount(order, minlength=n_rows) == 1).all()):
+                raise ValueError(f"{side}: cached order must contain every pooled neuron exactly once.")
+            side_displays[side] = {**prepared, "neuron_order": order,
+                "displayed_row_metadata": prepared["row_metadata"].iloc[order].reset_index(drop=True),
+                "sort_mode": "decision_then_mean"}
     figures, axes = {}, {}
     for side, ids in side_stimuli.items():
-        display = prepared
+        display = side_displays.get(side, prepared)
         sizes = {"raster": raster_figsize, "mean": mean_figsize, "combined": combined_figsize}
         for layout in layouts:
             key = f"{side}_{layout}"
@@ -1020,8 +1293,13 @@ def plot_all_fish_stimulus_figures(prepared, side_stimuli, z_limits=(0, 10),
                 display, ids, layout, figsize=sizes[layout], z_limits=z_limits,
                 mean_ylim=mean_ylim, cmap=cmap, title=f"{side.capitalize()} stimuli",
                 mean_mode=mean_mode, show_fish_traces=show_fish_traces,
-                proportional_widths=proportional_widths)
-    return {"display": prepared, "figures": figures, "axes": axes}
+                proportional_widths=proportional_widths, show_legend=show_legend,
+                legend_fontsize=legend_fontsize)
+    result = {"display": prepared, "figures": figures, "axes": axes}
+    if side_order_sources is not None:
+        result["side_displays"] = side_displays
+    return result
+
 
 def plot_lifetime_sparseness_analysis(
     all_fish_data,
@@ -1248,55 +1526,35 @@ def plot_left_right_active_overlap_diagnostics(
         dict: Side name to prepared overlap and trace diagnostic data, plus
         overlap_figure and diagnostic_figure when those figures are drawn.
     """
-    expected_sides = {"left", "right"}
-    if set(side_stimuli) != expected_sides:
-        raise ValueError("side_stimuli must contain exactly 'left' and 'right'.")
-
-    selections = {
-        side: trial_alignment.resolve_selected_stimuli(
-            stimuli,
-            stimuli_id_map=reference_fish["stimuli_id_map"],
-            available_stimuli=reference_fish["trial_aligned_traces_raster"].keys(),
-        )
-        for side, stimuli in side_stimuli.items()
-    }
-    side_stimulus_ids = {side: selection["stimulus_ids"] for side, selection in selections.items()}
-    side_stimulus_labels = {side: selection["stimulus_labels"] for side, selection in selections.items()}
-    active_stim_order = list(dict.fromkeys(side_stimulus_ids["left"] + side_stimulus_ids["right"]))
-    active_matrices = active_neuron_analysis.build_active_neuron_matrices_all_fish(
-        all_fish_data=all_fish_data,
-        fish_ids=fish_ids,
-        stim_order=active_stim_order,
-        fps_2p=timing["fps_2p"],
-        t_pre_s=timing["t_pre_s"],
-        motion_onset_s=motion_onset_s,
-        active_fraction_threshold=active_fraction_threshold,
-        min_epoch_s=min_epoch_s,
-        min_active_reps=min_active_reps,
-        expected_reps=expected_reps,
-        require_expected_reps=require_expected_reps,
-        tau_s=tau_s,
-        motion_duration_key=motion_duration_key,
+    results = build_left_right_active_overlap_diagnostics(
+        all_fish_data, fish_ids, reference_fish, timing, side_stimuli,
+        active_fraction_threshold=active_fraction_threshold, min_epoch_s=min_epoch_s,
+        min_active_reps=min_active_reps, expected_reps=expected_reps,
+        require_expected_reps=require_expected_reps, motion_onset_s=motion_onset_s,
+        tau_s=tau_s, motion_duration_key=motion_duration_key,
+    )
+    return plot_prepared_left_right_active_overlap_diagnostics(
+        results, reference_fish, timing, show_overlap=show_overlap,
+        show_significant_raster=show_significant_raster,
+        overlap_figsize=overlap_figsize, raster_figsize=raster_figsize,
     )
 
-    results = {}
-    for side in ("left", "right"):
-        diagnostic_data = build_overlap_diagnostic_data(
-            all_fish_data=all_fish_data,
-            active_matrices=active_matrices,
-            fish_ids=fish_ids,
-            side_stimulus_ids=side_stimulus_ids,
-            side_stimulus_labels=side_stimulus_labels,
-            response_row_metadata=None,
-            keep_mask=None,
-            side_to_plot=side,
-            aggregation="mean_per_fish",
-            plot_mode="significant_raster",
-            combine_mode="mean",
-            sort_mode="decision_then_mean",
-        )
-        results[side] = diagnostic_data
 
+def plot_prepared_left_right_active_overlap_diagnostics(
+    prepared, reference_fish, timing, show_overlap=True,
+    show_significant_raster=True, overlap_figsize=(5, 4), raster_figsize=(12, 7),
+):
+    """Redraw cached Cell 06 overlap/raster diagnostics without preparation.
+
+    prepared is build_left_right_active_overlap_diagnostics output. Timing
+    supplies fps_2p/t_pre_s for display; no activity decisions or orders are
+    recalculated. Returns side dictionaries with optional figure handles,
+    sharing the cached arrays/order vectors but not mutating prepared.
+    """
+    if set(prepared) != {"left", "right"}:
+        raise ValueError("prepared must contain exactly 'left' and 'right'.")
+    results = {side: dict(prepared[side]) for side in ("left", "right")}
+    for side, diagnostic_data in results.items():
         if show_overlap:
             fig, ax = plt.subplots(figsize=overlap_figsize)
             diagnostic_data["overlap_figure"] = fig
@@ -1374,6 +1632,114 @@ def plot_shared_control_auc(analysis, metric="normalized_auc", figsize=(85 / 25.
                    frameon=False, ncol=2, handlelength=1.1, columnspacing=0.8)
         fig.subplots_adjust(left=0.25, right=0.97, bottom=0.30, top=0.86)
         panels[side] = (fig, ax)
+    return panels
+
+
+def plot_recruitment_strength_summary(analysis, shared_auc, figsize=(85 / 25.4, 110 / 25.4),
+                                      fish_color="#9AAF9F", mean_color="#385F73",
+                                      side_stimuli=None, ylabels=None, show_legend=True,
+                                      legend_fontsize=None, show_title=True, title_suffix=None):
+    """Stack population activity, recruitment and shared-neuron strength per side.
+
+    Args:
+        analysis (dict): build_recruitment_containment_analysis output, with
+            one recruitment row per fish/side/condition and explicit ID order.
+        shared_auc (dict): build_shared_control_auc_analysis output for the same
+            fish and controls. Uses mean_delta_normalized_auc, in z-score units.
+        figsize (tuple): Final size in inches for each side's three-row figure.
+        fish_color, mean_color (str): Anonymous fish dots and equal-fish mean.
+        side_stimuli (dict or None): Optional side-to-stimulus-ID permutations
+            for display. Include every analyzed condition exactly once on each
+            side; labels and all three rows follow IDs without changing data.
+        ylabels (sequence or None): Optional three y-axis labels replacing the
+            defaults (e.g. window mean z-score wording for phase adapters).
+        show_legend (bool), legend_fontsize (float or None): Fish/Mean legend;
+            None follows rcParams. show_title (bool): side suptitle.
+        title_suffix (str or None): Optional second title line under the side
+            title, e.g. the analysed repetitions 'trials 2, 3, 4 (>= 2/3)'.
+            None (default) keeps the original '<Side> stimuli' title.
+
+    Returns:
+        dict: side -> (Figure, length-3 Axes array). Stimuli align by ID, with
+        common compact labels only on the bottom row and one Fish/Mean legend.
+        The control's undefined self-comparison stays missing in the last row.
+        Original measurement windows, populations and NaNs are preserved; y
+        scales match across sides. No analysis, file writes or forced display.
+    """
+    if list(analysis["fish_ids"]) != list(shared_auc["fish_ids"]):
+        raise ValueError("Recruitment and shared AUC must use the same fish order.")
+    if set(analysis["side_selections"]) != set(shared_auc["side_selections"]):
+        raise ValueError("Recruitment and shared AUC must use the same sides.")
+    if side_stimuli is not None:
+        if set(side_stimuli) != set(analysis["side_selections"]):
+            raise ValueError("side_stimuli must include every summary side.")
+        for side, selection in analysis["side_selections"].items():
+            requested = list(side_stimuli[side])
+            if (len(requested) != len(set(requested))
+                    or set(requested) != set(selection["stimulus_ids"])):
+                raise ValueError(f"{side}: side_stimuli must contain every analyzed stimulus exactly once.")
+    recruitment = analysis["tables"]["recruitment"]
+    strength = shared_auc["tables"]["shared_auc_per_fish"]
+    specs = [("mean_normalized_auc", "Mean z-score", "Population activity"),
+             ("active_fraction", "Active fraction", "Recruitment"),
+             ("mean_delta_normalized_auc", "Control − stimulus\nNormalized AUC (z-score)",
+              "Shared-neuron strength")]
+    if ylabels is not None:
+        if len(ylabels) != 3:
+            raise ValueError("ylabels must contain three row labels.")
+        specs = [(value, label, title) for (value, _, title), label in zip(specs, ylabels)]
+    limits = []
+    for table, (value, _, _) in zip((recruitment, recruitment, strength), specs):
+        finite = table.loc[np.isfinite(table[value]), value].to_numpy()
+        low, high = (min(0, finite.min()), max(0, finite.max())) if finite.size else (-1, 1)
+        pad = max((high - low) * 0.12, 0.1)
+        limits.append((low - pad, high + pad))
+    limits[1] = (-0.025, 1.025)
+    panels = {}
+    for side, selection in analysis["side_selections"].items():
+        shared_selection = shared_auc["side_selections"][side]
+        control = shared_selection["control_id"]
+        condition_by_id = dict(zip(selection["stimulus_ids"], analysis["condition_labels"]))
+        ids = list(selection["stimulus_ids"] if side_stimuli is None else side_stimuli[side])
+        order = [condition_by_id[sid] for sid in ids]
+        if (selection["groups"]["control"] != [control]
+                or set(shared_selection["stimulus_ids"]) != set(ids) - {control}):
+            raise ValueError(f"{side}: control/comparison stimulus IDs differ.")
+        side_strength = strength.loc[strength.side.eq(side)].copy()
+        side_strength["condition"] = side_strength["stimulus_id"].map(condition_by_id)
+        side_recruitment = recruitment.loc[recruitment.side.eq(side)]
+        fig, axes = plt.subplots(3, 1, figsize=figsize, sharex=True)
+        for row, (table, (value, ylabel, title)) in enumerate(zip(
+                (side_recruitment, side_recruitment, side_strength), specs)):
+            if table.duplicated(["fish_id", "condition"]).any():
+                raise ValueError(f"{side}: expected one value per fish and condition.")
+            ax = axes[row]
+            plot_diagnostics.plot_paired_fish_values(table, value, order,
+                analysis["fish_ids"], ax, ylabel, individual_style="anonymous_points")
+            for line in ax.lines:
+                line.set_color(mean_color if line.get_label() == "Mean" else fish_color)
+            ax.set_title(title, loc="left", pad=3)
+            ax.set_ylim(*limits[row])
+            ax.yaxis.set_major_locator(MaxNLocator(nbins=3))
+            ax.tick_params(axis="x", which="both", bottom=row == 2, labelbottom=row == 2)
+            ax.axhline(0, color="0.7", linestyle="--" if row == 2 else "-",
+                       linewidth=0.45, zorder=0)
+        control_index = ids.index(control)
+        axes[-1].text(control_index, 0.06, "n/a", transform=axes[-1].get_xaxis_transform(),
+                      ha="center", va="bottom", color="0.5", fontsize=plt.rcParams["xtick.labelsize"])
+        if show_legend:
+            handles, labels = axes[0].get_legend_handles_labels()
+            fig.legend(handles, labels, loc="upper right", bbox_to_anchor=(0.985, 0.995),
+                       frameon=False, ncol=2, handlelength=1.2, handletextpad=0.4,
+                       columnspacing=0.9, borderaxespad=0, fontsize=legend_fontsize)
+        if show_title:
+            # A suffix goes on a second line so it never runs into the top-right legend.
+            fig.suptitle(f"{side.capitalize()} stimuli" + (f"\n{title_suffix}" if title_suffix else ""),
+                         x=0.24, y=0.985, ha="left", linespacing=1.1)
+        axes[-1].set_xlabel("Stimulus")
+        fig.subplots_adjust(left=0.24, right=0.985, bottom=0.17, top=0.88, hspace=0.52)
+        fig.align_ylabels(axes)
+        panels[side] = (fig, axes)
     return panels
 
 

@@ -9,6 +9,66 @@ import src.data_loading as exio
 from src.trial_alignment import resolve_selected_stimuli, build_event_aligned_traces
 
 
+def _align_phase_fish(fish, display_pre_s, recovery_s):
+    """Return sequence/bout-aligned z-score and raster bundles for one fish.
+
+    Uses the saved continuous traces: z-scores are (time, all neurons) and are
+    restricted to kept neurons; the raster is already (time, kept neurons).
+    Output arrays are (kept neurons, time, trials). Windows start
+    ``display_pre_s`` seconds before the anchor and end ``recovery_s`` seconds
+    after bout offset. Block-crossing windows raise ValueError.
+    """
+    return {anchor: {kind: build_event_aligned_traces(values, fish["trials"], fish["fps_2p"],
+                alignment=anchor, t_pre_s=display_pre_s, recovery_s=recovery_s)
+            for kind, values in (("zscore", fish["z_traces"][:, fish["kept_neuron_indices"]]),
+                                 ("raster", fish["raster"]))}
+            for anchor in ("sequence", "bout")}
+
+
+def _check_phase_alignment_compatible(fish, first):
+    """Require one fish to share the reference fish's rate and time/trial shapes."""
+    if fish["fps_2p"] != first["fps_2p"]:
+        raise ValueError("Included fish must share the imaging rate.")
+    for sid in fish["stimuli_ids"]:
+        for anchor in fish["aligned"]:
+            candidate = fish["aligned"][anchor]["zscore"]["trial_aligned_traces"][sid]
+            reference = first["aligned"][anchor]["zscore"]["trial_aligned_traces"][sid]
+            if candidate.shape[1:] != reference.shape[1:]:
+                raise ValueError("Fish have incompatible per-condition time/trial shapes.")
+
+
+def align_phase_cohort(cohort, display_pre_s, recovery_s):
+    """Re-align an already loaded reviewed phase cohort with new display windows.
+
+    Args:
+        cohort (dict): ``load_reviewed_phase_cohort`` result.
+        display_pre_s (float): Seconds kept before each sequence/bout anchor.
+        recovery_s (float): Seconds kept after bout offset (bout end).
+
+    Returns:
+        dict: A NEW cohort (and new per-fish dictionaries) with the same fish
+        IDs, readiness table and loaded arrays (shared, not copied; treat them
+        as read-only) but new ``aligned`` sequence/bout bundles and
+        updated ``settings['display_pre_s']``/``['recovery_s']``. The input
+        cohort and its fish dictionaries are not modified. Nothing is reloaded
+        from disk. Any fish whose window crosses an imaging block, or that is
+        incompatible with the first fish, raises ValueError (no fish is
+        silently dropped).
+    """
+    data = {}
+    for fid in cohort["fish_ids"]:
+        fish = dict(cohort["all_fish_data"][fid])
+        try:
+            fish["aligned"] = _align_phase_fish(fish, display_pre_s, recovery_s)
+            if data:
+                _check_phase_alignment_compatible(fish, next(iter(data.values())))
+        except ValueError as error:
+            raise ValueError(f"{fid}: {error}") from error
+        data[fid] = fish
+    settings = dict(cohort.get("settings", {}), display_pre_s=display_pre_s, recovery_s=recovery_s)
+    return dict(cohort, all_fish_data=data, fish_ids=list(data), settings=settings)
+
+
 def load_reviewed_phase_cohort(settings):
     """Load ready reviewed fish, retaining explicit readiness for every request.
 
@@ -16,6 +76,7 @@ def load_reviewed_phase_cohort(settings):
     ``all_fish_data``, ``fish_ids`` and a readiness DataFrame. Empty readiness
     remains inspectable; analysis/figure entrypoints require a nonempty cohort.
     Aligned z-score and raster arrays both contain the same retained neurons.
+    Use ``align_phase_cohort`` to derive longer/shorter display windows later.
     """
     import pandas as pd
 
@@ -30,24 +91,9 @@ def load_reviewed_phase_cohort(settings):
                     settings["main_path"], settings["stimuli_main_path"],
                     settings["phase_metadata_path"], settings["stimulus_aliases"],
                     settings["selected_blocks"], cache_root=settings.get("cache_roots", {}).get(fid))
-            fish["aligned"] = {}
-            for anchor in ("sequence", "bout"):
-                fish["aligned"][anchor] = {
-                    kind: build_event_aligned_traces(values, fish["trials"], fish["fps_2p"],
-                        alignment=anchor, t_pre_s=settings["display_pre_s"],
-                        recovery_s=settings["recovery_s"])
-                    for kind, values in (("zscore", fish["z_traces"][:, fish["kept_neuron_indices"]]),
-                                         ("raster", fish["raster"]))}
+            fish["aligned"] = _align_phase_fish(fish, settings["display_pre_s"], settings["recovery_s"])
             if data:
-                first = next(iter(data.values()))
-                if fish["fps_2p"] != first["fps_2p"]:
-                    raise ValueError("Included fish must share the imaging rate.")
-                for sid in fish["stimuli_ids"]:
-                    for anchor in fish["aligned"]:
-                        candidate = fish["aligned"][anchor]["zscore"]["trial_aligned_traces"][sid]
-                        reference = first["aligned"][anchor]["zscore"]["trial_aligned_traces"][sid]
-                        if candidate.shape[1:] != reference.shape[1:]:
-                            raise ValueError("Fish have incompatible per-condition time/trial shapes.")
+                _check_phase_alignment_compatible(fish, next(iter(data.values())))
             data[fid] = fish
             rows.append(dict(fish_id=fid, status="ready", reason="", session_id=fish["session_id"],
                 neurons=len(fish["kept_neuron_indices"]), trials=len(fish["trials"])))
@@ -183,6 +229,8 @@ def load_and_preflight_fish_raster_inputs(settings):
             blocks, and timing configuration for the several-fish notebook.
             data_base is the parent of the university OneDrive folder; set it
             to None to discover the Lab roots automatically on this computer.
+            Optional lab_root takes precedence over data_base and is validated
+            by data_loading.resolve_lab_root (including portable custom roots).
 
     Returns:
         dict: Copied settings and timing, ordered fish/stimulus IDs, resolved paths,
@@ -198,7 +246,11 @@ def load_and_preflight_fish_raster_inputs(settings):
     if not stim_order:
         raise ValueError("settings['stim_order'] must contain at least one stimulus ID.")
 
-    main_path, analysis_path = _resolve_cohort_paths(settings["data_base"])
+    if settings.get("lab_root") is not None:
+        lab_root = exio.resolve_lab_root(settings["lab_root"])
+        main_path, analysis_path = lab_root / "Data" / "2p", lab_root / "Analysis"
+    else:
+        main_path, analysis_path = _resolve_cohort_paths(settings["data_base"])
     all_fish_data = _load_configured_fish(
         settings, timing, fish_ids, main_path, analysis_path)
     _validate_stimulus_order(all_fish_data, stim_order)

@@ -26,9 +26,9 @@ This inventory was established on 2026-09-25 during S01 of the [completed refact
 
 ## Audit coverage
 
-- 14 active notebooks are covered by the consumer inventory, including the Exp 7 recruitment/containment notebook added on 2026-10-15.
+- 19 active notebooks are covered by the consumer inventory, including Exp 8 notebooks 03 (control-referenced onset comparisons) and 04 (population trajectories).
 - 4 active Python scripts under `scripts/` were scanned with the Python AST.
-- 13 notebooks currently import or call `src`.
+- 18 notebooks currently import or call `src`.
 - `notebooks/calcium/preprocessing/2P_Experiment_FileOps.ipynb` currently has no `src` import.
 - None of the 4 stimulus generation/playback scripts currently imports `src`.
 - All active notebook code cells now compile after S12 step 3 corrected the pre-existing syntax error in raw cell 2 of `notebooks/calcium/exp_08_accumulation_ev/02_bout_flicker_position_onset.ipynb`.
@@ -46,6 +46,108 @@ machine-contract symbol changed in this audit.
 
 ## Consumer overview
 
+Exp 8 `04_population_trajectories.ipynb` independently loads the maintained cohort
+and four acquisition blocks. `build_population_trajectory_analysis` retains its
+historical per-fish PCA default plus pooled/both options. Pooled neuron features
+use 1/sqrt(number_of_fish * neurons_in_fish) weights to balance neuron counts,
+not response energy. `build_joint_population_pca` intersects original finite
+neuron IDs across sides within fish, audits exclusions and fits one actual PCA
+across side/condition/time rows; independently rotated PCs are never overlaid.
+Default fit: six conditions per side in [0, 8) s from the common 8 s program
+anchor, 192 joint rows, projected through 0–14 s. Default display: Control,
+Seg 2, Seg 1, Seg 1/3/5 and one-position flicker, with rocking selectable.
+`DISPLAY_STIMULI` drives one mean-only overlay per side and optional left/right
+overlays. Individual sides retain their per-side basis by default; combined
+plots always use the joint fit. `PCA_BASIS='joint'` selects a common basis for
+every layout. `PCA_LAYOUTS` selects left/right/both,
+and solid/dashed lines distinguish sides on a joint plot. There is no separate
+0–4 s view. Full-space measurements remain per fish and separate from PCA.
+Every configured comparison is stimulus versus same-side Control (10 total);
+there are no segment-pair tests. `test_population_separation` corrects across
+all calculation-window times and those 10 pairs, independently of displayed
+subsets. `plot_control_distance_overlay` superposes selected curves with equal-fish
+means/SEM and returns first displayed corrected evidence times as a table, without
+significance markers or evidence annotations on the plot. This is not a biological
+change-point, proof of earlier equivalence, or a test between non-control curves.
+Optional combined distance axes use solid/dashed side styles; optional symlog
+preserves negative estimates. `check_population_subsampling` retains 50 default
+equal-count draws; quantiles describe neuron-sampling sensitivity, not fish CIs.
+No cross-fish trials are fabricated; no Lab analysis caches are changed.
+Each figure has an independent local SVG switch (default True) at the top of its
+plotting cell: six `SAVE_PCA_{LEFT|RIGHT|BOTH}_{2|3}D_SVG` flags plus
+`SAVE_DISTANCE_SVG` and `SAVE_SIMILARITY_SVG`. The same cell draws and optionally
+calls `plotting_common.save_publication_figure`; no global gate or batch-export
+cell remains. Portable `SVG_DIR` resolves under
+`Lab/Results/Paper/figures/main/fig03/assets/generated`. Existing
+`exp08_population_` filenames and editable text are preserved. False skips only
+that figure's writer call; other figures' choices are independent.
+`first_trajectory_difference` remains an optional saved-asset timing audit.
+
+Notebook 04's combined 3D plotting cell has independent `PCA_BOTH_3D_*` controls
+for figure size, axes/title font, legend font, columns, location and optional
+axes-coordinate anchor. `plot_pooled_population_trajectories` accepts optional
+`legend_font_size`, `legend_loc` and `legend_bbox_to_anchor`; omitted values
+preserve its historical defaults. These affect cached figure styling only.
+The distance overlay x-axis reads "Time from stimulus motion onset (s)" using
+the unchanged common 8 s motion-program anchor, not each condition's first
+coordinate change.
+
+Notebook 04 section 5 calls `build_control_pattern_similarity` and
+`plot_control_similarity_curves`. `stimulus_similarity.compute_population_pattern_correlation`
+owns finite matching-time Pearson calculations across neurons; constant vectors
+yield NaN. For each fish, original selected z-scores feed a 1D correlation curve,
+not PCA coordinates. Default `split_half` averages all three 2+2 block partitions
+and both cross-half directions (six curves), so stimulus/Control
+and Control repeatability use matched two-repetition means. This reference is
+descriptive, not a noise ceiling or equivalence threshold. `trial_mean` uses
+all-four-repetition means and omits the unmatched reference. Return fish-level
+curve and repeatability tables, SEM and valid-fish counts; undefined samples
+remain NaN. Display-window endpoints include native sample centers. Selected
+stimuli reuse `DISPLAY_STIMULI`, with [-1,1] correlation limits. Existing distance
+tests and PCA preparation remain separate. Cross-time calculations and their
+plotting API were removed at the user's request.
+
+Exp 8 `03_control_onset_recruitment.ipynb` calls
+`active_neuron_analysis.build_control_onset_comparison` and both figure helpers
+in `plotting_onset_comparison` directly. The comparison keeps original neuron
+IDs and retained rows, requires finite binary (neurons, time, trials) rasters
+and complete onset-window coverage, and preserves configured side/stimulus order.
+Control-active neurons with a sustained consensus onset in the half-open bin
+span define each reference population. Comparison-inactive/no-onset neurons
+remain in the no-onset column. Counts and fractions use all control-bin neurons
+within each fish; summaries weight nonempty fish bins equally and return valid
+fish counts. Empty bins remain NaN, not zero. Self-control identity is not an
+independent-trial reliability measurement. Its 8 s shared program anchor and
+default [0, 9) s onset window are distinct from the longer Cell 06 activity
+window. The public onset primitive in `response_classification` also backs the
+historical bout helper through its unchanged private wrapper. Cohort preflight
+accepts optional `settings['lab_root']`, resolved by `data_loading.resolve_lab_root`,
+before the historical `data_base` lookup; its returned bundle is unchanged.
+Exp 5 notebook 01 uses `data_loading.resolve_lab_root()` in its settings to
+discover the local Lab folder on either workstation, including the
+`SOCIAL_FILTERS_LAB_ROOT` override.
+
+Notebook 03 section 6 independently calls `build_control_bin_overlap` and
+`plot_control_bin_overlap` for ongoing activity at matching times, without
+changing the onset comparison above. Finite binary retained-row rasters are
+classified inside each half-open bin using the canonical per-trial fraction and
+consecutive-epoch rule, then a minimum number of passing trials. Defaults are
+1 s epochs in at least two of four trials, 10% significant frames, 1 s bins in
+[0, 14) s relative to the shared 8 s program anchor. Epochs must fit wholly in
+each bin/trial. There is no global activity/onset eligibility gate, and neurons
+may contribute in multiple bins. Missing/nonbinary inputs, incomplete temporal
+coverage, mismatched retained rows/repetitions and bins too short for the epoch
+raise. Each fish/bin fraction divides the Control/stimulus intersection by that
+bin's Control-active count; stimulus-only neurons are audited separately. Empty
+Control bins stay NaN. Means weight eligible fish equally, SEM requires at least
+two fish, and valid-fish counts are retained. `bin_activity[side][fish][label]`
+is (retained neurons, bins), aligned to `neuron_ids[fish]`; `bin_windows` records
+native samples and `fish_bins` preserves raw counts. Ordered Seg 2/Seg 1/Seg
+1-3-5/one-position-flicker curves reuse notebook 04's colors, with Control support
+below and a 9 s program-end marker. Self-Control is omitted from the plot and
+remains identity in the tables; no independent repeatability or separation-time
+test is implied. All notebook results remain in memory; no Lab files are written.
+
 Both Exp 9 notebooks use `data_loading.resolve_lab_root()` to discover the local
 OneDrive Lab folder from environment variables, home, or `D:/Alejandro/Data`.
 An explicit Lab root or `SOCIAL_FILTERS_LAB_ROOT` overrides discovery. Reviewed
@@ -61,12 +163,11 @@ paired-fish plots. Explicit native-time window selection supports different
 preconditioning/delay/bout phases without an implicit response tail. Invalid
 activity trials keep the selected denominator and yield missing fractions with
 valid counts. Scalar metrics are summarized repetitions -> neurons -> fish;
-across-fish means give each fish equal weight. The report writer's optional
-`figures`/`figure_dpi` and paired-fish plot's optional `x_values` preserve defaults.
+across-fish means give each fish equal weight.
 Single-ready-fish output is explicitly a preview. The machine contract lists
 the notebook's exact public calls.
 
-Cell 04's `build_phase_population_display` accepts `sort_scope="within_fish"`
+The shared `build_phase_population_display` accepts `sort_scope="within_fish"`
 (default) or `"pooled"`, and `repetitions=None` (all) or unique one-based trial
 numbers. Selection applies to displayed z-score/raster matrices and equal-fish
 means only, without mutating the cohort or changing later metrics. Sorting uses
@@ -103,7 +204,7 @@ inactive during their own preconditioning divided by all retained neurons in
 that fish, regardless of C1 membership. C1's second-row entry is N/A because
 it has no preconditioning. Its denominator stays fixed even if C1 has no active
 neurons. Defined fish fractions are averaged equally for both rows.
-Other metric cells keep their original trials.
+Cell 05's native measurements keep all four trials.
 The display's stable preconditioning pool now counts native passing trials
 across S1-S5 and selected repetitions: `pre_active_fraction=0.75` requires 12/15
 (ceil). Its exported `preconditioning_pool` table retains passing/valid/expected
@@ -113,6 +214,35 @@ Display rows place the stable preconditioning pool first; the added
 `plot_phase_recruitment_decisions` reuses the Exp 7 primitive in
 `plotting_diagnostics` to show mean traces beside an actual 0/1 decision matrix
 (preconditioning 12/15, bouts 2/3); missing decisions use gray.
+
+Exp 9 notebook 02 no longer has the old Cells 06-10 (bout AUC/peak plots,
+preconditioning/early-late/pre-bout metrics, paired comparisons, memberships/
+correlations and the report export). Their only consumers were removed with
+them: `plot_phase_fish_summary`, `plot_phase_population_comparisons`,
+`plot_phase_population_relationships`, the `comparison_pairs` argument and the
+`phase_relationships`/`correlations`/`phase_memberships`/`paired_differences`,
+early/late, pre-bout level and delta outputs of `build_phase_population_analysis`
+(now `build_phase_population_analysis(cohort, settings)`). Measurement windows
+that exceed the aligned samples raise ValueError (`select_event_window(...,
+sample_period_s=...)`); `several_fish_loading.align_phase_cohort` builds a
+longer-recovery cohort (e.g. 15 s) from the loaded traces without reloading.
+Cell 06c prepares these once on a `recovery_s=15` cohort copy; Cells 06d (bars),
+06e (rasters), 07a/07b (C2 versus C1) and 08 (three-row summary) only redraw.
+Cell 07c calls `build_phase_control_shared_nopre_response` on Cell 06c's 0-10 s
+`c2_counts` (C1- and C2-bout-active, C2-pre-inactive neurons; per-fish and
+equal-fish mean z and time courses) and Cell 07d draws it per side with
+`plot_phase_control_shared_nopre_response`; the opt-in `baseline_window='pre_bout'` (Cell 07c `SHARED_NOPRE_BASELINE`, measured by Cell 06c over -2 to 0 s from bout onset) corrects for C2 preconditioning carry-over and the plot labels it. Cell 02's `ANALYSIS_REPETITIONS`/`ANALYSIS_MIN_ACTIVE_REPS` (applied in Cell 06c; also Cell 04d's `PER_REP_ANALYSIS_REPETITIONS`) set one repetition rule for Cells 06d-08 and build the 07a z-score full-sequence rows with `build_phase_stimulus_panel_displays(repetitions=...)` plus `build_phase_sequence_panel_displays`, independently of Cell 04a. Cell 06e re-sorts `recruitment_15s` with `reorder_phase_recruitment_rows` (default: preconditioning pool first, then all other neurons by C1 bout z-score AUC over 0-15 s; `'groups'` keeps 06b order) and hides the membership strips, legend and dotted group lines via `plot_phase_recruitment_rasters(show_membership_strips=..., show_group_lines=...)` and `plot_phase_recruitment_decisions(show_group_lines=...)`; defaults keep 06b/07a unchanged.
+These cells reuse `build_phase_recruitment_analysis` with `bout_10s` (bars) and
+`bout_15s` (rasters/decisions), the existing plotters' backward-compatible
+style keywords (anonymous sage/slate-blue bars, hidden row labels, legend and
+font controls, `compact_layout` for fixed-size mm exports, `window_label` titles), `build_phase_control_comparison` with
+`plot_phase_control_comparison_summary` for C2-versus-C1, `select_phase_panel_rows`
+for row-restricted full-sequence z-score panels (07a passes the rows reversed so
+the z-score panel matches the rasters' bottom-to-top group order), and
+`build_phase_recruitment_strength_inputs` to feed the Exp 8 Cell 6c
+`plot_recruitment_strength_summary` (whose new `ylabels`/legend/title/`title_suffix`
+keywords keep Exp 8 output unchanged). Figure exports use `save_publication_figure` with
+`exp09_` names under the Lab Fig. 07 directory; nothing else is written.
 
 The Exp 9 individual-fish notebook is an opt-in consumer of explicit phase loading,
 event-based trial alignment, phase-aware plots, existing baseline normalization,
@@ -151,6 +281,14 @@ It enables `proportional_widths=True` in the plotting gateway/primitive, using
 the helper's `time_bounds_s` to end every raster/trace column at its own bout
 offset + 15 s. Column widths track durations with a common physical seconds
 scale; other callers keep equal widths and shared limits by default.
+Cell 04d calls `build_phase_sequence_repetition_displays(cohort,
+phase_panel_displays['sequence'], PER_REP_REPETITIONS, t_pre_s=5.0,
+recovery_s=15.0)` (same window and cached rows as 04c, one single-trial
+display per repetition) and draws each side/type with
+`plotting_all_fish.plot_stimulus_response_panel_grid` (rows = repetitions,
+columns = conditions). The notebook imports `src.plotting_all_fish` for this
+grid; 04b/04c output is unchanged because both plotters share the same
+per-panel drawing routines.
 
 Exp 9 sequence/bout line panels use `trace_mode="population"`: average each
 neuron over trials, then average exactly the selected raster rows with equal
@@ -167,7 +305,7 @@ remains the backward-compatible default for other callers.
 | Exp 5 LME decomposition | `data_loading`, `lme_feature_decomposition`, `multifish_matrices`, `plotting_lme`, `trial_alignment` | Loader/alignment, response matrices, model fitting, and figures |
 | Exp 7 all-fish raster | `plotting_common`, `several_fish_figures`, `several_fish_loading`, `several_fish_reporting` | Exp 7 cohort/stimulus validation, shared raster/mean figures, activity diagnostics, sparseness, report saving |
 | Exp 7 response overlap/selectivity, stages 1–4 | `several_fish_diagnostics`, `several_fish_figures`, `several_fish_loading`, `several_fish_reporting` | Mirrored recruitment/activity, containment, similarity, breadth/combinations, signed response profiles, and within-family positive-response lifetime sparseness |
-| Exp 8 all-fish raster | `multifish_matrices`, `plotting_common`, `plotting_diagnostics`, `several_fish_figures`, `several_fish_loading`, `several_fish_reporting`, `trial_alignment` | Response selection, response matrices, diagnostics, standard reports |
+| Exp 8 all-fish raster | `data_loading`, `multifish_matrices`, `plotting_common`, `plotting_diagnostics`, `several_fish_diagnostics`, `several_fish_figures`, `several_fish_loading`, `several_fish_reporting`, `trial_alignment` | Response matrices, independent stimulus panels, shared-control AUC, combined recruitment/strength summaries, diagnostics, reports, Fig. 7 pooled-panel SVGs and Fig. 3 summary SVGs |
 | Exp 8 bout/flicker position | `bout_flicker_analysis`, `plotting_bout_position`, `several_fish_loading` | Same public bout-position surface as Exp 1 |
 | dFoF batch preprocessing | `dff_extraction` | Per-plane Suite2p-to-dFoF extraction entrypoint |
 | Shared single-fish analysis | `data_loading`, `trial_alignment`, `response_normalization`, `response_metrics`, `reliability`, `plotting_common`, `plotting_single_fish`, `plotting_all_fish`, `significant_trace_detection` | Load, align, filter, detect significant traces, and plot through the owning modules |
@@ -175,6 +313,52 @@ remains the backward-compatible default for other callers.
 | Stimulus batch plots | `stimulus_visualization` | Load trajectories, summarize, plot, and save reports |
 
 The exact per-consumer function list lives in the machine contract rather than being duplicated here.
+
+Exp 5 and Exp 8 notebook 01 section 4a call
+`several_fish_diagnostics.build_left_right_active_overlap_diagnostics` once.
+The resulting left/right decision-then-mean orders are reused by Cell 06's
+appearance-only redraw and section 4b's `PANEL_SORT_MODE='cell06'` default.
+`plot_all_fish_stimulus_figures(..., side_order_sources=overlap_results)`
+checks fish/retained/source neuron identities and each complete permutation,
+then returns additional `side_displays` with the per-side order and displayed
+  row metadata. Trace matrices and fish means remain unchanged. Without this
+  optional argument, the existing return keys and shared-order behavior remain.
+
+Exp 8 notebook 01 section 4b also calls `build_stimulus_panel_display` with
+`trace_type='raster'` (default remains `'zscore'`). Significant arrays are
+already in retained-neuron order and must have exactly the retained row count;
+source indices are not applied again. Averaging repetitions gives trial-active
+fractions, with no new classification/threshold. Both types return `trace_type`
+and `pooled_means` alongside the existing matrix/mean/identity fields. Other
+sorting modes use the z-score order for both types; Cell 06 reuses exact side
+orders for both. `plot_all_fish_stimulus_figures` adds optional `layouts`,
+`mean_mode` (`equal_fish` or `pooled_neurons`) and `show_fish_traces`, preserving
+old defaults. This notebook selects combined layouts, pooled-neuron weighting
+and no fish overlays by default. Its off-by-default SVG gate now targets Fig. 7
+and `exp08_pooled_{zscore|raster}_{side}_{layout}.svg`; summary exports remain Fig. 3.
+The historical `plot_left_right_active_overlap_diagnostics` still prepares
+and plots in one call, now delegating to the same preparation/redraw owners.
+
+Exp 5 section 4b uses the same five sorting modes and compact raster/mean/
+combined layouts as Exp 8, with Exp 5's own cohort, four repetitions, loaded
+timing and stimulus map. Its appearance cell selects/reorders columns through
+`PANEL_STIMULI_BY_SIDE`, chooses `PANEL_SIDE`, and controls font, sizes, colors
+and limits without reclassification or sorting. Cell 06 retains its original
+activity defaults and redraws the section 4a cache. Existing Exp 5 plots remain.
+Each Exp 5 plotting cell has an independent SVG switch (default False) and
+calls `plotting_common.save_publication_figure` for its own figure handles.
+The shared `SVG_OUTPUT_DIR` is Lab-relative
+`Results/Paper/figures/main/fig04/assets/generated`; names identify cell and
+side/layout, with panel sorting mode retained in section 4b filenames.
+
+Exp 8 notebook 01 sections 6b/6c opt into `motion_onset_s=None` and
+`tau_s=SHARED_AUC_DECAY_S / 2` for summary preparation. The shared window owner
+then uses each condition's `static_before_sec` through motion end plus 5 s
+(22 s for the current Exp 8 trajectories). Recruitment and shared-neuron
+selection are recalculated within this same window; retained source identities
+and fish/stimulus order are preserved. Earlier section 6 plots retain their
+configured numeric onset and tail. Numeric-onset callers, including Exp 7,
+keep their existing behavior.
 
 ## External-active surface by import module
 
@@ -437,6 +621,31 @@ permutation without replacing displayed data with Rastermap's normalized/binned
 matrix. Fewer than three usable traces retain their source order. Missing
 Rastermap raises an installation hint; other modes do not require the package.
 The optional report records the actual panel sort, side, and stimulus order.
+
+Exp 7 notebook 01 section 6c adds `plot_recruitment_strength_summary`, returning
+`side: (Figure, length-3 Axes array)` for population activity, recruitment and
+shared-neuron normalized AUC differences. It consumes the existing recruitment
+and shared-AUC bundles for the same fish/controls, aligns conditions by stimulus
+ID, preserves missing control self-comparisons, and uses shared bottom ticks and
+one Fish/Mean legend. Notebook-local colors, dimensions and `SAVE_SUMMARY_SVG`
+control redraw/export without rerunning preparation. Original windows and
+population definitions remain unchanged. These figures also join the optional
+publication export.
+
+Exp 5 notebook 01 section 6c uses the same summary layout with its own controls,
+four position conditions, flicker and rocking, and the existing five-fish cohort.
+Its two preparation cells use the loaded motion onset through motion end plus
+5 s for activity, recruitment and pairwise shared-neuron AUC, with the existing
+section 4a activity rules. Population rows use all kept neurons; shared strength
+uses each control/comparison intersection. The helper's historical `rocking`
+group holds the position conditions and rocking; only its population/recruitment
+rows feed this figure. Earlier Cell 06 windows and decisions stay separate.
+Optional `plot_recruitment_strength_summary(..., side_stimuli=...)` accepts a
+complete stimulus-ID permutation per side, reordering all three rows/labels
+without mutating prepared results; default calls preserve their original order.
+Exp 5 passes its configured order, retaining flicker before rocking.
+`SAVE_SUMMARY_SVG` independently saves the two figures to Fig. 4 using the common
+`SVG_OUTPUT_DIR`; appearance changes do not rerun preparation.
 
 Exp 7 notebook 01 section 6b adds shared-neuron response-strength comparisons.
 Section 6 exposes its unchanged defaults through `SECTION6_ACTIVE_SETTINGS`;
