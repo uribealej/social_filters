@@ -12,7 +12,9 @@ and fix specific issues the user identifies.
 | 01 | Imports and shared `src` helpers |
 | 02 | Fish selection, paths, phase windows, activity thresholds and display settings |
 | 03 | Readiness table, included fish and saved detector settings |
-| 04 | Pooled z-score/significant rasters, both repetition displays and equal-weight fish mean traces |
+| 04a | Prepare shared native measurements/recruitment and pooled left/right orders for both alignments |
+| 04b | Pooled z-score/significant panels with optional traces below and optional Fig. 07 SVG export |
+| 04c | Companion full-sequence panels: keep preconditioning and the complete blank delay, then 15 s after bout offset; reuse 04a's exact rows/repetitions |
 | 05 | Per-trial/per-neuron/per-fish measurements and native sample coverage |
 | 06 | Bout AUC, peak and active-neuron fractions in both windows |
 | 06b | Significant recruitment from trials 2-4: one mean preconditioning panel, C1/S1-S5 bouts, counts and percentages for C1 overlap and new after own preconditioning; C2 excluded |
@@ -45,17 +47,35 @@ new-after-preconditioning counts still use each stimulus's own preconditioning.
   This selection is distinct from classifying activity within a bout window.
 - Display sequence and bout alignments, trial averages and concatenated trials.
   Averaged significant rasters are trial activation fractions, not binary traces.
-- Cell 04 uses grayscale significant rasters (white=0, black=1), with both
-  within-fish and pooled correlation sorting. `DISPLAY_SORT_SCOPES` selects
-  these views; pooled sorting mixes neurons across fish and removes boundaries.
-  `DISPLAY_REPETITIONS = (2, 3, 4)` displays the last three trials; set it to
-  `None` for all four. Original trial numbers remain visible. Sorting uses
-  all-trial left/right C1 bout z-scores (nominal 0-3.6 s) to keep rows fixed
-  between subsets. `SORT_STIMULUS_KEYS`, `SORT_ALIGNMENT` and `SORT_WINDOW_S`
-  declare this reference. Pearson/average-linkage sorts neurons by similar
-  C1 response shapes, not amplitude. Z-score heatmaps also use `Greys`, with
-  unchanged shared limits. This display
-  setting does not alter the retained neurons or Cell 05-09 measurements.
+- Cell 04 pools all retained neurons, with separate left/right stimulus figures.
+  Both z-scores and significant trial-active fractions use grayscale and the
+  same row identities. `DISPLAY_REPETITIONS=(2, 3, 4)` selects the last three
+  trials; `None` uses all four. `PANEL_SORT_MODE='cell06'` reuses Cell 06b's
+  exact independent side orders. Corravg, optional Rastermap, left/right C1
+  index and unsorted are also available. The first two use the configured
+  all-trial z-score reference; the index compares signed mean left/right C1
+  responses within that window. Undefined indices go last.
+- Cell 04a prepares the existing native measurements and recruitment once for
+  Cells 05/06b as well as these displays. Cell 04b changes appearance without
+  repeating preparation: choose sequence/bout alignment, trace type, side,
+  `PANEL_SHOW_TRACES`, `PANEL_MEAN_MODE` (pooled neurons or equal fish), fish
+  overlays, font and dimensions. Z-scores keep `Z_LIMITS`; significant activity
+  is the fraction of displayed repetitions active, not a new detector result.
+- `SAVE_PANEL_SVG=False` displays only. True writes the displayed panels to
+  `<LAB_ROOT>/Results/Paper/figures/main/fig07/assets/generated` as
+  `exp09_pooled_panel_<alignment>_<type>_<side>_<layout>.svg`, independently of
+  Cell 10's report. All retained neurons and native measurements remain fixed.
+- Cell 04c independently redraws the complete sequence with 5 s before sequence
+  onset and `DELAY_PANEL_POST_S=15.0` seconds after bout **offset**. It extracts
+  the longer display from saved continuous traces and reuses the exact cached
+  side orders/repetitions without sorting or changing measurements. Time zero
+  is sequence onset; the full condition-specific blank remains visible. All
+  columns share a physical seconds scale, with widths proportional to their own
+  duration and exact limits at bout offset + recovery (no padding to the longest
+  condition). `DELAY_PANEL_PROPORTIONAL_WIDTHS=True` enables this in 04c.
+  `SAVE_DELAY_PANEL_SVG=False` defaults off; True exports
+  separate `exp09_sequence_delay_panel_15s_<type>_<side>_<layout>.svg` files to
+  the same Fig. 07 directory. Block-crossing windows fail explicitly.
 - Bout measurement windows are [0, 3.6) and [0, 8.6) seconds from logged bout
   onset. Use actual event-relative sample times, without interpolation, and
   report selected sample counts and coverage.
@@ -115,10 +135,10 @@ requires:
 - `phase_alignment/<fish>_trial_timing.csv`
 - `phase_alignment/<fish>_analysis_configuration.json`
 
-At the last automated validation, only f01 had all files in these canonical
-locations. **The user says they have run the other fish.** Recheck current files,
-individual-notebook save settings and any redirected `OUTPUT_ROOT` before
-concluding that their analysis is missing or asking them to recompute it.
+The latest Cell 04 validation found all eight fish ready in these canonical
+locations, with 2,453 retained neurons in total. Recheck the current readiness
+table, individual-notebook save settings and any redirected `OUTPUT_ROOT`
+before concluding that a fish needs recomputing.
 
 The population notebook reports every unavailable/inconsistent fish. One ready
 fish is labeled a single-fish preview; it does not establish across-fish variation.
@@ -142,16 +162,15 @@ The population notebook never overwrites individual-fish caches. Validation
 reports are local under `.test_cache/exp9/population_run_final/`; cache hashes
 were unchanged after the test save.
 
-The complete notebook was executed on real f01 data (466 retained neurons),
-with 33 figures rendered and representative layouts inspected. Synthetic
-multiple-fish checks cover unequal neuron counts, equal fish weighting, native
-window boundaries, activity decisions, missing phases and cache consistency.
-51 focused regression checks passed. Broader historical S07 snapshots still
-show dtype/index/categorical/encoding differences; pre-change versus current
-activity decisions/counts were checked directly and match. The global consumer
-inventory also has unrelated existing drift in the Exp 7 overlap notebook and
-the shared all-neuron significant-trace notebook; the new population consumer
-entry matches.
+The updated Cell 01-05 chain was executed on all eight reviewed fish. Checks
+matched every panel's selected-trial means, original identities, exact Cell 06b
+order and pooled mean; both sequence/bout alignments and the raster-only switch
+were exercised. False/True SVG saving was checked with writes redirected to
+`tmp/exp09_fig07_validation`, where rendered previews also live. Focused tests
+cover unequal neuron counts, weighting, native windows, activity decisions,
+missing phases, retained-row reuse and cache consistency. The unchanged later
+scientific plots were previously exercised on f01; this panel check does not
+claim a fresh full-notebook run.
 
 An earlier stale plotting-definition problem in the individual notebook was
 resolved by recompiling the current plotting source in its imports cell.

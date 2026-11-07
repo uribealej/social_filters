@@ -218,6 +218,9 @@ Supported compatibility facade: S07 moved scientific implementations into `src.m
 - `build_shared_control_auc_analysis` - reuse section-6 binary decisions to compare control-minus-stimulus AUC within pairwise shared neurons, retaining source identities, empty/missing counts, per-fish means and equal-fish summaries.
 - `build_stimulus_panel_display` - trial-mean stimulus matrices and per-fish traces with one shared neuron permutation, source-row identities, nominal phase intervals, and stimulus-relative seconds.
 - `build_phase_population_display` - adapt phase bundles to existing pooled-matrix, repetition, ordering and per-fish mean helpers while preserving original neuron/fish row identities; `sort_scope` selects within-fish/pooled sorting, and one-based `repetitions` selects display trials with a fixed all-trial sorting reference. `sort_stimulus_keys`, `sort_alignment`, `sort_window_s` optionally restrict the reference conditions and nominal display time window.
+- `build_phase_stimulus_panel_displays` - pooled phase panels by trace type and stimulus side, retaining original IDs, chosen repetitions and Exp 9 phase annotations; supports shared Corravg/Rastermap/left-right-index/unsorted orders or identity-checked per-side `cell06` recruitment orders. Both types share row order; no neuron filtering or new significance calculation.
+- `build_phase_sequence_panel_displays` - re-extract full-sequence panel windows from reviewed continuous traces, preserving cached panel row orders and repetition selections; configurable baseline and post-bout recovery in seconds, with no sorting or changes to native measurements. Exp 9 Cell 04c defaults to a 15 s recovery.
+  Returns exact `time_bounds_s` for duration-proportional plotting through the requested bout-offset recovery endpoint.
 - `build_phase_population_analysis` - event-window trial/neuron/fish tables, active-trial counts, phase memberships, paired differences, and descriptive within-fish correlations.
 - `build_phase_recruitment_analysis` - select one-based repetitions from native-window activity decisions; preserve neuron identity for C1 overlap and new-after-own-preconditioning memberships, complete per-fish counts/fractions, unique recruitment across conditions and one-preconditioning-plus-bouts display inputs.
 - `build_pooled_response_profiles` - concatenate all-kept neurons in configured fish/source order, align left/right identities, and derive one display order from joint non-control response features without changing response values.
@@ -239,7 +242,8 @@ Supported compatibility facade: S07 moved scientific implementations into `src.m
 
 ### `src/several_fish_figures.py`
 - `plot_shared_control_auc` - separate side figures of per-fish shared-neuron AUC differences, with zero reference, equal-fish means, matched limits and raw/normalized metric selection.
-- `plot_all_fish_stimulus_figures` - redraw per-side layouts from an already prepared/sorted stimulus display without loading traces, rebuilding trial means, sorting, or mutating it.
+- `plot_all_fish_stimulus_figures` - redraw per-side layouts from an already prepared/sorted stimulus display without loading traces, rebuilding trial means, sorting, or mutating it. `layouts`, `mean_mode` and `show_fish_traces` select displayed layouts, pooled-neuron/equal-fish means and fish overlays; defaults preserve all layouts and equal-fish means.
+  Optional `proportional_widths=True` gives each condition its own time limits and width proportional to its duration; the default keeps equal-width, shared-limit panels.
 - `build_all_fish_stimulus_figures` - separate per-side raster, equal-fish mean, and raster-over-mean layouts using one prepared display and common scales.
 - `plot_phase_cohort_rasters` - phase-aware mean/concatenated pooled rasters with shared scales, original repeat markers and fish boundaries only for within-fish sorting; `raster_cmap` defaults to grayscale (`Greys`), and `zscore_cmap` independently controls z-score colors (default magma). Titles identify the sorting reference.
 - `plot_phase_cohort_means` - retained-neuron population means per fish and an equally weighted fish mean.
@@ -357,7 +361,8 @@ Supported compatibility facade: S08 moved figure construction into the `src.plot
 - `plot_sorted_chunks_single_mode` - build and plot one sorted stimulus-chunk raster.
 
 ### `src/plotting_all_fish.py`
-- `plot_stimulus_response_panels` - independent raster, fish-mean, or combined stimulus columns with shared scales and canonical static/active timing annotations.
+- `plot_stimulus_response_panels` - independent raster, fish-mean, or combined stimulus columns with shared scales and a grouped phase legend. Optional `phase_trials`/`alignment` metadata reuses explicit preconditioning/delay/bout annotations; other displays retain canonical static/active timing.
+  Optional `proportional_widths=True` uses independent column limits and duration-proportional widths, preserving a common physical seconds scale. `time_bounds_s` provides exact requested limits when available; otherwise sample edges define the bounds.
 - `plot_stimulus_means` - plot per-stimulus mean traces with optional save behavior and configurable `ylabel` units (default ΔF/F).
 - `plot_allfish_flat_raster` - render pooled flattened matrices with optional mean panels.
 

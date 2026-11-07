@@ -121,7 +121,9 @@ class StimulusResponsePanelTests(unittest.TestCase):
                     combined_figsize=(150 / 25.4, 65 / 25.4), cmap=cmap)
                 self.assertIs(result['display'], prepared)
                 for key, figure in result['figures'].items():
-                    self.assertEqual(len(figure.legends), 0)
+                    self.assertEqual(len(figure.legends), 1)
+                    self.assertEqual([text.get_text() for text in figure.legends[0].get_texts()],
+                                     ['Static', 'Motion / flicker'])
                     self.assertEqual(figure._supxlabel.get_text(), 'Time (s)')
                     self.assertEqual(figure._supxlabel.get_fontsize(), 6)
                     for ax in result['axes'][key].flat:

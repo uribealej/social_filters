@@ -220,6 +220,7 @@
   "notebooks/calcium/exp_09_rf_memory_inhibition/02_population_analysis.ipynb": {
     "imports": [
       "src.data_loading",
+      "src.plotting_common",
       "src.several_fish_diagnostics",
       "src.several_fish_figures",
       "src.several_fish_loading",
@@ -227,11 +228,12 @@
     ],
     "symbols": [
       "src.data_loading.resolve_lab_root",
+      "src.plotting_common.save_publication_figure",
       "src.several_fish_diagnostics.build_phase_population_analysis",
-      "src.several_fish_diagnostics.build_phase_population_display",
       "src.several_fish_diagnostics.build_phase_recruitment_analysis",
-      "src.several_fish_figures.plot_phase_cohort_means",
-      "src.several_fish_figures.plot_phase_cohort_rasters",
+      "src.several_fish_diagnostics.build_phase_sequence_panel_displays",
+      "src.several_fish_diagnostics.build_phase_stimulus_panel_displays",
+      "src.several_fish_figures.plot_all_fish_stimulus_figures",
       "src.several_fish_figures.plot_phase_fish_summary",
       "src.several_fish_figures.plot_phase_population_comparisons",
       "src.several_fish_figures.plot_phase_population_relationships",

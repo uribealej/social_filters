@@ -80,6 +80,123 @@ class PhasePopulationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "No reviewed fish"):
             several_fish_diagnostics.build_phase_population_display(dict(fish_ids=[]))
 
+    def test_pooled_phase_panels_reuse_cell06_rows_and_saved_trial_means(self):
+        cohort, trial_metrics = self.recruitment_fixture()
+        # This recruitment fixture expands traces from two to four trials;
+        # complete its alignment metadata for the general population adapter.
+        for fish in cohort['all_fish_data'].values():
+            for aligned in fish['aligned'].values():
+                for bundle in aligned.values():
+                    for key in ('actual_time_s', 'onsets_by_id', 'alignment_error_s'):
+                        bundle[key] = {sid: np.repeat(values[..., :1], 4, axis=-1)
+                                       for sid, values in bundle[key].items()}
+                    bundle['trials'] = fish['trials']
+        conditions = {'left': ['C1', 'S1']}
+        recruitment = several_fish_diagnostics.build_phase_recruitment_analysis(
+            cohort, trial_metrics, conditions, (0, 3.6))
+        displays = several_fish_diagnostics.build_phase_stimulus_panel_displays(
+            cohort, conditions, repetitions=(2, 3, 4), sort_mode='cell06', recruitment=recruitment)
+        order = recruitment['displays']['left']['neuron_order']
+        for kind in ('zscore', 'raster'):
+            prepared = displays[kind]['left']
+            np.testing.assert_array_equal(prepared['neuron_order'], order)
+            self.assertEqual(prepared['row_metadata'].neuron_id.tolist(), [3, 8, 1, 2, 3, 4, 5])
+            np.testing.assert_array_equal(prepared['matrices'][1], 0)
+            self.assertEqual(prepared['repetition_numbers'][1], [2, 3, 4])
+            result = several_fish_figures.plot_all_fish_stimulus_figures(prepared,
+                {'left': [1, 2]}, layouts=('combined',), mean_mode='pooled_neurons',
+                show_fish_traces=False, z_limits=(0, 1))
+            axes = result['axes']['left_combined']
+            self.assertEqual(axes.shape, (2, 2))
+            np.testing.assert_array_equal(axes[0, 0].images[0].get_array(), prepared['matrices'][1][order])
+            curve = next(line for line in axes[1, 0].lines if line.get_label() == 'Pooled-neuron mean')
+            np.testing.assert_array_equal(curve.get_ydata(), 0)
+            self.assertEqual([x.get_text() for x in result['figures']['left_combined'].legends[0].get_texts()],
+                             ['Preconditioning', 'Blank delay', 'Bout'])
+            self.assertEqual(result['figures']['left_combined']._supxlabel.get_text(), 'From bout onset (s)')
+        source = recruitment['displays']['left']['row_metadata']
+        source.loc[0, 'neuron_id'] = 999
+        with self.assertRaisesRegex(ValueError, 'identities'):
+            several_fish_diagnostics.build_phase_stimulus_panel_displays(
+                cohort, conditions, sort_mode='cell06', recruitment=recruitment)
+
+    def test_sequence_panels_preserve_cached_rows_repetitions_delay_and_recovery(self):
+        cohort = self.synthetic_cohort()
+        for fish in cohort['all_fish_data'].values():
+            ids = fish['kept_neuron_indices']
+            fish['z_traces'] = np.arange(320)[:, None] + 100 * np.arange(max(ids) + 1)[None, :]
+            fish['raster'] = (fish['z_traces'][:, ids] % 3 == 0).astype(float)
+            fish['aligned'] = {anchor: {kind: trial_alignment.build_event_aligned_traces(
+                values, fish['trials'], 2, alignment=anchor)
+                for kind, values in [('zscore', fish['z_traces'][:, ids]), ('raster', fish['raster'])]}
+                for anchor in ('sequence', 'bout')}
+        cached = several_fish_diagnostics.build_phase_stimulus_panel_displays(
+            cohort, {'left': ['C1', 'S1']}, repetitions=(2,), sort_mode='unsorted')
+        for sides in cached.values():
+            sides['left']['neuron_order'] = np.arange(7)[::-1]
+        extended = several_fish_diagnostics.build_phase_sequence_panel_displays(cohort, cached)
+        for kind in ('zscore', 'raster'):
+            before, after = cached[kind]['left'], extended[kind]['left']
+            np.testing.assert_array_equal(after['neuron_order'], np.arange(7)[::-1])
+            self.assertEqual(after['repetition_numbers'], {1: [2], 2: [2]})
+            self.assertEqual(after['alignment'], 'sequence')
+            self.assertEqual(after['time_s'][2][0], -5)
+            self.assertEqual(after['time_s'][2][-1], 26.5)  # 12 s sequence + 15 s tail, half-open.
+            self.assertEqual(after['time_s'][1][-1], 18.5)  # 3.6 s bout + 15 s tail.
+            self.assertAlmostEqual(after['phase_trials'][2].bout_onset_s - after['phase_trials'][2].pre_end_s, 0.3)
+            expected = []
+            for fish in cohort['all_fish_data'].values():
+                continuous = (fish['z_traces'][:, fish['kept_neuron_indices']]
+                              if kind == 'zscore' else fish['raster'])
+                expected.append(continuous[226:290].T)  # Second S1 anchor rounds to frame 236.
+            np.testing.assert_array_equal(after['matrices'][2], np.concatenate(expected))
+            np.testing.assert_allclose(after['fish_means'][2], [v.mean(axis=0) for v in expected])
+            self.assertLess(before['matrices'][2].shape[1], after['matrices'][2].shape[1])
+            self.assertEqual(cohort['all_fish_data']['first']['aligned']['sequence'][kind]
+                             ['time_s'][2][-1], 21.5)  # Original 10 s cache is untouched.
+            result = several_fish_figures.plot_all_fish_stimulus_figures(after,
+                {'left': [1, 2]}, layouts=('combined',), proportional_widths=True)
+            axes = result['axes']['left_combined']
+            for row in axes:
+                np.testing.assert_allclose(row[0].get_xlim(), (-5, 18.6))
+                np.testing.assert_allclose(row[1].get_xlim(), (-5, 27))
+                seconds_scale = [ax.get_position().width / np.diff(ax.get_xlim())[0] for ax in row]
+                self.assertAlmostEqual(*seconds_scale)
+            self.assertLess(axes[0, 0].get_position().width, axes[0, 1].get_position().width)
+            self.assertEqual(axes[0, 0].get_position().width, axes[1, 0].get_position().width)
+        with self.assertRaisesRegex(ValueError, 'block boundary'):
+            several_fish_diagnostics.build_phase_sequence_panel_displays(cohort, cached, recovery_s=100)
+        cached['zscore']['left']['row_metadata'].loc[0, 'neuron_id'] = 99
+        with self.assertRaisesRegex(ValueError, 'identities'):
+            several_fish_diagnostics.build_phase_sequence_panel_displays(cohort, cached)
+
+    def test_phase_panel_means_weights_and_signed_control_order(self):
+        cohort = self.synthetic_cohort()
+        displays = several_fish_diagnostics.build_phase_stimulus_panel_displays(
+            cohort, {'left': ['C1'], 'right': ['S1']}, sort_mode='left_right_index',
+            left_right_controls=['C1_Bout', 'S1_Overlap'], sort_window_s=(0, 3.6))
+        left = displays['zscore']['left']
+        np.testing.assert_array_equal(left['neuron_order'], np.arange(7))
+        np.testing.assert_allclose(left['fish_means'][1][:, 0], [2, 10])
+        np.testing.assert_allclose(left['matrices'][1].mean(axis=0), 54/7)
+        result = several_fish_figures.plot_all_fish_stimulus_figures(left, {'left': [1]},
+            layouts=('combined',), mean_mode='pooled_neurons', show_fish_traces=False)
+        curve = next(line for line in result['axes']['left_combined'][1, 0].lines
+                     if line.get_label() == 'Pooled-neuron mean')
+        np.testing.assert_allclose(curve.get_ydata(), 54/7)
+        # Negative right preference first, balanced responses next, positive
+        # left preference last, using the configured control order.
+        for aligned in cohort['all_fish_data']['first']['aligned'].values():
+            aligned['zscore']['trial_aligned_traces'][1][:] = np.array([4, 0])[:, None, None]
+            aligned['zscore']['trial_aligned_traces'][2][:] = np.array([0, 4])[:, None, None]
+        ordered = several_fish_diagnostics.build_phase_stimulus_panel_displays(
+            cohort, {'left': ['C1'], 'right': ['S1']}, sort_mode='left_right_index',
+            left_right_controls=['C1_Bout', 'S1_Overlap'], sort_window_s=(0, 3.6))
+        np.testing.assert_array_equal(ordered['zscore']['left']['neuron_order'], [1, 2, 3, 4, 5, 6, 0])
+        with self.assertRaisesRegex(ValueError, 'requires the prepared'):
+            several_fish_diagnostics.build_phase_stimulus_panel_displays(
+                cohort, {'left': ['C1']}, sort_mode='cell06')
+
     def test_measurements_memberships_and_absent_phase(self):
         result = several_fish_diagnostics.build_phase_population_analysis(self.synthetic_cohort(),
             self.measurements, {"S1-C1": ("S1", "C1")})

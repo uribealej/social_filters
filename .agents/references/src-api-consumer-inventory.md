@@ -127,6 +127,31 @@ and original-ID trace inspection before an opt-in final save. The writer's optio
 `significant_run` and `review_figures` arguments protect current run provenance and
 export reviewed diagnostics without changing canonical cache names or columns.
 
+Exp 9 notebook 02 Cell 04 now calls `build_phase_stimulus_panel_displays`,
+returning trace-type -> side -> cached stimulus displays. Selected trials are
+averaged per neuron; significant values are trial-active fractions. All retained
+original fish/neuron identities stay aligned. `cell06` requires matching cached
+recruitment identities and reuses its exact independent side orders; other modes
+use a common all-trial z-score reference. The signed left/right index compares
+mean C1 z-scores in the explicit reference window, with undefined values last.
+The plotting primitive accepts optional `phase_trials` and `alignment` metadata
+to reuse `add_phase_annotations` rather than Exp 8 timing. Matrices/fish means
+retain the full comparison set for common left/right scales; stimulus_ids picks
+each side's columns. Cell 04a prepares the existing analysis and recruitment once;
+Cells 05/06b reuse them. Cell 04b exposes pooled-neuron/equal-fish weighting,
+overlays, trace types, alignment, layout and optional Fig. 7 SVG export.
+Cell 04c calls `build_phase_sequence_panel_displays(cohort, panel_displays,
+t_pre_s=5.0, recovery_s=15.0)` to rebuild full sequence windows from saved
+continuous traces while preserving the cached side orders, original IDs and
+selected repetitions. Its new matrices and fish means retain the same shapes
+and weighting conventions with longer time axes; inputs are not mutated.
+Recovery is measured from bout offset. Imaging-block crossings fail explicitly.
+The companion has independent style/export controls and distinct figure names.
+It enables `proportional_widths=True` in the plotting gateway/primitive, using
+the helper's `time_bounds_s` to end every raster/trace column at its own bout
+offset + 15 s. Column widths track durations with a common physical seconds
+scale; other callers keep equal widths and shared limits by default.
+
 Exp 9 sequence/bout line panels use `trace_mode="population"`: average each
 neuron over trials, then average exactly the selected raster rows with equal
 neuron weights, omitting NaNs. All-neuron and reliability-filtered panels use

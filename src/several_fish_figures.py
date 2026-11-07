@@ -980,7 +980,10 @@ def build_all_fish_stimulus_figures(all_fish_data, fish_ids, stim_order, referen
 def plot_all_fish_stimulus_figures(prepared, side_stimuli, z_limits=(0, 10),
                                    mean_ylim=None, raster_figsize=(12, 3.5),
                                    mean_figsize=(12, 3.5), combined_figsize=(12, 5),
-                                   cmap="Greys"):
+                                   cmap="Greys",
+                                   layouts=("raster", "mean", "combined"),
+                                   mean_mode="equal_fish", show_fish_traces=True,
+                                   proportional_widths=False):
     """Redraw all side/layout variants from a previously sorted display.
 
     prepared is the unchanged build_stimulus_panel_display result; side_stimuli
@@ -989,20 +992,36 @@ def plot_all_fish_stimulus_figures(prepared, side_stimuli, z_limits=(0, 10),
     bundle, without loading traces, rebuilding trial means, sorting, or mutating
     prepared data. The inexpensive equal-fish mean is drawn from cached traces.
     Call repeatedly for font/size/color/limit edits without rerunning sorting.
+    layouts selects raster, mean and/or combined (default: all three).
+    mean_mode selects equal_fish or pooled_neurons; show_fish_traces toggles
+    individual-fish traces. Both z-score and significant-raster displays work;
+    z_limits applies to the selected trace units (use (0, 1) for activity).
+    proportional_widths=True ends each column at its own time bounds and sizes
+    its width by duration, preserving a common physical seconds scale. Default
+    False preserves equal-width columns with shared x limits.
+
     """
+    layouts = tuple(layouts)
+    if (not layouts or len(set(layouts)) != len(layouts)
+            or not set(layouts) <= {"raster", "mean", "combined"}):
+        raise ValueError("layouts must select unique raster, mean, or combined entries.")
+    if mean_mode not in {"equal_fish", "pooled_neurons"}:
+        raise ValueError("mean_mode must be 'equal_fish' or 'pooled_neurons'.")
     if not side_stimuli or any(not ids or len(set(ids)) != len(ids)
         or not set(ids) <= set(prepared["stimulus_ids"]) for ids in side_stimuli.values()):
         raise ValueError("side_stimuli must contain nonempty unique subsets of stim_order.")
     figures, axes = {}, {}
     for side, ids in side_stimuli.items():
-        for layout, figsize in (("raster", raster_figsize), ("mean", mean_figsize),
-                                ("combined", combined_figsize)):
+        display = prepared
+        sizes = {"raster": raster_figsize, "mean": mean_figsize, "combined": combined_figsize}
+        for layout in layouts:
             key = f"{side}_{layout}"
             figures[key], axes[key] = plot_all_fish.plot_stimulus_response_panels(
-                prepared, ids, layout, figsize=figsize, z_limits=z_limits,
-                mean_ylim=mean_ylim, cmap=cmap, title=f"{side.capitalize()} stimuli")
+                display, ids, layout, figsize=sizes[layout], z_limits=z_limits,
+                mean_ylim=mean_ylim, cmap=cmap, title=f"{side.capitalize()} stimuli",
+                mean_mode=mean_mode, show_fish_traces=show_fish_traces,
+                proportional_widths=proportional_widths)
     return {"display": prepared, "figures": figures, "axes": axes}
-
 
 def plot_lifetime_sparseness_analysis(
     all_fish_data,

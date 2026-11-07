@@ -167,6 +167,153 @@ def build_phase_population_display(cohort, alignment="bout", sort_mode="corravg"
                 stimulus_keys=list(reference["stimuli_id_map"]), stimulus_ids=reference["stimuli_ids"])
 
 
+def build_phase_stimulus_panel_displays(cohort, side_conditions, alignment="bout",
+        repetitions=None, sort_mode="corravg", sort_stimulus_keys=None,
+        sort_alignment="bout", sort_window_s=None, recruitment=None,
+        left_right_controls=None):
+    """Prepare side-separated pooled phase panels for both saved trace types.
+
+    side_conditions maps side labels to logged condition names in display order.
+    Input arrays are retained neurons by time by trials. Selected one-based
+    repetitions affect display means only; ordinary sorting uses all z-score
+    trials in the explicit reference. cell06 reuses each side's exact cached
+    phase-recruitment order after checking original fish/neuron identities.
+    left_right_index orders the signed mean z-score preference of two explicit
+    controls within the reference window, with undefined values last.
+
+    Return trace-type -> side -> stimulus-panel display dictionaries. Matrices
+    are (pooled neurons, time), fish_means (fish, time), times seconds from the
+    selected anchor. Significant values are selected-trial active fractions;
+    no new normalization, thresholding or neuron selection is performed.
+    All rows, original IDs, selected repetition numbers and phase trials remain
+    available. No plotting, printing or saving.
+    """
+    if not side_conditions or any(not names or len(set(names)) != len(names)
+                                  for names in side_conditions.values()):
+        raise ValueError("side_conditions must contain nonempty unique conditions.")
+    special = sort_mode in {"cell06", "left_right_index"}
+    base = build_phase_population_display(cohort, alignment,
+        sort_mode="unsorted" if special else sort_mode, sort_scope="pooled",
+        repetitions=repetitions, sort_stimulus_keys=sort_stimulus_keys,
+        sort_alignment=sort_alignment, sort_window_s=sort_window_s)
+    rows = base["row_metadata"]
+    trials = base["reference"]["trials"]
+    lookup = trials.drop_duplicates("logged_name").set_index("logged_name")
+    order = base["neuron_order"]
+    if sort_mode == "left_right_index":
+        if left_right_controls is None or len(left_right_controls) != 2:
+            raise ValueError("left_right_controls must name the left and right reference controls.")
+        profiles = {key: np.concatenate([_phase_sorting_profiles(
+            cohort["all_fish_data"][fid], [key], sort_alignment, sort_window_s)
+            for fid in cohort["fish_ids"]]) for key in left_right_controls}
+        response = pd.DataFrame({key: np.nanmean(values, axis=1) for key, values in profiles.items()})
+        index = compute_response_pair_index(response, *left_right_controls)
+        order = np.argsort(np.where(np.isfinite(index), index, np.inf), kind="stable")
+    offsets = np.cumsum([0] + [len(cohort["all_fish_data"][fid]["kept_neuron_indices"])
+                              for fid in cohort["fish_ids"]])
+    result = {kind: {} for kind in ("zscore", "raster")}
+    for side, conditions in side_conditions.items():
+        if not set(conditions) <= set(lookup.index):
+            raise ValueError(f"{side}: unknown logged conditions in side_conditions.")
+        ids = [int(lookup.loc[name, "stimulus_id"]) for name in conditions]
+        side_order = order
+        if sort_mode == "cell06":
+            if recruitment is None or side not in recruitment["displays"]:
+                raise ValueError("cell06 requires the prepared phase recruitment results for each side.")
+            source = recruitment["displays"][side]
+            if not np.array_equal(source["row_metadata"][["fish_id", "neuron_id"]].to_numpy(),
+                                  rows[["fish_id", "neuron_id"]].to_numpy()):
+                raise ValueError(f"{side}: Cell 06 fish/neuron identities differ; rerun preparation.")
+            side_order = np.asarray(source["neuron_order"])
+        if (side_order.shape != (len(rows),) or not np.issubdtype(side_order.dtype, np.integer)
+                or not np.array_equal(np.sort(side_order), np.arange(len(rows)))):
+            raise ValueError(f"{side}: order must contain every pooled neuron exactly once.")
+        for kind in result:
+            # Keep the full comparison set for common left/right trace limits;
+            # stimulus_ids alone selects this side's plotted columns.
+            matrices = base["matrices"][kind, "mean"]
+            means = {sid: np.stack([np.nanmean(values[offsets[i]:offsets[i+1]], axis=0)
+                for i in range(len(cohort["fish_ids"]))]) for sid, values in matrices.items()}
+            result[kind][side] = dict(stimulus_ids=ids,
+                stimulus_labels=dict(zip(ids, conditions)), matrices=matrices,
+                fish_means=means, fish_ids=cohort["fish_ids"], trace_type=kind,
+                time_s={sid: base["reference"]["time_s"][sid] for sid in ids},
+                fps_2p=base["reference"]["fps_2p"], neuron_order=side_order,
+                row_metadata=rows, displayed_row_metadata=rows.iloc[side_order].reset_index(drop=True),
+                phase_trials={sid: trials.loc[trials.stimulus_id.eq(sid)].iloc[0] for sid in ids},
+                alignment=alignment, sort_mode=sort_mode,
+                repetition_numbers={sid: base["repetition_numbers"][sid] for sid in ids})
+    return result
+
+
+
+def build_phase_sequence_panel_displays(cohort, panel_displays, t_pre_s=5.0,
+                                        recovery_s=15.0):
+    """Rewindow cached phase panels to include conditioning, delay and recovery.
+
+    ``panel_displays`` is the trace-type -> side mapping returned by
+    ``build_phase_stimulus_panel_displays`` (both sides/types). Re-extract saved
+    continuous traces using sequence onset, including ``t_pre_s`` seconds before
+    and ``recovery_s`` seconds after bout offset. Keep cached neuron orders,
+    identities, condition order and one-based repetition selections exactly.
+    No sorting, normalization, significance or activity decisions are repeated.
+
+    Return new panel dictionaries with matrices (pooled neurons, time),
+    fish_means (fish, time), and nominal time_s in seconds from sequence onset.
+    time_bounds_s records exact requested (start, stop) seconds for plotting,
+    independently of the imaging sampling grid.
+    Input dictionaries/arrays are not modified. Incompatible identities,
+    repetitions or time axes raise ValueError; extraction crossing an imaging
+    block fails rather than padding/truncating the requested recovery.
+    """
+    from src.trial_alignment import build_event_aligned_traces
+
+    fish_ids = cohort["fish_ids"]
+    rows = pd.concat([pd.DataFrame(dict(fish_id=fid,
+        neuron_id=cohort["all_fish_data"][fid]["kept_neuron_indices"]))
+        for fid in fish_ids], ignore_index=True)
+    repetitions = {}
+    for sides in panel_displays.values():
+        for source in sides.values():
+            if (source["fish_ids"] != fish_ids or not np.array_equal(
+                    source["row_metadata"][["fish_id", "neuron_id"]].to_numpy(),
+                    rows[["fish_id", "neuron_id"]].to_numpy())):
+                raise ValueError("Panel fish/neuron identities differ; rerun Cell 04a.")
+            for sid, numbers in source["repetition_numbers"].items():
+                if sid in repetitions and list(numbers) != repetitions[sid]:
+                    raise ValueError("Panel repetition selections must agree across sides/types.")
+                repetitions[sid] = list(numbers)
+    result = {}
+    for kind, sides in panel_displays.items():
+        matrices, means, times = {}, {}, {}
+        pieces = {sid: [] for sid in repetitions}
+        for fid in fish_ids:
+            fish = cohort["all_fish_data"][fid]
+            values = (fish["z_traces"][:, fish["kept_neuron_indices"]]
+                      if kind == "zscore" else fish["raster"])
+            aligned = build_event_aligned_traces(values, fish["trials"], fish["fps_2p"],
+                alignment="sequence", t_pre_s=t_pre_s, recovery_s=recovery_s)
+            for sid, numbers in repetitions.items():
+                traces = aligned["trial_aligned_traces"][sid]
+                if not numbers or min(numbers) < 1 or max(numbers) > traces.shape[2]:
+                    raise ValueError(f"{fid}: requested repetitions unavailable for stimulus {sid}.")
+                if sid in times and not np.array_equal(times[sid], aligned["time_s"][sid]):
+                    raise ValueError("Fish have incompatible sequence display time axes.")
+                times[sid] = aligned["time_s"][sid]
+                pieces[sid].append(np.nanmean(traces[:, :, np.asarray(numbers) - 1], axis=2))
+        for sid, fish_values in pieces.items():
+            matrices[sid] = np.concatenate(fish_values, axis=0)
+            means[sid] = np.stack([np.nanmean(values, axis=0) for values in fish_values])
+        result[kind] = {side: dict(source, matrices=matrices, fish_means=means,
+            time_s={sid: times[sid] for sid in source["stimulus_ids"]}, alignment="sequence",
+            time_bounds_s={sid: (-float(t_pre_s), float(source["phase_trials"][sid].end_s
+                - source["phase_trials"][sid].onset_s + recovery_s))
+                for sid in source["stimulus_ids"]})
+            for side, source in sides.items()}
+    return result
+
+
+
 def _phase_trial_measurements(fid, fish, settings):
     from src.trial_alignment import select_event_window
     from src.response_metrics import compute_explicit_window_metrics
