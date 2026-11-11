@@ -351,6 +351,7 @@
     ],
     "symbols": [
       "src.data_loading.load_2p_experiment",
+      "src.data_loading.resolve_lab_root",
       "src.plotting_all_fish.plot_stimulus_means",
       "src.plotting_common.build_stimulus_style_maps",
       "src.plotting_common.list_stimulus_names",

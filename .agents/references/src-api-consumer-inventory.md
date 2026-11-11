@@ -46,6 +46,11 @@ machine-contract symbol changed in this audit.
 
 ## Consumer overview
 
+`notebooks/calcium/shared/General_analysis_single_fish_reusable.ipynb` resolves
+its Lab root with `src.data_loading.resolve_lab_root()` in Cell 02 and derives
+both `Data/2p` and `Data/stimuli` from it, supporting either workstation without
+editing absolute paths.
+
 Exp 8 `04_population_trajectories.ipynb` independently loads the maintained cohort
 and four acquisition blocks. `build_population_trajectory_analysis` retains its
 historical per-fish PCA default plus pooled/both options. Pooled neuron features
