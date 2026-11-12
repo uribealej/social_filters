@@ -454,18 +454,30 @@
     "syntax_failure_raw_cells": []
   },
   "scripts/stimuli/generation/Trayectory_flicker.py": {
-    "imports": [],
-    "symbols": [],
+    "imports": [
+      "src.data_loading.resolve_lab_root"
+    ],
+    "symbols": [
+      "src.data_loading.resolve_lab_root"
+    ],
     "syntax_failure_raw_cells": []
   },
   "scripts/stimuli/generation/Trayectory_rocking_stimuli.py": {
-    "imports": [],
-    "symbols": [],
+    "imports": [
+      "src.data_loading.resolve_lab_root"
+    ],
+    "symbols": [
+      "src.data_loading.resolve_lab_root"
+    ],
     "syntax_failure_raw_cells": []
   },
   "scripts/stimuli/playback/try_projection.py": {
-    "imports": [],
-    "symbols": [],
+    "imports": [
+      "src.data_loading.resolve_lab_root"
+    ],
+    "symbols": [
+      "src.data_loading.resolve_lab_root"
+    ],
     "syntax_failure_raw_cells": []
   }
 }

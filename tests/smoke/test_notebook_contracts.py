@@ -19,6 +19,24 @@ EXPECTED_SYNTAX_FAILURES = {}
 class NotebookContractTests(unittest.TestCase):
     """Protect notebook code cells from new syntax regressions."""
 
+    def test_notebooks_have_no_saved_outputs(self) -> None:
+        """Keep generated results and execution counts out of notebook sources."""
+        saved_results = []
+        for path in sorted(NOTEBOOK_ROOT.rglob("*.ipynb")):
+            notebook = json.loads(path.read_text(encoding="utf-8"))
+            for index, cell in enumerate(notebook.get("cells", []), start=1):
+                if cell.get("cell_type") != "code":
+                    continue
+                if cell.get("outputs") or cell.get("execution_count") is not None:
+                    saved_results.append(
+                        f"{path.relative_to(REPOSITORY_ROOT).as_posix()}: cell {index}"
+                    )
+        self.assertEqual(
+            [], saved_results,
+            "Clear notebook outputs and execution counts before committing "
+            "(nbstripout <notebook.ipynb>):\n" + "\n".join(saved_results),
+        )
+
     def test_code_cells_have_only_registered_syntax_failures(self) -> None:
         """Compile transformed cells and compare failures with the registry."""
 

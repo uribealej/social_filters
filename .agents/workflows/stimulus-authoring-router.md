@@ -25,6 +25,7 @@ use the matching row below to open the owner.
 | Timing mismatch between generated CSVs and calcium-analysis interpretation | `canonical-outputs.md` if the file contract is involved | `src/stimuli_timeline.py`, then the generating script if the written trajectory is wrong |
 | Repeated generator-only geometry helpers | `refactor-rules.md` if ownership is unclear | Target script in `scripts/stimuli/generation/` |
 | Shared angle or timing interpretation, including `get_angles_from_positions` | — | `src/stimuli_timeline.py` |
+| Portable generator/playback default folders or Lab-root overrides | `code-authoring-checklist.md` for portability rules | `src/data_loading.py::resolve_lab_root`, then the target wrapper |
 | Projection, PsychoPy playback, or runtime timing-log capture | — | `scripts/stimuli/playback/try_projection.py` |
 | Stimulus plotting or batch inspection behavior | — | `src/stimulus_visualization.py`; notebook only for configuration or reporting |
 | Stimulus stage order, writer handoff, or rerun chain | `stimulus-authoring-stage-map.md` | Relevant writer and first consumer |

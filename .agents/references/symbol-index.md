@@ -35,7 +35,7 @@ call time. The module itself must import without the TIFF reader installed;
 missing readers raise an actionable `ImportError` from the function.
 
 ### `src/data_loading.py`
-- `resolve_lab_root` - discover the local university OneDrive Lab/Data/2p root on either workstation; accepts an explicit Lab root or the `SOCIAL_FILTERS_LAB_ROOT` environment override.
+- `resolve_lab_root` - discover the local university OneDrive Lab/Data/2p root on either workstation; accepts an explicit Lab root or the `SOCIAL_FILTERS_LAB_ROOT` environment override; `require_analysis=True` also requires `Lab/Analysis` for cohort discovery.
 - `load_reviewed_phase_experiment` - read and validate reviewed phase caches, session/timing provenance and retained-neuron identities; accept legacy phase-cache settings from the saved configuration without recomputing results.
 - `load_phase_aligned_experiment` - opt-in session-matched loading with explicit phase metadata, logged-name aliases, block-local event times, and strict trial/frame/baseline validation.
 - `save_phase_analysis_outputs` - write canonical caches plus per-trial timing and recording/configuration provenance; supports a validation output root.

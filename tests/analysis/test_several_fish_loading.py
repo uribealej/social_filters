@@ -178,11 +178,14 @@ class AutomaticCohortPathTests(unittest.TestCase):
         # Model the other machine's D: base without writing to a real drive.
         constructor = mock.patch.object(
             loading, "Path",
-            side_effect=lambda value: self.legacy if value == r"D:\Alejandro\Data" else Path(value),
+            side_effect=lambda value: self.legacy if str(value).replace("\\", "/") == "D:/Alejandro/Data" else Path(value),
         )
         self.path_class = constructor.start()
         self.path_class.home.return_value = self.home
         self.addCleanup(constructor.stop)
+        shared_constructor = mock.patch.object(loading.exio, "Path", self.path_class)
+        shared_constructor.start()
+        self.addCleanup(shared_constructor.stop)
 
     def make_lab(self, root):
         """Create the two directories that define a complete auto-discovery root."""
@@ -232,7 +235,7 @@ class AutomaticCohortPathTests(unittest.TestCase):
         with mock.patch.dict("os.environ", {
             "OneDriveCommercial": str(data_root), "OneDrive": str(analysis_root),
         }):
-            with self.assertRaisesRegex(FileNotFoundError, "containing both"):
+            with self.assertRaisesRegex(FileNotFoundError, "Lab/Data/2p and Lab/Analysis"):
                 loading._resolve_cohort_paths(None)
 
     def test_missing_root_reports_unique_candidates_and_manual_override(self):
@@ -243,9 +246,24 @@ class AutomaticCohortPathTests(unittest.TestCase):
             with self.assertRaises(FileNotFoundError) as error:
                 loading._resolve_cohort_paths(None)
         self.assertEqual(str(error.exception).count(str(missing)), 1)
-        self.assertIn("settings['data_base']", str(error.exception))
-        self.assertIn(str(self.home), str(error.exception))
-        self.assertIn(str(self.legacy), str(error.exception))
+        self.assertIn("SOCIAL_FILTERS_LAB_ROOT", str(error.exception))
+        self.assertIn("Lab/Data/2p and Lab/Analysis", str(error.exception))
+
+    def test_lab_root_override_precedes_discovery(self):
+        expected = self.make_lab(self.root / "custom")
+        self.make_lab(self.home / "OneDrive - Universit\u00e9 de Lausanne")
+        with mock.patch.dict("os.environ", {
+            "SOCIAL_FILTERS_LAB_ROOT": str(self.root / "custom" / "Lab"),
+        }):
+            self.assertEqual(loading._resolve_cohort_paths(None), expected)
+
+    def test_invalid_lab_root_override_does_not_fall_back(self):
+        self.make_lab(self.home / "OneDrive - Universit\u00e9 de Lausanne")
+        with mock.patch.dict("os.environ", {
+            "SOCIAL_FILTERS_LAB_ROOT": str(self.root / "missing"),
+        }):
+            with self.assertRaisesRegex(FileNotFoundError, "SOCIAL_FILTERS_LAB_ROOT"):
+                loading._resolve_cohort_paths(None)
 
     def test_explicit_base_overrides_discovery_and_does_not_fall_back(self):
         self.make_lab(self.home / "OneDrive - Université de Lausanne")

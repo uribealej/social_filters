@@ -2,7 +2,6 @@
 
 from contextlib import redirect_stdout
 from io import StringIO
-import os
 from pathlib import Path
 
 import src.data_loading as exio
@@ -103,25 +102,13 @@ def load_reviewed_phase_cohort(settings):
     return dict(all_fish_data=data, fish_ids=list(data), readiness=pd.DataFrame(rows), settings=dict(settings))
 
 
-def _automatic_onedrive_candidates():
-    """Yield OneDrive roots in environment, home, then legacy-layout order."""
-    for variable in ("OneDriveCommercial", "OneDrive"):
-        value = os.environ.get(variable)
-        if value:
-            yield Path(value)
-
-    for data_base in (Path.home(), Path(r"D:\Alejandro\Data")):
-        yield data_base / "OneDrive - Universite de Lausanne"
-        yield data_base / "OneDrive - Université de Lausanne"
-        yield from sorted(data_base.glob("OneDrive - Universit* de Lausanne"))
-
-
 def _resolve_cohort_paths(data_base):
     """Find explicit or automatically discovered Lab data and analysis roots.
 
     Args:
         data_base (str, Path, or None): Parent of the OneDrive Lab folder. None
-            searches OneDriveCommercial, OneDrive, the current user's university
+            uses resolve_lab_root, honoring SOCIAL_FILTERS_LAB_ROOT before
+            OneDriveCommercial, OneDrive, the current user's university
             OneDrive folders, then those below D:\\Alejandro\\Data. Automatic
             discovery requires both Lab/Data/2p and Lab/Analysis directories;
             explicit paths retain their existing lookup and failure behavior.
@@ -130,23 +117,8 @@ def _resolve_cohort_paths(data_base):
         tuple[Path, Path]: Imaging data root and analysis root, in that order.
     """
     if data_base is None:
-        checked_roots = set()
-        attempted_roots = []
-        for onedrive_root in _automatic_onedrive_candidates():
-            key = onedrive_root.resolve()
-            if key in checked_roots:
-                continue
-            checked_roots.add(key)
-            attempted_roots.append(str(onedrive_root))
-            main_path = onedrive_root / "Lab" / "Data" / "2p"
-            analysis_path = onedrive_root / "Lab" / "Analysis"
-            if main_path.is_dir() and analysis_path.is_dir():
-                return main_path, analysis_path
-        raise FileNotFoundError(
-            "Could not find a OneDrive Lab folder containing both Lab/Data/2p "
-            "and Lab/Analysis. Tried: " + "; ".join(attempted_roots)
-            + ". Set settings['data_base'] to the parent of your university OneDrive folder."
-        )
+        lab_root = exio.resolve_lab_root(require_analysis=True)
+        return lab_root / "Data" / "2p", lab_root / "Analysis"
 
     data_base = Path(data_base)
     onedrive_candidates = [

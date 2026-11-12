@@ -12,13 +12,15 @@ from src.analysis_io import find_file_with_suffix
 from src.trial_alignment import build_trial_aligned_traces
 
 
-def resolve_lab_root(lab_root=None):
+def resolve_lab_root(lab_root=None, *, require_analysis=False):
     """Find the local Lab folder without hardcoding one workstation.
 
     Args:
         lab_root (str, Path, or None): Explicit Lab folder; otherwise use
             SOCIAL_FILTERS_LAB_ROOT, OneDrive environment variables, then
             university OneDrive folders under home and D:/Alejandro/Data.
+        require_analysis (bool): Also require Lab/Analysis for automatic cohort
+            loading. False preserves the data-only discovery contract.
 
     Returns:
         Path: Existing Lab folder containing Data/2p.
@@ -34,11 +36,14 @@ def resolve_lab_root(lab_root=None):
                       for key in ("OneDriveCommercial", "OneDrive") if os.environ.get(key)]
         for parent in (Path.home(), Path("D:/Alejandro/Data")):
             candidates.extend(root / "Lab" for root in sorted(parent.glob("OneDrive - Universit* de Lausanne")))
+    candidates = list(dict.fromkeys(candidates))
     for candidate in candidates:
-        if (candidate / "Data" / "2p").is_dir():
+        if ((candidate / "Data" / "2p").is_dir()
+                and (not require_analysis or (candidate / "Analysis").is_dir())):
             return candidate
+    required = "Lab/Data/2p and Lab/Analysis" if require_analysis else "Lab/Data/2p"
     raise FileNotFoundError(
-        "Could not find Lab/Data/2p. Set SOCIAL_FILTERS_LAB_ROOT to your Lab folder. "
+        f"Could not find {required}. Set SOCIAL_FILTERS_LAB_ROOT to your Lab folder. "
         "Tried: " + "; ".join(map(str, candidates)))
 
 

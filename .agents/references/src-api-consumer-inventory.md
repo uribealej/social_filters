@@ -27,10 +27,10 @@ This inventory was established on 2026-09-25 during S01 of the [completed refact
 ## Audit coverage
 
 - 19 active notebooks are covered by the consumer inventory, including Exp 8 notebooks 03 (control-referenced onset comparisons) and 04 (population trajectories).
-- 4 active Python scripts under `scripts/` were scanned with the Python AST.
+- 5 active Python scripts under `scripts/` were scanned with the Python AST.
 - 18 notebooks currently import or call `src`.
 - `notebooks/calcium/preprocessing/2P_Experiment_FileOps.ipynb` currently has no `src` import.
-- None of the 4 stimulus generation/playback scripts currently imports `src`.
+- The rocking/flicker generators and playback wrapper import `src.data_loading.resolve_lab_root` for portable default paths; generation and timing behavior remain script-owned.
 - All active notebook code cells now compile after S12 step 3 corrected the pre-existing syntax error in raw cell 2 of `notebooks/calcium/exp_08_accumulation_ev/02_bout_flicker_position_onset.ipynb`.
 - Files under `archive/` and `.agents/history/` were excluded.
 
@@ -39,10 +39,11 @@ their owner and output stages. The dFoF batch notebook already calls
 `src.dff_extraction.process_suite2p_fluorescence`; its import guidance now
 points only to this repository. The file-ops notebook has no reusable `src`
 call. The stimulus inspection notebook calls `src.stimulus_visualization`
-directly. The three trajectory generators and playback script intentionally
-remain experiment-specific asset wrappers without `src` imports; downstream
-timing interpretation belongs to `src.stimuli_timeline`. No consumer import or
-machine-contract symbol changed in this audit.
+directly. The generators and playback script remain experiment-specific asset wrappers;
+downstream timing interpretation belongs to `src.stimuli_timeline`. Portable
+default path discovery now uses `src.data_loading.resolve_lab_root` in the
+rocking/flicker generators and playback wrapper; explicit generator output
+paths remain authoritative. The machine consumer contract records these imports.
 
 ## Consumer overview
 
@@ -738,3 +739,7 @@ When an active consumer changes:
 3. Update `symbol-index.md` when the stable public surface changed.
 4. Validate the owner and the first downstream consumer.
 5. Preserve an old import through a facade until the planned migration slice closes.
+
+## Portable path discovery
+
+Automatic several-fish discovery delegates to `data_loading.resolve_lab_root(require_analysis=True)`, honoring `SOCIAL_FILTERS_LAB_ROOT` before OneDrive/home/D-drive discovery and requiring data and analysis under one Lab root. Explicit `lab_root` and `data_base` settings retain precedence. Generator defaults keep their existing experiment subfolders under `Lab/Data/stimuli`; playback keeps `Lab/Results/Paper/2p_derived/Exp_9_RF_memory_inhibition/stimuli`.

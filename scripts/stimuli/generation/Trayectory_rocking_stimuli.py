@@ -4,6 +4,12 @@ import json
 import pandas as pd
 from datetime import datetime
 from pathlib import Path
+import sys
+
+# Support direct execution as well as an installed editable package.
+if not __package__:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+from src.data_loading import resolve_lab_root
 
 
 def generate_circular_rocking_trajectory(
@@ -171,7 +177,7 @@ def generate_circular_rocking_trajectory(
 #
 # Final config/main section.
 DEFAULT_EXPERIMENT_CONFIG = {
-    "output_path": r"D:\Alejandro\Data\OneDrive - Université de Lausanne\Lab\Data\stimuli\Exp_6_mapping_positions_retina_3",
+    "output_path": None,  # None selects the local Lab folder.
     "radius_cm": 1.8,
     "speed_cm_sec": 0.497,
     "framerate": 60,
@@ -218,7 +224,9 @@ n_repetitions = experiment_config["n_repetitions"]
 pause_before_sec = experiment_config["pause_before_sec"]
 pause_after_sec = experiment_config["pause_after_sec"]
 
-output_path = Path(experiment_config["output_path"])
+configured_output = experiment_config["output_path"]
+output_path = (Path(configured_output) if configured_output is not None else
+               resolve_lab_root() / "Data" / "stimuli" / "Exp_6_mapping_positions_retina_3")
 output_path.mkdir(parents=True, exist_ok=True)
 
 saved_angles = {}

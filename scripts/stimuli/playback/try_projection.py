@@ -1,14 +1,18 @@
 import time
 from pathlib import Path
+import sys
+
+if not __package__:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+from src.data_loading import resolve_lab_root
 
 import pandas as pd
 import pyglet
 from psychopy import core, event, monitors, visual
 
 # === Parameters ===
-stimuli_path = Path(
-    r"D:\Alejandro\Data\OneDrive - Université de Lausanne\Lab\Results\Paper\2p_derived\Exp_9_RF_memory_inhibition\stimuli"
-)
+stimuli_path = (resolve_lab_root() / "Results" / "Paper" / "2p_derived"
+                / "Exp_9_RF_memory_inhibition" / "stimuli")
 screen_index = 0  # Adjust if needed
 physical_width_cm = 59.0
 viewing_distance_cm = 20.0

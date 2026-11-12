@@ -48,3 +48,6 @@ environment and end-to-end analysis entry points are still being standardized.
 
 Notebook outputs are removed from commits with `nbstripout`; its Git filter
 must be installed separately in each clone with the command above.
+Before running repository checks or committing an executed notebook, clear its
+saved outputs and execution counts with `nbstripout <notebook.ipynb>`.
+The notebook smoke tests check this policy as well as cell syntax.
