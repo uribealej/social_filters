@@ -11,6 +11,8 @@ def validate_phase_metadata(phases, trajectories_path):
     all frame boundaries refer to the trajectory, not the imaging recording.
     Missing, nonfinite, inconsistent or duplicate records raise ValueError.
     """
+    if "test_window_onset_frame" in phases:
+        return _validate_test_window_metadata(phases, trajectories_path)
     phases = phases.copy()
     required = ["stimulus_key", "trajectory_file", "framerate", "n_frames",
                 "preconditioning_offset_frame", "bout_onset_frame", "bout_offset_frame",
@@ -43,6 +45,65 @@ def validate_phase_metadata(phases, trajectories_path):
         visible = (radii > 0).any(axis=1)
         pre, bout = int(boundaries[1]), int(boundaries[2])
         if visible[pre:bout].any() or not visible[bout] or (pre and not visible[pre - 1]):
+            raise ValueError(f"Visibility disagrees with phase boundaries: {row.stimulus_key}")
+    return phases.set_index("stimulus_key", drop=False)
+
+
+def _validate_test_window_metadata(phases, trajectories_path):
+    """Validate initial blanks and omitted-bout controls without inventing bouts.
+
+    Optional extended schema: all frame intervals are end-exclusive. The
+    scheduled test window exists even when bout_present is false and actual
+    bout boundaries are missing. Original three-phase assets use the legacy path.
+    """
+    required = {"stimulus_key", "trajectory_file", "framerate", "n_frames",
+                "initial_blank_sec", "preconditioning_onset_frame", "preconditioning_offset_frame",
+                "preconditioning_sec", "delay_sec", "test_window_onset_frame", "test_window_offset_frame",
+                "test_window_sec", "bout_present", "bout_onset_frame", "bout_offset_frame",
+                "bout_sec", "observation_sec", "csv_duration_sec"}
+    if required - set(phases):
+        raise ValueError(f"Missing extended phase metadata columns: {required - set(phases)}")
+    if phases.empty or phases.stimulus_key.isna().any() or phases.stimulus_key.duplicated().any():
+        raise ValueError("Phase metadata must contain unique, nonempty stimulus keys.")
+    phases = phases.copy()
+    for row in phases.itertuples(index=False):
+        boundaries = np.array([0, row.preconditioning_onset_frame, row.preconditioning_offset_frame,
+                               row.test_window_onset_frame, row.test_window_offset_frame], dtype=float)
+        durations = np.array([row.initial_blank_sec, row.preconditioning_sec, row.delay_sec,
+                              row.test_window_sec, row.bout_sec, row.observation_sec, row.csv_duration_sec], dtype=float)
+        if (row.framerate != 60 or not np.isfinite(boundaries).all()
+                or not np.isfinite(durations).all() or (durations < 0).any()
+                or not np.isfinite(row.n_frames) or row.n_frames != int(row.n_frames)
+                or np.any(boundaries != boundaries.astype(int)) or (np.diff(boundaries) < 0).any()
+                or boundaries[-1] != row.n_frames or row.test_window_sec <= 0):
+            raise ValueError(f"Invalid test-window phase boundaries: {row.stimulus_key}")
+        if (not np.allclose(np.diff(boundaries) / row.framerate, durations[:4])
+                or not np.isclose(row.csv_duration_sec, row.n_frames / row.framerate)
+                or not np.isclose(row.bout_sec + row.observation_sec, row.test_window_sec)):
+            raise ValueError(f"Phase durations disagree with frames: {row.stimulus_key}")
+        if not isinstance(row.bout_present, (bool, np.bool_)):
+            raise ValueError("bout_present must be a boolean.")
+        if row.bout_present:
+            if (row.bout_onset_frame != row.test_window_onset_frame
+                    or row.bout_offset_frame != row.test_window_offset_frame
+                    or row.bout_sec != row.test_window_sec or row.observation_sec != 0):
+                raise ValueError("Actual bout must occupy the test window.")
+        elif (not pd.isna(row.bout_onset_frame) or not pd.isna(row.bout_offset_frame)
+              or row.bout_sec != 0 or row.observation_sec != row.test_window_sec):
+            raise ValueError("Omitted bout needs missing actual boundaries and a blank observation.")
+        asset = pd.read_csv(Path(trajectories_path) / row.trajectory_file)
+        columns = [c for c in asset if c == "radius" or c.endswith("_radius")]
+        if len(asset) != row.n_frames or not columns:
+            raise ValueError(f"Trajectory shape disagrees with metadata: {row.stimulus_key}")
+        radii = asset[columns].to_numpy(dtype=float)
+        if not np.isfinite(radii).all() or (radii < 0).any():
+            raise ValueError("Invalid visibility values.")
+        visible = (radii > 0).any(axis=1)
+        _, pre_start, pre_end, test_start, end = boundaries.astype(int)
+        if (visible[:pre_start].any() or visible[pre_end:test_start].any()
+                or (pre_end > pre_start and (not visible[pre_start] or not visible[pre_end - 1]))
+                or (row.bout_present and not visible[test_start])
+                or (not row.bout_present and visible[test_start:end].any())):
             raise ValueError(f"Visibility disagrees with phase boundaries: {row.stimulus_key}")
     return phases.set_index("stimulus_key", drop=False)
 
@@ -130,12 +191,17 @@ def build_phase_trial_table(block_log, trial_sequence, phases, stimulus_aliases,
                 block_start_frame=block_index * frames_per_block,
                 block_stop_frame=(block_index + 1) * frames_per_block,
                 local_onset_s=start, onset_s=offset + start,
-                pre_end_s=offset + start + float(phase.preconditioning_sec),
+                pre_end_s=offset + start + float(phase.preconditioning_offset_frame / phase.framerate),
                 bout_onset_s=offset + start + float(phase.bout_onset_frame / phase.framerate),
                 end_s=offset + nominal_end, logged_end_s=offset + end,
                 duration_error_s=end - nominal_end,
                 pre_pause_s=start - events[pre_key],
                 post_pause_s=events.get(f"{block}_prestim{trial + 1}_pause", events[block + "_end"]) - end))
+            if "test_window_onset_frame" in phases.columns:
+                records[-1].update(
+                    bout_present=bool(phase.bout_present),
+                    test_window_onset_s=offset + start + float(phase.test_window_onset_frame / phase.framerate),
+                    test_window_offset_s=offset + start + float(phase.test_window_offset_frame / phase.framerate))
             previous_end = max(end, nominal_end)
     return pd.DataFrame(records)
 from pathlib import Path

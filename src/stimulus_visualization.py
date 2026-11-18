@@ -69,6 +69,7 @@ def load_stimulus_trajectories(
                 "stimulus_name": path.stem.removesuffix("_trajectory"),
                 "dot_id": dot,
                 "time_s": np.arange(len(wide)) / framerate,
+                "x_cm": x, "y_cm": y, "position_radius_cm": np.hypot(x, y),
                 "angle_deg": angles,
                 "dot_size": size,
                 "visible": visible,
@@ -204,11 +205,16 @@ def plot_stimulus_phase_timing(samples, timings, *, figsize=(12, 8)):
         raise ValueError("Timing rows must be nonempty with unique stimulus keys.")
     if set(timings["stimulus_key"]) != set(samples["stimulus_name"]):
         raise ValueError("Timing rows and trajectory samples must name the same stimuli.")
+    extended = "test_window_onset_frame" in timings
     colors = {"Preconditioning": "#ccb9e5", "Blank delay": "#e5e7eb", "Test bout": "#7dcac4"}
+    if extended:
+        colors = {"Initial blank": "#f5e8be", **colors, "Blank observation": "#c6d7ee"}
     fig, ax = plt.subplots(figsize=figsize, layout="constrained")
     labels = []
     for row_index, timing in enumerate(timings.itertuples(index=False)):
-        durations = np.array([timing.preconditioning_sec, timing.delay_sec, timing.bout_sec], dtype=float)
+        durations = np.array(([timing.initial_blank_sec] if extended else [])
+                             + [timing.preconditioning_sec, timing.delay_sec, timing.bout_sec]
+                             + ([timing.observation_sec] if extended else []), dtype=float)
         fps = float(timing.framerate)
         if (not np.isfinite(durations).all() or np.any(durations < 0)
                 or not np.isfinite(fps) or fps <= 0
@@ -240,7 +246,7 @@ def plot_stimulus_phase_timing(samples, timings, *, figsize=(12, 8)):
     ax.set_axisbelow(True)
     ax.legend(handles=[*[Patch(facecolor=color, label=phase) for phase, color in colors.items()],
                        Patch(facecolor="#252525", label="Any dot visible")],
-              loc="upper center", bbox_to_anchor=(0.5, -0.10), ncol=4, frameon=False)
+              loc="upper center", bbox_to_anchor=(0.5, -0.10), ncol=3 if extended else 4, frameon=False)
     return fig
 
 
@@ -258,3 +264,66 @@ def save_stimulus_report(summary, standard_figure, polar_figure, output_dir):
     exported["unique_angles_deg"] = exported["unique_angles_deg"].map(json.dumps)
     exported.to_csv(output_dir / "stimuli_summary.csv", index=False)
     return output_dir
+
+
+def plot_stimulus_geometry(samples, timings, *, cols=4, panel_size=(3.8, 4.0), dish_diameter_mm=87, rotation_angle_deg=45):
+    """Overlay actual pre/test dot footprints in projection-plane millimetres.
+
+    samples retain x_cm/y_cm and dot_size (CSV radius in cm). Colours distinguish
+    temporally separate phases; outlines do not imply simultaneous presentation.
+    """
+    from matplotlib.patches import Circle
+
+    fig, axes = _panel_grid(len(timings), cols, panel_size)
+    limit = dish_diameter_mm / 2 + 2
+    for ax, timing in zip(axes, timings.itertuples(index=False)):
+        trace = samples.loc[samples.stimulus_name == timing.stimulus_key]
+        pre_start = getattr(timing, "preconditioning_onset_frame", 0) / timing.framerate
+        pre_end = timing.preconditioning_offset_frame / timing.framerate
+        test_start = getattr(timing, "test_window_onset_frame", timing.bout_onset_frame) / timing.framerate
+        ax.add_patch(Circle((0, 0), dish_diameter_mm / 2, fill=False, color="0.75", lw=1))
+        for label, mask, color in (
+            ("Preconditioning", (trace.time_s >= pre_start) & (trace.time_s < pre_end), "#9267bb"),
+            ("Test bout", trace.time_s >= test_start, "#138f87"),
+        ):
+            positions = trace.loc[mask & trace.visible, ["x_cm", "y_cm", "dot_size"]].drop_duplicates()
+            for p in positions.itertuples(index=False):
+                ax.add_patch(Circle((p.x_cm * 10, p.y_cm * 10), p.dot_size * 10,
+                                    facecolor=color, edgecolor=color, alpha=0.28, lw=1))
+            if not positions.empty:
+                ax.scatter(positions.x_cm * 10, positions.y_cm * 10, color=color, s=5)
+        rotation = np.deg2rad(rotation_angle_deg)
+        ax.scatter([0], [0], s=10, color="0.2")
+        ax.annotate("", xy=(-5 * np.sin(rotation), 5 * np.cos(rotation)), xytext=(0, 0),
+                    arrowprops={"arrowstyle": "->", "color": "0.2", "lw": 1.2})
+        ax.set(title=timing.stimulus_key, xlabel="Projection x (mm)", ylabel="Projection y (mm)",
+               xlim=(-limit, limit), ylim=(-limit, limit), aspect="equal")
+        ax.grid(alpha=0.18)
+    fig.suptitle(f"Displayed dot footprints by phase; {rotation_angle_deg:g}-degree rotation applied\n"
+                 "Purple: preconditioning; teal: test bout; grey circle: 87 mm dish. Phases are overlaid.", fontsize=12)
+    return fig
+
+
+def export_stimulus_previews(input_dir, timings, *, framerate=60, rotation_angle_deg=45):
+    """Save reproducible previews and the canonical summary from actual CSV samples.
+
+    Returns the summary. The caller preserves old outputs before this writer runs.
+    """
+    samples = load_stimulus_trajectories(input_dir, framerate=framerate, rotation_angle_deg=rotation_angle_deg)
+    summary = summarize_stimuli(samples)
+    standard = plot_stimulus_traces(samples, cols=3, panel_size=(6, 3.8))
+    polar = plot_stimulus_positions(summary, cols=4, panel_size=(3.8, 3.8))
+    try:
+        save_stimulus_report(summary, standard, polar, input_dir)
+    finally:
+        plt.close(standard)
+        plt.close(polar)
+    for name, builder in (("stimuli_timing.png", plot_stimulus_phase_timing),
+                          ("stimuli_geometry.png", plot_stimulus_geometry)):
+        options = {"rotation_angle_deg": rotation_angle_deg} if builder is plot_stimulus_geometry else {}
+        figure = builder(samples, timings, **options)
+        try:
+            figure.savefig(Path(input_dir) / name, dpi=300)
+        finally:
+            plt.close(figure)
+    return summary
