@@ -29,7 +29,7 @@ DEFAULT_CONFIGS = ("trajectory_exp_10_left.json", "trajectory_exp_10_right.json"
 
 
 def load_experiment(config_path):
-    """Validate one side's settings, then calculate its angles once at the bout radius."""
+    """Validate settings and resolve explicit angles or legacy speed-based geometry."""
     path = Path(config_path).resolve()
     raw = json.loads(path.read_text(encoding="utf-8"))
     if set(raw) != {"_experiment"}:
@@ -67,11 +67,27 @@ def load_experiment(config_path):
             raise ValueError(f"Missing positive dot diameter for radius {radius:g} mm.")
     sign = -1 if config["hemifield"] == "left" else 1
     config["angle_ranges"] = [[sign * config["start_angle_deg"], sign * config["max_angle_deg"]]]
-    # Select exactly n positions: the unified generator may sample beyond its end angle.
-    base, _ = build_base_position_table(config)
-    if len(base) < count or np.abs(base.iloc[:count].angle_deg).max() > config["max_angle_deg"]:
-        raise ValueError("Requested positions do not fit the configured angular limits.")
-    base = base.iloc[:count].copy()
+    if "position_angles_deg" in config:
+        angles = np.asarray(config["position_angles_deg"], dtype=float)
+        if (angles.shape != (count,) or not np.isfinite(angles).all()
+                or np.any(angles < config["start_angle_deg"])
+                or np.any(angles > config["max_angle_deg"])
+                or np.any(np.diff(angles) <= 0)):
+            raise ValueError("position_angles_deg must contain n_positions finite, increasing "
+                             "positive angles within the configured limits.")
+        # Reuse the angular positions at every radius; speed must not resample them.
+        radians = np.deg2rad(sign * angles)
+        rotation = np.deg2rad(config["rotation_angle_deg"])
+        x, y = config["radius_cm"] * np.sin(radians), config["radius_cm"] * np.cos(radians)
+        base = pd.DataFrame({"position_id": np.arange(1, count + 1), "angle_deg": sign * angles,
+                             "x": np.round(x * np.cos(rotation) - y * np.sin(rotation), 3),
+                             "y": np.round(x * np.sin(rotation) + y * np.cos(rotation), 3)})
+    else:
+        # Legacy configs retain speed-based sampling, which may extend past the end angle.
+        base, _ = build_base_position_table(config)
+        if len(base) < count or np.abs(base.iloc[:count].angle_deg).max() > config["max_angle_deg"]:
+            raise ValueError("Requested positions do not fit the configured angular limits.")
+        base = base.iloc[:count].copy()
     base.insert(0, "position_index", np.arange(count))
     config["bout_angles_deg"] = base.angle_deg.tolist()
     config["dot_size_on"] = round(config["dot_diameters_mm"][f'{config["radius_cm"] * 10:g}'] / 20, 8)
@@ -116,11 +132,12 @@ def build_stimulus(config, tables, spec):
     off = _frames(config["bout_off_ms"] / 1000, fps, positive=True)
     flicker_on = _frames(config["flicker_on_ms"] / 1000, fps, positive=True)
     flicker_off = _frames(config["flicker_off_ms"] / 1000, fps, positive=True)
-    pulses, pre_length = preconditioning_frames(config["preconditioning_duration_sec"], flicker_on, flicker_off, fps)
-    pause = _frames(config["blank_pause_sec"], fps)
-    test_length = config["n_positions"] * (on + off)
-    test_start, total = pre_length + pause, pre_length + pause + test_length
     has_pre = spec["pre_radius_mm"] is not None
+    pulses, pre_length = (preconditioning_frames(config["preconditioning_duration_sec"], flicker_on, flicker_off, fps)
+                          if has_pre else (0, 0))
+    pause = _frames(config["blank_pause_sec"], fps) if has_pre and spec["bout_present"] else 0
+    test_length = config["n_positions"] * (on + off) if spec["bout_present"] else 0
+    test_start, total = pre_length + pause, pre_length + pause + test_length
     dot_count = config["n_positions"] if has_pre else 1
     values = np.zeros((total, dot_count, 3), dtype=float)
     bout = tables.loc[tables.position_radius_mm == config["radius_cm"] * 10]
@@ -141,8 +158,8 @@ def build_stimulus(config, tables, spec):
     metadata = {
         **spec, "hemifield": config["hemifield"], "trajectory_file": spec["stimulus_key"] + "_trajectory.csv",
         "framerate": fps, "n_frames": total, "n_dots": dot_count,
-        "initial_blank_sec": 0 if has_pre else pre_length / fps,
-        "preconditioning_onset_frame": 0 if has_pre else pre_length,
+        "initial_blank_sec": 0,
+        "preconditioning_onset_frame": 0,
         "preconditioning_offset_frame": pre_length,
         "preconditioning_sec": pre_length / fps if has_pre else 0,
         "preconditioning_requested_sec": config["preconditioning_duration_sec"] if has_pre else 0,
@@ -153,7 +170,7 @@ def build_stimulus(config, tables, spec):
         "bout_onset_frame": test_start if spec["bout_present"] else None,
         "bout_offset_frame": total if spec["bout_present"] else None,
         "bout_sec": test_length / fps if spec["bout_present"] else 0,
-        "observation_sec": 0 if spec["bout_present"] else test_length / fps,
+        "observation_sec": 0,
         "csv_duration_sec": total / fps,
         "bout_on_frames": on, "bout_off_frames": off,
         "flicker_on_frames": flicker_on, "flicker_off_frames": flicker_off,
@@ -178,22 +195,24 @@ def write_descriptions(root, records, experiments):
     """Write operational descriptions and provenance, without scientific outcome claims."""
     definitions = root / "definitions"
     config = experiments[0]["config"]
-    first = records[0]
-    pre_record = next(r for r in records if r["pre_radius_mm"] is not None)
-    pre_sec, pause_sec, test_sec = pre_record["preconditioning_sec"], first["delay_sec"], first["test_window_sec"]
+    bout_record = next(r for r in records if r["pre_radius_mm"] is None)
+    pre_record = next(r for r in records if r["pre_radius_mm"] is not None and r["bout_present"])
+    pre_only = next(r for r in records if not r["bout_present"])
+    pre_sec, pause_sec = pre_record["preconditioning_sec"], pre_record["delay_sec"]
     report = ["# Exp. 10 RF-model distance stimuli", "",
               "Status: planned experiment; generated stimuli, not recorded results.", "",
               "Each CSV contains x/y coordinates and displayed dot radii in cm. Configuration dot sizes are diameters in mm.",
               f"Bout: one dot, {config['n_positions']} positions, {config['bout_on_ms']:g} ms ON / {config['bout_off_ms']:g} ms OFF, radius {config['radius_cm'] * 10:g} mm. The {config['rotation_angle_deg']:g}-degree coordinate rotation is applied once.",
               "Angles before rotation: right " + ", ".join(f"{abs(a):.3f}" for a in config["bout_angles_deg"]) + " degrees; left uses the negative angles.",
-              f"Preconditioning: all {config['n_positions']} fixed dots flicker together for {pre_sec:g} s ({pre_record['preconditioning_pulses']} complete ON pulses; requested target {config['preconditioning_duration_sec']:g} s), then exactly {pause_sec:g} s blank.",
-              f"Bout-alone control: {pre_sec:g} s initial blank + {pause_sec:g} s blank + bout. Preconditioning-only control: {config['pre_only_radius_mm']:g} mm preconditioning + {pause_sec:g} s blank + {test_sec:g} s blank observation.",
-              f"Every CSV is {first['n_frames']} frames at {first['framerate']:g} Hz ({first['csv_duration_sec']:g} s). The scheduled test window is [{first['test_window_onset_frame']}, {first['test_window_offset_frame']}), including the final bout OFF interval.",
+              "Explicit position_angles_deg take precedence over speed/radius sampling when configured; every preconditioning radius uses the same angles.",
+              f"Preconditioning: all {config['n_positions']} fixed dots flicker together for {pre_sec:g} s ({pre_record['preconditioning_pulses']} complete ON pulses; requested target {config['preconditioning_duration_sec']:g} s). Combined conditions then have exactly {pause_sec:g} s blank before the bout.",
+              f"Standalone controls have no blank padding: bout alone is {bout_record['csv_duration_sec']:g} s; preconditioning only at {config['pre_only_radius_mm']:g} mm is {pre_only['csv_duration_sec']:g} s. Combined conditions last {pre_record['csv_duration_sec']:g} s.",
+              f"CSV frame rate: {config['framerate']:g} Hz. Bout ON/OFF cadence is unchanged, including the final bout OFF interval. Preconditioning-only controls have no bout or blank observation window; their test-window boundaries coincide at the CSV end.",
               f"External pauses: {config['pause_before_sec']:g} s before and {config['pause_after_sec']:g} s after each CSV; these are not encoded in the CSVs.", "",
               "## Conditions", "", "| Stimulus | Preconditioning radius (mm) | Test bout |", "|---|---:|---|"]
     for r in records:
-        pre = "None (blank)" if r["pre_radius_mm"] is None else f"{r['pre_radius_mm']:g}"
-        report.append(f"| {r['stimulus_key']} | {pre} | {str(config['radius_cm'] * 10) + ' mm' if r['bout_present'] else 'None; blank observation'} |")
+        pre = "None" if r["pre_radius_mm"] is None else f"{r['pre_radius_mm']:g}"
+        report.append(f"| {r['stimulus_key']} | {pre} | {str(config['radius_cm'] * 10) + ' mm' if r['bout_present'] else 'None'} |")
     report += ["", "## Accepted provisional size correction", "",
                "| Position radius (mm) | Dot diameter (mm) |", "|---:|---:|"]
     report += [f"| {radius:g} | {config['dot_diameters_mm'][f'{radius:g}']:.2f} |" for radius in config["preconditioning_radii_mm"]]

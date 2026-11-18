@@ -52,9 +52,10 @@ def validate_phase_metadata(phases, trajectories_path):
 def _validate_test_window_metadata(phases, trajectories_path):
     """Validate initial blanks and omitted-bout controls without inventing bouts.
 
-    Optional extended schema: all frame intervals are end-exclusive. The
-    scheduled test window exists even when bout_present is false and actual
-    bout boundaries are missing. Original three-phase assets use the legacy path.
+    Optional extended schema: all frame intervals are end-exclusive.
+    Scheduled windows may be empty for preconditioning-only controls with no
+    blank observation. Actual bout boundaries remain missing for omitted bouts.
+    Original three-phase assets use the legacy path.
     """
     required = {"stimulus_key", "trajectory_file", "framerate", "n_frames",
                 "initial_blank_sec", "preconditioning_onset_frame", "preconditioning_offset_frame",
@@ -75,7 +76,7 @@ def _validate_test_window_metadata(phases, trajectories_path):
                 or not np.isfinite(durations).all() or (durations < 0).any()
                 or not np.isfinite(row.n_frames) or row.n_frames != int(row.n_frames)
                 or np.any(boundaries != boundaries.astype(int)) or (np.diff(boundaries) < 0).any()
-                or boundaries[-1] != row.n_frames or row.test_window_sec <= 0):
+                or boundaries[-1] != row.n_frames or row.n_frames <= 0):
             raise ValueError(f"Invalid test-window phase boundaries: {row.stimulus_key}")
         if (not np.allclose(np.diff(boundaries) / row.framerate, durations[:4])
                 or not np.isclose(row.csv_duration_sec, row.n_frames / row.framerate)
@@ -84,13 +85,13 @@ def _validate_test_window_metadata(phases, trajectories_path):
         if not isinstance(row.bout_present, (bool, np.bool_)):
             raise ValueError("bout_present must be a boolean.")
         if row.bout_present:
-            if (row.bout_onset_frame != row.test_window_onset_frame
+            if (row.test_window_sec <= 0 or row.bout_onset_frame != row.test_window_onset_frame
                     or row.bout_offset_frame != row.test_window_offset_frame
                     or row.bout_sec != row.test_window_sec or row.observation_sec != 0):
                 raise ValueError("Actual bout must occupy the test window.")
         elif (not pd.isna(row.bout_onset_frame) or not pd.isna(row.bout_offset_frame)
               or row.bout_sec != 0 or row.observation_sec != row.test_window_sec):
-            raise ValueError("Omitted bout needs missing actual boundaries and a blank observation.")
+            raise ValueError("Omitted bout needs missing actual boundaries and a matching observation duration.")
         asset = pd.read_csv(Path(trajectories_path) / row.trajectory_file)
         columns = [c for c in asset if c == "radius" or c.endswith("_radius")]
         if len(asset) != row.n_frames or not columns:

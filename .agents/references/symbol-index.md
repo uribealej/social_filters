@@ -52,7 +52,7 @@ Not public here yet:
 ### `src/stimuli_timeline.py`
 - `first_trajectory_difference` - first differing coordinate/radius sample in two matching trajectory CSVs, in frames and seconds from stimulus appearance; identical assets return None/NaN.
 - `stimulus_phase_intervals` - validate canonical duration fields and return nominal static/active/static spans in seconds from stimulus appearance.
-- `validate_phase_metadata` - validate exclusive phase boundaries, durations and visibility against trajectory CSV assets.
+- `validate_phase_metadata` - validate exclusive phase boundaries, durations and visibility against trajectory CSV assets. Preconditioning-only controls may have an empty test window and missing actual bout boundaries.
 - `build_phase_trial_table` - construct unrounded phase times from per-fish block logs, validating aliases, trial order and block-contained baselines.
 - `get_motion_timing_simple` - derive timing from trajectory CSVs using plain or dot-prefixed x, y, and radius changes.
 - `transform_stimuli_duration` - canonical owner for normalizing extracted timing dictionaries into the downstream-facing timing contract.

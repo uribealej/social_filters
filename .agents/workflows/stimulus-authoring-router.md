@@ -22,7 +22,7 @@ use the matching row below to open the owner.
 | RF-memory preconditioning, blank-delay/bout composition, or Experiment 9 reports | `canonical-outputs.md` for saved files | `scripts/stimuli/generation/Trajectory_exp_9_generator.py`; `configs/stimuli/trajectory_exp_9_left.json` and `trajectory_exp_9_right.json` |
 | Trajectory geometry, rocking pair logic, flicker cadence, repetitions, pauses, or CSV writer behavior | — | Target script in `scripts/stimuli/generation/` |
 | Mapping JSON, package JSON, experiment parameter content, or per-experiment stimulus config | — | Target JSON file, then generating script if its behavior matters |
-| Timing mismatch between generated CSVs and calcium-analysis interpretation | `canonical-outputs.md` if the file contract is involved | `src/stimuli_timeline.py`, then the generating script if the written trajectory is wrong |
+| Timing mismatch, standalone controls without blank padding, or calcium-analysis interpretation | `canonical-outputs.md` if the file contract is involved | `src/stimuli_timeline.py`, then the generating script if the written trajectory is wrong |
 | Repeated generator-only geometry helpers | `refactor-rules.md` if ownership is unclear | Target script in `scripts/stimuli/generation/` |
 | Shared angle or timing interpretation, including `get_angles_from_positions` | — | `src/stimuli_timeline.py` |
 | Portable generator/playback default folders or Lab-root overrides | `code-authoring-checklist.md` for portability rules | `src/data_loading.py::resolve_lab_root`, then the target wrapper |
