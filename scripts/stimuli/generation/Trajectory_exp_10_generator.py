@@ -195,6 +195,11 @@ def write_descriptions(root, records, experiments):
     """Write operational descriptions and provenance, without scientific outcome claims."""
     definitions = root / "definitions"
     config = experiments[0]["config"]
+    repo = Path(__file__).resolve().parents[3]
+    config_paths = [e["path"].relative_to(repo).as_posix() for e in experiments]
+    config_args = " ".join(f'"{path}"' for path in config_paths)
+    reproduce = ("python -m scripts.stimuli.generation.Trajectory_exp_10_generator "
+                 f'--config {config_args} --output "<package parent>/{root.name}"')
     bout_record = next(r for r in records if r["pre_radius_mm"] is None)
     pre_record = next(r for r in records if r["pre_radius_mm"] is not None and r["bout_present"])
     pre_only = next(r for r in records if not r["bout_present"])
@@ -220,8 +225,9 @@ def write_descriptions(root, records, experiments):
                "These fixed accepted values are not recalculated at generation time. Dish-bottom thickness, eye-height uncertainty, refraction through the dish, and physical projector calibration remain unverified. Apparent shape is not fully matched.",
                "Partial spatial overlap at 14 mm is intentional. The 18 mm preconditioning-only control measures carry-over at that radius only.",
                "", "## Reproduction and provenance", "",
-               "From the social_filters repository: `python -m scripts.stimuli.generation.Trajectory_exp_10_generator`.",
-               "Code: `scripts/stimuli/generation/Trajectory_exp_10_generator.py`; inputs: `configs/stimuli/trajectory_exp_10_left.json` and `trajectory_exp_10_right.json` in that external repository.",
+               f"From the social_filters repository: `{reproduce}`. Replace `<package parent>` with the local parent folder for this package.",
+               "Code: `scripts/stimuli/generation/Trajectory_exp_10_generator.py`; inputs: "
+               + " and ".join(f"`{path}`" for path in config_paths) + ".",
                "The generator reuses unified geometry and experiment 9 pulse completion. Effective settings, source hashes, and repository commit are recorded in [parameters/resolved_settings.json](parameters/resolved_settings.json).",
                "[Timing summary](parameters/stimulus_time_summary.csv) contains explicit phases and actual frame boundaries. Missing bout boundaries mean no bout was presented.",
                "[Summary](stimuli_summary.csv) and the standard, polar, geometry, and timing PNGs are derived from the saved CSVs. The geometry figure displays physical radii and dot footprints; the polar figure displays angular coverage only.",

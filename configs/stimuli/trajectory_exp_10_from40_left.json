@@ -1,0 +1,49 @@
+{
+  "_experiment": {
+    "experiment_id": "Exp_10_RF_model_distance",
+    "hemifield": "left",
+    "radius_cm": 1.2,
+    "speed_cm_sec": 0.497,
+    "framerate": 60,
+    "update_interval_ms": 600,
+    "static_period_sec": 0,
+    "flicker_interval_ms": 300,
+    "bout_on_ms": 300,
+    "bout_off_ms": 300,
+    "flicker_on_ms": 300,
+    "flicker_off_ms": 300,
+    "rotation_angle_deg": 45,
+    "pause_before_sec": 12.5,
+    "pause_after_sec": 12.5,
+    "n_positions": 6,
+    "position_angles_deg": [40.0, 49.492, 58.984001, 68.476002, 77.968003, 87.460004],
+    "start_angle_deg": 40,
+    "max_angle_deg": 160,
+    "preconditioning_duration_sec": 8,
+    "blank_pause_sec": 1,
+    "preconditioning_radii_mm": [
+      12,
+      14,
+      18,
+      22,
+      28
+    ],
+    "pre_only_radius_mm": 18,
+    "dot_diameters_mm": {
+      "12": 2.85,
+      "14": 3.19,
+      "18": 4.0,
+      "22": 4.94,
+      "28": 6.56
+    },
+    "correction_assumptions": {
+      "status": "accepted provisional geometric approximation",
+      "eye_height_mm": 13,
+      "reference_radius_mm": 18,
+      "reference_diameter_mm": 4,
+      "method": "frozen approximate equal-angular-area circular dots",
+      "optical_path": "homogeneous water approximation; dish refraction not modelled",
+      "physical_calibration": "unverified"
+    }
+  }
+}
